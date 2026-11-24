@@ -1,0 +1,67 @@
+// One validator for the browser and the server. The browser runs it before
+// sending, so most mistakes are marked at once; the server runs it again and
+// returns the same {field: {code, params}} map, so the form marks the fields.
+
+import { latinDigits } from './search.js';
+
+const COLOR = /^#[0-9a-f]{6}$/i;
+const USERNAME = /^[a-z0-9._-]+$/;
+
+function checkOne(spec, raw) {
+  const empty = raw === undefined || raw === null || raw === '';
+  if (empty) {
+    if (spec.required) return { error: { code: 'val.required' } };
+    return { value: null };
+  }
+  switch (spec.type) {
+    case 'text':
+    case 'username': {
+      if (typeof raw !== 'string') return { error: { code: 'val.format' } };
+      const value = spec.type === 'username' ? raw.trim().toLowerCase() : raw.trim();
+      if (!value && spec.required) return { error: { code: 'val.required' } };
+      const max = spec.max || 200;
+      if (value.length > max) return { error: { code: 'val.too_long', params: { max } } };
+      if (spec.min && value.length < spec.min) return { error: { code: 'val.too_short', params: { min: spec.min } } };
+      if (spec.type === 'username' && !USERNAME.test(value)) return { error: { code: 'val.username' } };
+      return { value };
+    }
+    case 'password': {
+      if (typeof raw !== 'string') return { error: { code: 'val.format' } };
+      const min = spec.min || 8;
+      if (raw.length < min) return { error: { code: 'val.too_short', params: { min } } };
+      if (raw.length > 200) return { error: { code: 'val.too_long', params: { max: 200 } } };
+      return { value: raw };
+    }
+    case 'int': {
+      // Digits typed in Bangla are stored as Latin digits.
+      const value = typeof raw === 'number' ? raw : Number(latinDigits(raw).trim());
+      if (!Number.isInteger(value)) return { error: { code: 'val.number' } };
+      if (spec.min !== undefined && value < spec.min) return { error: { code: 'val.min', params: { min: spec.min } } };
+      if (spec.max !== undefined && value > spec.max) return { error: { code: 'val.max', params: { max: spec.max } } };
+      return { value };
+    }
+    case 'enum':
+      if (!spec.values.includes(raw)) return { error: { code: 'val.choice' } };
+      return { value: raw };
+    case 'color':
+      if (typeof raw !== 'string' || !COLOR.test(raw)) return { error: { code: 'val.format' } };
+      return { value: raw.toLowerCase() };
+    default:
+      return { error: { code: 'val.format' } };
+  }
+}
+
+// Returns {value, fields}. `fields` is null when everything is valid.
+// Keys that are not in the schema are dropped, so a client can't slip
+// extra flags past the server.
+export function validate(schema, input) {
+  const source = input && typeof input === 'object' ? input : {};
+  const value = {};
+  const fields = {};
+  for (const key of Object.keys(schema)) {
+    const result = checkOne(schema[key], source[key]);
+    if (result.error) fields[key] = { code: result.error.code, params: result.error.params || {} };
+    else value[key] = result.value;
+  }
+  return { value, fields: Object.keys(fields).length ? fields : null };
+}

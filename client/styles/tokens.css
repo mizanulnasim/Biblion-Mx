@@ -1,0 +1,87 @@
+/* Design tokens. The only file with colour values; everything else uses
+   these variables. Light and dark share every name. The accent comes from
+   the person's setting (--accent, set at start-up). */
+
+:root {
+  --accent: #4f46e5;
+  --on-accent: #ffffff;
+
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #eef0f4;
+  --text: #16181d;
+  --text-muted: #5b6170;
+  --border: #d9dce3;
+  --focus: #4f46e5;
+
+  --ok-bg: #e3f4ea;
+  --ok-text: #14633a;
+  --warn-bg: #fff3d6;
+  --warn-text: #7a4b00;
+  --danger: #b42318;
+  --danger-bg: #fde7e5;
+  --muted-bg: #eceef2;
+  --muted-text: #4a5060;
+  --scrim: rgb(10 12 16 / 45%);
+  --shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 4px 12px rgb(16 24 40 / 8%);
+  --logo-filter: none;
+
+  --radius: 10px;
+  --radius-small: 6px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  --font-bn: "Noto Sans Bengali", "Hind Siliguri", "Nirmala UI", "Vrinda", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111318;
+    --surface: #1a1d24;
+    --surface-2: #232733;
+    --text: #e8eaf0;
+    --text-muted: #a2a8b8;
+    --border: #333847;
+    --focus: #a5b4fc;
+    --ok-bg: #12321f;
+    --ok-text: #8fdcaf;
+    --warn-bg: #3a2c08;
+    --warn-text: #f5cf73;
+    --danger: #ff8a80;
+    --danger-bg: #3d1714;
+    --muted-bg: #272b36;
+    --muted-text: #b8bdcb;
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 12px rgb(0 0 0 / 30%);
+    --logo-filter: invert(1);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #111318;
+  --surface: #1a1d24;
+  --surface-2: #232733;
+  --text: #e8eaf0;
+  --text-muted: #a2a8b8;
+  --border: #333847;
+  --focus: #a5b4fc;
+  --ok-bg: #12321f;
+  --ok-text: #8fdcaf;
+  --warn-bg: #3a2c08;
+  --warn-text: #f5cf73;
+  --danger: #ff8a80;
+  --danger-bg: #3d1714;
+  --muted-bg: #272b36;
+  --muted-text: #b8bdcb;
+  --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 12px rgb(0 0 0 / 30%);
+  --logo-filter: invert(1);
+  color-scheme: dark;
+}

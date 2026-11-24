@@ -1,0 +1,19 @@
+{
+  "saved.intro": "Entries made without a connection wait here and are sent automatically when you're online. Only your own entries are shown.",
+  "saved.send_all": "Send all now",
+  "saved.empty": "Nothing is waiting on this phone.",
+  "saved.offline": "There's no connection right now. The entries will be sent when it's back.",
+  "saved.waiting": "Waiting",
+  "saved.sending": "Sending…",
+  "saved.needs_input": "Needs your answer",
+  "saved.failed": "Not saved",
+  "saved.made_at": "Made {time}",
+  "saved.answer": "Answer",
+  "saved.send_now": "Send now",
+  "saved.remove": "Remove",
+  "saved.answer_title": "Answer and send",
+  "saved.reason": "Reason",
+  "saved.reason_help": "Say why this entry should be saved as it is.",
+  "saved.remove_title": "Remove this entry?",
+  "saved.remove_body": "\"{label}\" will be deleted from this phone and never sent."
+}

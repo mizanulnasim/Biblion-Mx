@@ -1,0 +1,16 @@
+{
+  "name": "biblion-management",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Accounts, books, café, staff and documents for Biblion bookstore café",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "install-check": "node tools/install.mjs",
+    "build": "node tools/build.mjs",
+    "check": "node tools/check.mjs",
+    "test": "node --test \"tests/**/*.test.mjs\"",
+    "preview": "node tools/preview.mjs",
+    "preview:fresh": "node tools/preview.mjs --fresh"
+  }
+}
