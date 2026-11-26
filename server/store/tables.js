@@ -71,6 +71,8 @@ export const TABLES = Object.freeze({
       'details:j',
       // A publisher payment: the latest date of sales it settles.
       'covers_up_to',
+      // The document filed on the entry (Files).
+      'file_id',
     ],
   },
   // Vendors and publishers. commission: the publisher's discount to the
@@ -91,7 +93,7 @@ export const TABLES = Object.freeze({
   Deliveries: {
     group: 'books',
     prefix: 'DLV',
-    columns: ['date', 'publisher_id', 'challan', 'lines:j', 'total_cost:n', 'paid:n', 'payment_id', 'note', 'entered_by', 'requisition_id', 'charge:n', 'charge_id'],
+    columns: ['date', 'publisher_id', 'challan', 'lines:j', 'total_cost:n', 'paid:n', 'payment_id', 'note', 'entered_by', 'requisition_id', 'charge:n', 'charge_id', 'file_id'],
   },
   // The stock ledger. qty is signed (+ in, − out). Stock on hand is the sum
   // of active movements; a cancelled one keeps its row and reason.
@@ -129,6 +131,23 @@ export const TABLES = Object.freeze({
     group: 'books',
     prefix: 'STK',
     columns: ['number', 'date', 'publisher_id', 'status', 'counts:j', 'started_by', 'applied_by', 'applied_at', 'result:j', 'cancel_reason'],
+  },
+  // Every file kept on Drive. checksum (SHA-256) refuses the same file twice;
+  // record_ids are the records it is filed on.
+  Files: {
+    group: 'core',
+    prefix: 'FIL',
+    columns: ['drive_id', 'name', 'mime', 'size:n', 'checksum', 'sensitive:b', 'uploaded_by', 'status', 'record_ids:j'],
+  },
+  // An uploaded document on its way: reading → needs_kind → ready →
+  // confirmed (or attached to an existing record), or discarded.
+  Intake_Docs: {
+    group: 'core',
+    prefix: 'INT',
+    columns: [
+      'file_id', 'status', 'kind', 'guess', 'text', 'proposal:j', 'ai_used:b', 'result:j',
+      'discard_reason', 'confirmed_by', 'confirmed_at', 'uploaded_by',
+    ],
   },
   // One row per closed date; reopening keeps the row with its reason.
   Day_Closings: {

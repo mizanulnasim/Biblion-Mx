@@ -71,6 +71,7 @@ export function view(entry, names) {
     note: entry.note,
     ref: entry.ref,
     covers_up_to: entry.covers_up_to,
+    file_id: entry.file_id,
     details: entry.details,
     status: entry.status,
     approval: entry.approval,
@@ -288,6 +289,7 @@ export function record(ctx, entry, input, { checkDuplicates = true } = {}) {
     ref: entry.ref,
     details: entry.details || null,
     covers_up_to: entry.covers_up_to || '',
+    file_id: entry.file_id || '',
     status: 'active',
     approval: decision.final ? 'final' : 'waiting',
     wait_reasons: decision.reasons,
@@ -306,9 +308,14 @@ export function record(ctx, entry, input, { checkDuplicates = true } = {}) {
   return saved(row.id, { approval: row.approval, reasons: decision.reasons });
 }
 
-function save(ctx, input) {
+// A money entry checked and ready for record(), without saving it.
+export function prepareEntry(ctx, input) {
   if (kindAccess(permissionsOf(ctx), input.kind) === 'none') throw new AppError('FORBIDDEN');
-  return record(ctx, shape(ctx.db, input), input);
+  return shape(ctx.db, input);
+}
+
+function save(ctx, input) {
+  return record(ctx, prepareEntry(ctx, input), input);
 }
 
 function cancel(ctx, input) {

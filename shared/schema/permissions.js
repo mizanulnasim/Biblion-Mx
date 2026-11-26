@@ -16,6 +16,7 @@
 //   books.requisition draft, send and close requisitions to publishers
 //   books.order       take a customer's special order (staff too)
 //   books.orders      see and follow up special orders (customer names and phones)
+//   intake.upload     upload documents and confirm what they make
 //   setup.books       vendors and publishers and their terms
 //   acc.view_all      see every money entry and the account balances
 //   acc.approve       approve entries waiting for a shareholder
@@ -27,7 +28,7 @@ const PERMISSIONS = Object.freeze([
   'acc.daily', 'closing.day', 'acc.view_all', 'acc.approve', 'acc.setup',
   'acc.vendor.purchase', 'acc.vendor.pay', 'acc.publisher.pay',
   'books.view', 'books.catalog', 'books.receive', 'books.sell', 'books.adjust', 'setup.books',
-  'books.requisition', 'books.order', 'books.orders', 'settings.books',
+  'books.requisition', 'books.order', 'books.orders', 'settings.books', 'intake.upload',
 ]);
 
 // Staff never enter money, so the Staff role has no money permission.
@@ -36,7 +37,7 @@ export const ROLES = Object.freeze([
   { id: 'ROL-MANAGER', key: 'manager', name: 'role.manager', level: 2, permissions: [
     'acc.entry', 'acc.expense', 'acc.transfer', 'acc.dues', 'acc.daily', 'closing.day', 'acc.vendor.purchase',
     'books.view', 'books.catalog', 'books.receive', 'books.sell', 'books.adjust',
-    'books.requisition', 'books.order', 'books.orders',
+    'books.requisition', 'books.order', 'books.orders', 'intake.upload',
   ] },
   { id: 'ROL-STAFF', key: 'staff', name: 'role.staff', level: 1, permissions: ['books.order', 'books.view'] },
 ]);

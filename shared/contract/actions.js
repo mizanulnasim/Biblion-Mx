@@ -11,6 +11,7 @@
 
 import { ROLES } from '../schema/permissions.js';
 import { KINDS, SCREEN_KINDS } from '../money/kinds.js';
+import { INTAKE_KINDS, MAX_UPLOAD_BYTES, UPLOAD_TYPES } from '../intake/kinds.js';
 
 // Bumped whenever a request or reply changes shape. A client built for another
 // contract is told to update itself (v1 bug S10).
@@ -301,6 +302,52 @@ export const ACTIONS = Object.freeze({
   },
   'books.stocktake.apply': { write: true, perm: 'books.adjust', area: 'books', schema: { id: { type: 'id', required: true } } },
   'books.stocktake.cancel': { write: true, perm: 'books.adjust', area: 'books', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 300 } } },
+
+  // Uploads: a document comes in, is read, is told what it is, and its
+  // entries are checked and confirmed in one go (or it is filed on an
+  // existing record, or discarded).
+  'intake.upload': {
+    write: true, perm: 'intake.upload', area: 'intake',
+    schema: {
+      name: { type: 'text', required: true, max: 120 },
+      mime: { type: 'enum', required: true, values: UPLOAD_TYPES },
+      data: { type: 'text', required: true, max: Math.ceil(MAX_UPLOAD_BYTES * 4 / 3) + 4 },
+    },
+  },
+  'intake.kind': { write: true, perm: 'intake.upload', area: 'intake', schema: { id: { type: 'id', required: true }, kind: { type: 'enum', required: true, values: Object.keys(INTAKE_KINDS) } } },
+  'intake.get': { perm: 'intake.upload', schema: { id: { type: 'id', required: true } } },
+  'intake.list': { perm: 'intake.upload', schema: { ...PAGED, status: { type: 'enum', values: ['open', 'done'] } } },
+  'intake.confirm': {
+    write: true, perm: 'intake.upload', area: 'money',
+    schema: {
+      id: { type: 'id', required: true },
+      // A money entry …
+      kind: { type: 'enum', values: SCREEN_KINDS },
+      date: { type: 'date', required: true },
+      amount: { type: 'money' },
+      account_id: { type: 'id' },
+      to_account_id: { type: 'id' },
+      category_id: { type: 'id' },
+      party_id: { type: 'id' },
+      ref: { type: 'text', max: 60 },
+      note: { type: 'text', max: 300 },
+      // … or a book delivery.
+      publisher_id: { type: 'id' },
+      challan: { type: 'text', max: 60 },
+      lines: { type: 'list', max: 300, of: { book_id: { type: 'id' }, title: { type: 'text', max: 200 }, printed_price: { type: 'money', required: true }, qty: { type: 'int', required: true, min: 1, max: 10000 } } },
+      paid: { type: 'money', zero: true },
+      paid_account_id: { type: 'id' },
+      reason: { type: 'text', max: 500 },
+    },
+  },
+  'intake.attach': { write: true, perm: 'intake.upload', area: 'intake', schema: { id: { type: 'id', required: true }, record_id: { type: 'id', required: true } } },
+  'intake.discard': { write: true, perm: 'intake.upload', area: 'intake', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 300 } } },
+  'files.get': { perm: 'intake.upload', schema: { id: { type: 'id', required: true } } },
+  'settings.intake': { perm: 'settings.manage' },
+  'settings.intake.save': {
+    write: true, perm: 'settings.manage', replay: false,
+    schema: { ai: { type: 'enum', required: true, values: ['off', 'bills'] }, key: { type: 'text', max: 200 }, clear_key: { type: 'bool' } },
+  },
 
   'settings.books': { perm: 'settings.books' },
   'settings.books.save': {

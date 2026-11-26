@@ -35,6 +35,6 @@ export function shop() {
     rahim: id(call(owner, 'setup.contact.save', { name: 'Rahim', phone: '01711000000', opening_due: 300, status: 'active' })),
     karim: id(call(owner, 'setup.shareholder.save', { name: 'Karim', status: 'active' })),
   };
-  return { server, call, owner, manager: login('manager', 'manager-pass'), staff: login('staff', 'staff-pass'), ids };
+  return { state, server, call, owner, manager: login('manager', 'manager-pass'), staff: login('staff', 'staff-pass'), ids };
 }
 

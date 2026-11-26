@@ -19,6 +19,9 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   // a first requisition looks back this many days of sales.
   'books.req_auto': 'off',
   'books.req_days': 30,
+  // Reading documents: the optional Gemini key is used for receipts and bills
+  // ('bills') or not at all ('off').
+  'intake.ai': 'off',
   'approve.rule.other': 'final',
 });
 

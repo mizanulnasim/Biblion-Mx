@@ -182,6 +182,11 @@ function checkDelivery(db, input) {
 const plainEntry = { to_account_id: '', category_id: '', party_id: '', direction: '', covers_up_to: '' };
 
 function saveDelivery(ctx, input) {
+  return createDelivery(ctx, input, '');
+}
+
+// Used by the delivery form and by an uploaded challan (with its file).
+export function createDelivery(ctx, input, fileId) {
   const { db } = ctx;
   assertDayOpen(ctx, input.date, 'date');
   const { publisher, req } = checkDelivery(db, input);
@@ -253,7 +258,7 @@ function saveDelivery(ctx, input) {
   db.insert('Deliveries', {
     id, date: input.date, publisher_id: publisher.id, challan: input.challan || '', lines: stored, total_cost: total,
     paid: input.paid || 0, payment_id: paymentId, note: input.note || '', entered_by: ctx.user.id,
-    requisition_id: req ? req.id : '', charge: input.charge || 0, charge_id: chargeId,
+    requisition_id: req ? req.id : '', charge: input.charge || 0, charge_id: chargeId, file_id: fileId,
   });
   return saved(id, { total_cost: total, payment_id: paymentId, charge_id: chargeId });
 }

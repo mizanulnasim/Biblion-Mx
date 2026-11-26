@@ -111,9 +111,21 @@ function supplierExpense(entry, others, suppliers) {
   return out;
 }
 
+// E. The same bKash transaction id twice is refused: one transaction, one
+// entry. A TrxID is 10 letters and digits; vendor bills have their own check.
+const TRX_ID = /^(?=.*[A-Z])(?=.*\d)[A-Z0-9]{10}$/;
+
+function trxTwice(entry, others) {
+  const ref = String(entry.ref || '').trim().toUpperCase();
+  if (!TRX_ID.test(ref) || BILL_KINDS.has(entry.kind)) return [];
+  const found = others.filter((o) => String(o.ref || '').trim().toUpperCase() === ref);
+  return found.length ? [{ code: 'dup.trx_id', params: { id: found[0].id }, existing: found.map((o) => o.id), blocks: 'ref' }] : [];
+}
+
 export function findDuplicates(entry, others, suppliers = []) {
   if (entry.kind === 'daily_shift') return dueTwice(entry, others);
   return [
+    ...trxTwice(entry, others),
     ...vendorBill(entry, others),
     ...twins(entry, others),
     ...transferPair(entry, others),

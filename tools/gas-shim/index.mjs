@@ -97,8 +97,73 @@ function makeSpreadsheet(id, book) {
   };
 }
 
+// state.files: Drive files {name, mime, data (base64), trashed}.
+// state.ocr: text that "text reading" returns for a file name (tests and
+// preview set it; there is no real text recognition on this computer).
+// state.fetch: replies for UrlFetchApp by URL start, or none (no network).
 export function emptyState() {
-  return { props: {}, books: {} };
+  return { props: {}, books: {}, files: {}, ocr: {}, fetch: {} };
+}
+
+function blob(bytes, mime, name) {
+  const buf = typeof bytes === 'string' ? Buffer.from(bytes, 'utf8') : unsigned(bytes);
+  return {
+    getBytes: () => signed(buf),
+    getDataAsString: () => buf.toString('utf8'),
+    getContentType: () => mime,
+    getName: () => name,
+    _buf: buf,
+  };
+}
+
+function driveServices(state) {
+  state.files = state.files || {};
+  state.ocr = state.ocr || {};
+  state.fetch = state.fetch || {};
+  const file = (id) => {
+    const f = state.files[id];
+    if (!f) throw new Error(`No file ${id}`);
+    return {
+      getId: () => id,
+      getBlob: () => blob(signed(Buffer.from(f.data, 'base64')), f.mime, f.name),
+      setTrashed: (v) => { f.trashed = v; },
+    };
+  };
+  const folder = (id) => ({
+    getId: () => id,
+    createFolder: (name) => folder(`FOLDER-${name}-${crypto.randomUUID().slice(0, 8)}`),
+    createFile: (b) => {
+      const fid = `FILE-${crypto.randomUUID()}`;
+      state.files[fid] = { name: b.getName(), mime: b.getContentType(), data: b._buf.toString('base64'), trashed: false, folder: id };
+      return file(fid);
+    },
+  });
+  return {
+    DriveApp: {
+      createFolder: (name) => folder(`FOLDER-${name}`),
+      getFolderById: (id) => folder(id),
+      getFileById: (id) => file(id),
+    },
+    Drive: {
+      Files: {
+        create(meta, b) {
+          const id = `DOC-${crypto.randomUUID()}`;
+          state.files[id] = { name: meta.name, mime: meta.mimeType, data: Buffer.from(state.ocr[b.getName()] || '', 'utf8').toString('base64'), trashed: false };
+          return { id };
+        },
+      },
+    },
+    DocumentApp: {
+      openById: (id) => ({ getBody: () => ({ getText: () => Buffer.from(state.files[id].data, 'base64').toString('utf8') }) }),
+    },
+    UrlFetchApp: {
+      fetch(url) {
+        const key = Object.keys(state.fetch).find((k) => url.startsWith(k));
+        if (!key) throw new Error('No network on this computer');
+        return { getResponseCode: () => 200, getContentText: () => JSON.stringify(state.fetch[key]) };
+      },
+    },
+  };
 }
 
 export function gasGlobals(state) {
@@ -126,9 +191,11 @@ export function gasGlobals(state) {
       DigestAlgorithm: { SHA_256: 'sha256' },
       Charset: { UTF_8: 'utf8' },
       getUuid: () => crypto.randomUUID(),
-      newBlob: (text) => ({ getBytes: () => signed(Buffer.from(text, 'utf8')) }),
+      newBlob: (data, mime = 'text/plain', name = '') => blob(data, mime, name),
+      base64Decode: (text) => signed(Buffer.from(text, 'base64')),
+      base64Encode: (bytes) => unsigned(bytes).toString('base64'),
       computeHmacSha256Signature: (value, key) => signed(crypto.createHmac('sha256', unsigned(key)).update(unsigned(value)).digest()),
-      computeDigest: (alg, text) => signed(crypto.createHash(alg).update(text, 'utf8').digest()),
+      computeDigest: (alg, data) => signed(crypto.createHash(alg).update(typeof data === 'string' ? Buffer.from(data, 'utf8') : unsigned(data)).digest()),
     },
     ContentService: {
       MimeType: { JSON: 'application/json' },
@@ -137,6 +204,7 @@ export function gasGlobals(state) {
         return out;
       },
     },
+    ...driveServices(state),
     console,
   };
 }
