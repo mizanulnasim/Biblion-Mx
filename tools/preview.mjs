@@ -38,6 +38,13 @@ function seed(server, state) {
   call(server, 'setup.owner', { code: state.props.SETUP_CODE, display_name: owner.display_name, username: owner.username, password: owner.password });
   const token = call(server, 'auth.login', { username: owner.username, password: owner.password }).data.data.token;
   for (const u of others) call(server, 'users.save', { ...u, status: 'active' }, token);
+  // Sample setup so the money screen can be tried at once (preview only).
+  const accounts = [['Cash drawer', 'drawer', 5000], ['bKash', 'bkash', 2000], ['City Bank', 'bank', 50000]];
+  for (const [name, kind, opening] of accounts) call(server, 'setup.account.save', { name, kind, opening, status: 'active' }, token);
+  const categories = [['Milk', 'cafe', false], ['Snacks', 'cafe', false], ['Utilities', 'shared', false], ['Rent', 'shared', true], ['Book shipping', 'books', false]];
+  for (const [name, area, needs] of categories) call(server, 'setup.category.save', { name, area, needs_shareholder: needs, status: 'active' }, token);
+  call(server, 'setup.contact.save', { name: 'Rahim (regular)', phone: '01711000000', opening_due: 350, status: 'active' }, token);
+  for (const name of ['Preview Owner', 'Second Shareholder']) call(server, 'setup.shareholder.save', { name, status: 'active' }, token);
   call(server, 'auth.logout', {}, token);
 }
 

@@ -43,7 +43,7 @@ function sameName(rows, input) {
 
 // "Utility" and "Utilities", "Snack" and "Snacks": the same word.
 function stem(name) {
-  return name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '').replace(/(ies|es|s)$/u, '');
+  return name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '').replace(/ies$/u, 'y').replace(/(?:es|s)$/u, '');
 }
 
 function saveAccount(ctx, input) {

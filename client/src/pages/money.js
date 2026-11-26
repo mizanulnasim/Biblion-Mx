@@ -15,7 +15,7 @@ import { openEntry } from './money-entry.js';
 function balancesView(accounts) {
   return html`<ul class="balances">${accounts.map((a) => html`<li class="balance">
     <span class="balance-name">${a.name}</span>
-    <span class="muted">${t(ACCOUNT_KINDS[a.kind])}</span>
+    ${t(ACCOUNT_KINDS[a.kind]) === a.name ? '' : html`<span class="muted">${t(ACCOUNT_KINDS[a.kind])}</span>`}
     <strong class="balance-amount ${a.balance < 0 ? 'is-negative' : ''}">${money(a.balance)}</strong>
   </li>`)}</ul>`;
 }

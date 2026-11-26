@@ -54,3 +54,22 @@ These decisions were made by the owner on 24 Nov 2026. Where they differ from `B
 ## Deployment and workflow
 - `clasp` may be used to deploy to Apps Script. It is never part of the app.
 - Work goes on a branch and reaches `main` through a pull request the owner reviews.
+
+## Milestone 2: money (assumptions to confirm)
+These are working choices made while building. Each is easy to change.
+- **Scope.** The money screen has the Money kinds and the shareholder pay kinds:
+  - Vendors and Publishers come with the Books milestone, with their separate ledger.
+  - Staff pay comes with HR.
+  - The shareholder "Advance given" and "Salary deduction" come with payroll.
+- **Due taken** means a person took goods and will pay later. No money moves; their due goes up. **Due collected** brings the money into an account and lowers their due.
+- **Loan repayment** asks who pays back: the shareholder pays the shop, or the shop pays the shareholder.
+- **Approval switches start as "final for a manager".** The amount limit starts at Tk 2,000. A shareholder can change both in Settings → Approvals.
+- **Manager permissions.** Managers may enter expenses, transfers and dues directly. Other income and loans can be sent as requests. Shareholder pay is for shareholders only.
+- **Who sees what.**
+  - Managers see only the money entries they made, and no account balances.
+  - Shareholders see everything.
+- **Corrections and cancellations.**
+  - The person who made an entry may correct or cancel it while it waits.
+  - After that, only a shareholder can correct or cancel it.
+- **Amounts** are shown with Bangladesh digit grouping: Tk 1,00,000.
+- **Closed months** are locked in the month-closing milestone. Until then, no month is locked.

@@ -46,6 +46,8 @@ test('setup: one cash drawer, and similar category names are pointed out', () =>
   const similar = call(owner, 'setup.category.save', { name: 'Milks', area: 'cafe', status: 'active' }).data;
   assert.deepEqual(similar.error.fields.name, { code: 'val.similar', params: { name: 'Milk' } });
   assert.equal(call(owner, 'setup.category.save', { name: 'Milks', area: 'cafe', status: 'active', confirm_similar: true }).data.status, 'saved');
+  call(owner, 'setup.category.save', { name: 'Utilities', area: 'shared', status: 'active' });
+  assert.deepEqual(call(owner, 'setup.category.save', { name: 'Utility', area: 'shared', status: 'active' }).data.error.fields.name.params, { name: 'Utilities' });
 });
 
 test('staff never reach the money screen', () => {
