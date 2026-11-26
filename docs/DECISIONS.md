@@ -156,3 +156,25 @@ These are working choices made while building. Each is easy to change.
   - staff papers (private, no text kept), statements and matching, the Loyverse import, customer and loyalty cards, shopping lists and quotations;
   - document expiry, search and email;
   - checking the reading rules against the owner's real documents.
+
+## Milestone 7: café (assumptions to confirm)
+- **Item kinds:** café **stock** is counted at every daily closing; **supplies** are checked when ordering (the on-hand box on an order).
+- **The checklist of 38 common items** (19 stock, 19 supplies) was written for v2, with Bangla names, units, shelf life and usual cover. Edit or extend it freely.
+- **Staff do the daily count:** count, waste with a reason, and expired. It can be saved offline. Staff see no orders or costs.
+- **Use is worked out between counts:**
+  - the earlier count + what came in − waste − expired − the new count;
+  - correcting an earlier day recalculates the later days;
+  - before an item's first count it had nothing on hand except what came in.
+- **Suggested amounts:**
+  - daily use over the last 4 weeks (at least 14 days of counts; a setting) × (days to buy for + days until it arrives) − what's on hand;
+  - rounded up to the order multiple, and at least the smallest order;
+  - "Buy for" is never longer than an item keeps.
+  - "Automatic" means the item's shelf life, up to a month.
+- **A changed amount needs a reason,** kept on the order.
+- **A manager's order is final by default,** or a shareholder confirms it (Settings → Café). Nobody approves their own.
+- **Each bill is a vendor purchase** (paid now or on credit), with the usual duplicate checks and money approvals. Its items come in as batches. Expiry is the date typed, or the received date plus the item's shelf life.
+- **Expiry:** each batch is used up oldest first, and what's left in a batch expiring within 2 days (a setting) is listed on the count page.
+- **Day closing** shows the café count as a step to check; it doesn't block closing.
+- **Still to come:**
+  - PDF and Excel copies of an order come with the downloads milestone.
+  - Linking names typed on bills to items, and comparing with Loyverse café sales, come with uploads part 2.

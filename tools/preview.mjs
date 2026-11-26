@@ -50,6 +50,18 @@ function seed(server, state) {
   supplier({ kind: 'vendor', name: 'Milk Vita' });
   const titles = [['Padma Nadir Majhi', 'Manik Bandopadhyay', 400], ['Aranyak', 'Bibhutibhushan', 350], ['Lalsalu', 'Syed Waliullah', 250]];
   for (const [title, author, price] of titles) call(server, 'books.save', { title, author, publisher_id: pathak, printed_price: price, status: 'active' }, token);
+  // Café: a few common items, milk from Milk Vita, and 15 days of counts.
+  const keys = ['milk', 'bread', 'eggs', 'coffee', 'sugar', 'cups'];
+  call(server, 'cafe.starter.add', { keys: keys.map((key) => ({ key })) }, token);
+  const items = call(server, 'cafe.items', {}, token).data.items;
+  const vendor = call(server, 'suppliers.list', {}, token).data.items.find((x) => x.name === 'Milk Vita');
+  const milk = items.find((i) => i.name === 'Milk');
+  call(server, 'cafe.item.save', { ...milk, vendor_id: vendor.id }, token);
+  const day = (n) => new Date(Date.now() + 6 * 3600000 - n * 86400000).toISOString().slice(0, 10);
+  for (let n = 15; n >= 1; n--) {
+    const lines = ['Milk', 'Bread', 'Eggs'].map((name, k) => ({ item_id: items.find((i) => i.name === name).id, counted: 200 - (15 - n) * (4 + k * 3) }));
+    call(server, 'cafe.count.save', { date: day(n), lines }, token);
+  }
   for (const name of ['Preview Owner', 'Second Shareholder']) call(server, 'setup.shareholder.save', { name, status: 'active' }, token);
   call(server, 'auth.logout', {}, token);
 }

@@ -22,6 +22,7 @@ function stepText(step) {
     if (step.state === 'done') return t('closing.step.drawer_done');
     return t(step.params.short ? 'closing.step.drawer_short' : 'closing.step.drawer_over', { amount: money(step.params.amount) });
   }
+  if (step.id === 'cafe') return step.state === 'done' ? t('closing.step.cafe_done') : t('closing.step.cafe_warn');
   if (step.id === 'phone') return step.state === 'done' ? t('closing.step.phone_done') : t('closing.step.phone_warn', { count: step.params.count });
   return step.state === 'done' ? t('closing.step.waiting_done') : t('closing.step.waiting_warn', { count: step.params.count });
 }
@@ -29,6 +30,7 @@ function stepText(step) {
 function stepLink(step, date) {
   if (step.id === 'shift' || step.id === 'drawer') return `#/daily?date=${date}`;
   if (step.id === 'waiting') return '#/money?state=waiting';
+  if (step.id === 'cafe') return `#/cafe/count?date=${date}`;
   return '#/saved';
 }
 

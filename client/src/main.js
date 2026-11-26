@@ -32,6 +32,10 @@ import { settingsBooksPage } from './pages/settings-books.js';
 import { uploadPage, uploadsPage } from './pages/upload.js';
 import { uploadDocPage } from './pages/upload-doc.js';
 import { settingsIntakePage } from './pages/settings-intake.js';
+import { cafeCountPage } from './pages/cafe-count.js';
+import { cafeItemsPage } from './pages/cafe-items.js';
+import { cafeOrderPage, cafeOrdersPage } from './pages/cafe-orders.js';
+import { settingsCafePage } from './pages/settings-cafe.js';
 import { NAV } from './pages/nav.js';
 import { html, render } from './ui/html.js';
 
@@ -86,7 +90,7 @@ async function startSession({ token, meta }) {
   shell = mountShell(root, { items: NAV, onSignOut: signOut });
   startRouter({
     // Pages a person has no permission for are not routes for them at all.
-    routes: [homePage, dailyPage, closingPage, booksPage, deliveryPage, deliveriesPage, bookSalesPage, suppliersPage, requisitionsPage, requisitionPage, orderFormPage, ordersPage, stocktakePage, settingsBooksPage, uploadPage, uploadsPage, uploadDocPage, settingsIntakePage, moneyPage, moneyFormPage, setupMoneyPage, approvalsPage, usersPage, activityPage, savedPage, mePage].filter((p) => !p.perm || can(p.perm)).concat(notFound),
+    routes: [homePage, dailyPage, closingPage, booksPage, deliveryPage, deliveriesPage, bookSalesPage, suppliersPage, requisitionsPage, requisitionPage, orderFormPage, ordersPage, stocktakePage, settingsBooksPage, uploadPage, uploadsPage, uploadDocPage, settingsIntakePage, cafeCountPage, cafeItemsPage, cafeOrdersPage, cafeOrderPage, settingsCafePage, moneyPage, moneyFormPage, setupMoneyPage, approvalsPage, usersPage, activityPage, savedPage, mePage].filter((p) => !p.perm || can(p.perm)).concat(notFound),
     outlet: shell.outlet,
     onChange: (page, path) => shell.setPage(page, path),
     confirmLeave: () => confirmDialog({ title: t('guard.title'), body: t('guard.body'), ok: t('guard.leave'), tone: 'danger' }),

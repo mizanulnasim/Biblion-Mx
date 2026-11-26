@@ -392,3 +392,20 @@ fieldset.panel legend { padding: 0 var(--space-2); margin-left: calc(-1 * var(--
 .kind-btn { flex-direction: column; min-height: 56px; white-space: normal; text-align: center; }
 .kind-guess { font-size: 0.75rem; font-weight: 400; }
 @media (max-width: 960px) { .check { grid-template-columns: minmax(0, 1fr); } .check .scan { position: static; } }
+
+/* ---- Café ---- */
+.count-rows { display: grid; gap: var(--space-2); }
+.count-row {
+  display: grid; gap: var(--space-2); align-items: end; padding-bottom: var(--space-3); border-bottom: 1px solid var(--border);
+  grid-template-columns: minmax(0, 2.2fr) repeat(2, minmax(0, 1fr)) minmax(0, 1.6fr) minmax(0, 1fr);
+}
+.count-name { display: grid; gap: 2px; align-self: center; }
+.count-name .muted { font-size: 0.85rem; }
+.reason-input { width: 100%; min-height: 40px; padding: var(--space-1) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-small); background: var(--surface); color: var(--text); font: inherit; }
+.starter { border: 0; padding: 0; margin: 0 0 var(--space-3); display: grid; gap: var(--space-1); }
+.starter legend { font-weight: 700; margin-bottom: var(--space-2); }
+.expiry { margin-bottom: var(--space-4); }
+@media (max-width: 760px) {
+  .count-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .count-name { grid-column: 1 / -1; }
+}
