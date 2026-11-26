@@ -6,6 +6,7 @@ import { errorBox } from '../ui/feedback.js';
 import { formDialog } from '../ui/dialog.js';
 import { bindForm, errorText, formView, whileBusy } from '../ui/form.js';
 import { toast } from '../ui/toast.js';
+import { dataUrl } from '../ui/files.js';
 import { t } from '../core/i18n.js';
 import { read, write } from '../core/api.js';
 import { dateShort, dateShortTime, money } from '../core/format.js';
@@ -43,6 +44,7 @@ function detailsView({ entry: e, history, can }) {
       <ul class="reasons">${reasonTexts(e.wait_reasons).map((r) => html`<li>${r}</li>`)}</ul></div></div>` : ''}
     ${history.length ? html`<h3 class="section-title">${t('money.history')}</h3>
       <ul class="history">${history.map((h) => html`<li>${dateShort(h.date)} · ${kindLabel(h.kind)} · ${money(h.amount)} · ${details(h)} <code>${h.id}</code></li>`)}</ul>` : ''}
+    ${e.file_id ? html`<button type="button" class="btn btn-small" data-act="file">${t('intake.open_document')}</button>` : ''}
     <div class="entry-error"></div>
     <div class="dialog-actions">
       ${can.change ? html`<button type="button" class="btn btn-danger-quiet" data-act="cancel">${t('money.cancel_entry')}</button>
@@ -72,6 +74,18 @@ function askReason(entry) {
       },
     });
   });
+}
+
+// The document filed on an entry, in a new tab.
+async function openFile(fileId) {
+  const tab = window.open('', '_blank');
+  try {
+    const { data } = await read('files.get', { id: fileId });
+    tab.location.href = dataUrl(data.mime, data.data);
+  } catch (err) {
+    tab.close();
+    toast(errorText(err), 'error');
+  }
 }
 
 // Opens the entry; onChanged runs after it was approved or cancelled.
@@ -116,6 +130,7 @@ export function openEntry(id, onChanged) {
       }
     },
     correct: () => dialog.close(),
+    file: () => openFile(current.entry.file_id),
   });
   load();
 }

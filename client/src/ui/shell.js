@@ -4,6 +4,7 @@
 
 import { html, on, render } from './html.js';
 import { icon } from './icons.js';
+import { holdDropped } from './files.js';
 import { t } from '../core/i18n.js';
 import { can, getState, subscribe } from '../core/state.js';
 import { roleById } from '../../../shared/schema/permissions.js';
@@ -52,6 +53,50 @@ function bottomView(items, path) {
     <button class="bottom-link" data-act="open-menu">${icon('menu')}<span>${t('shell.menu')}</span></button>`;
 }
 
+// Files dragged over the app show "Drop to upload"; dropped anywhere, they
+// open the upload page. (The upload page's own zone handles its drops.)
+function dropAnywhere(app) {
+  const layer = document.createElement('div');
+  layer.className = 'drop-layer';
+  layer.hidden = true;
+  layer.textContent = t('intake.drop_anywhere');
+  app.append(layer);
+  let depth = 0;
+  const hasFiles = (e) => [...(e.dataTransfer ? e.dataTransfer.types : [])].includes('Files');
+  const onEnter = (e) => {
+    if (!hasFiles(e) || e.target.closest('[data-role="zone"]')) return;
+    depth++;
+    layer.hidden = false;
+  };
+  const onLeave = (e) => {
+    if (!hasFiles(e)) return;
+    depth = Math.max(0, depth - 1);
+    if (!depth) layer.hidden = true;
+  };
+  const onOver = (e) => {
+    if (hasFiles(e) && !e.target.closest('[data-role="zone"]')) e.preventDefault();
+  };
+  const onDrop = (e) => {
+    if (!hasFiles(e) || e.target.closest('[data-role="zone"]')) return;
+    e.preventDefault();
+    depth = 0;
+    layer.hidden = true;
+    holdDropped(e.dataTransfer.files);
+    location.hash = `#/upload?dropped=${Date.now()}`;
+  };
+  window.addEventListener('dragenter', onEnter);
+  window.addEventListener('dragleave', onLeave);
+  window.addEventListener('dragover', onOver);
+  window.addEventListener('drop', onDrop);
+  return () => {
+    window.removeEventListener('dragenter', onEnter);
+    window.removeEventListener('dragleave', onLeave);
+    window.removeEventListener('dragover', onOver);
+    window.removeEventListener('drop', onDrop);
+    layer.remove();
+  };
+}
+
 // items: [{path, title, icon, perm?, bottom?}]
 export function mountShell(root, { items, onSignOut }) {
   render(root, html`
@@ -59,6 +104,7 @@ export function mountShell(root, { items, onSignOut }) {
       <header class="topbar">
         <button class="icon-btn menu-btn" data-act="open-menu" aria-label="${t('shell.menu')}">${icon('menu')}</button>
         <h1 class="page-title"></h1>
+        ${can('intake.upload') ? html`<a class="icon-btn" href="#/upload" aria-label="${t('nav.upload')}" title="${t('nav.upload')}">${icon('upload')}</a>` : ''}
         <div class="conn-slot"></div>
       </header>
       <nav class="sidenav" aria-label="${t('shell.menu')}"></nav>
@@ -80,6 +126,7 @@ export function mountShell(root, { items, onSignOut }) {
     render(conn, connection(state));
   };
   const unsubscribe = subscribe(draw);
+  const offDrop = can('intake.upload') ? dropAnywhere(app) : () => {};
   const offClick = on(app, 'click', {
     'open-menu': () => app.classList.add('menu-open'),
     'close-menu': () => app.classList.remove('menu-open'),
@@ -100,6 +147,7 @@ export function mountShell(root, { items, onSignOut }) {
     destroy() {
       unsubscribe();
       offClick();
+      offDrop();
     },
   };
 }

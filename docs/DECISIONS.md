@@ -128,3 +128,31 @@ These are working choices made while building. Each is easy to change.
   - Counts are kept between sittings.
   - Applying it changes only the titles counted.
 - **Still to come:** the Loyverse item import, and learning other names for titles, come with uploads.
+
+## Milestone 6: uploads, part 1 (assumptions to confirm)
+- **Ways in:**
+  - the upload button in the top bar, and Home;
+  - **drag and drop**, on the upload area or anywhere on the app (a "Drop to upload" layer appears);
+  - **Android Share** from another app, up to 10 files at a time.
+- **Before upload:**
+  - Photos are shrunk to at most 1600 px and saved as JPEG.
+  - Two or more photos are joined into one PDF unless you untick it.
+  - PDFs are limited to 10 MB.
+- **The same file twice is refused** (found by its fingerprint), unless the earlier upload was discarded.
+- **Text reading:** Drive's free text reading reads in Bangla and English. The app asks what the document is before anything else, and before Gemini is used.
+- **Gemini is off by default.** When a shareholder turns it on and saves a key, it is used only for receipts and bills, and only to fill in what the text reading missed. The key is kept in Script Properties, never in a sheet or a reply.
+- **Document kinds handled for now:**
+  - expense receipt and utility bill, which become an expense;
+  - vendor bill, which becomes a purchase on credit or paid on the spot ("COD" or "Received" means paid);
+  - payment slip, which becomes a vendor or publisher payment (or an expense, income or transfer, as you choose);
+  - publisher's challan, which becomes a delivery with its title lines, adding titles that are new;
+  - "something else", where the file is just kept.
+- **One document makes one entry.** A challan's payment on delivery is part of the same delivery.
+- **Duplicates:**
+  - A possible duplicate offers to file the document on the earlier entry instead.
+  - The same challan for the same publisher is refused, and offers the earlier delivery.
+  - The same bKash TrxID (10 letters and digits) is refused.
+- **Still to come:**
+  - staff papers (private, no text kept), statements and matching, the Loyverse import, customer and loyalty cards, shopping lists and quotations;
+  - document expiry, search and email;
+  - checking the reading rules against the owner's real documents.

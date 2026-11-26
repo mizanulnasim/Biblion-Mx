@@ -61,7 +61,7 @@ export function startPreview({ port = 8080, fresh = false, quiet = false } = {})
   fs.mkdirSync(dir, { recursive: true });
   if (fresh) fs.rmSync(file, { force: true });
   const isNew = !fs.existsSync(file);
-  const state = isNew ? emptyState() : JSON.parse(fs.readFileSync(file, 'utf8'));
+  const state = isNew ? emptyState() : { ...emptyState(), ...JSON.parse(fs.readFileSync(file, 'utf8')) };
   const server = loadServer(path.join(gas, 'Code.js'), state);
   if (isNew) {
     state.props.SETUP_CODE = String(crypto.randomInt(100000, 1000000));
@@ -72,6 +72,20 @@ export function startPreview({ port = 8080, fresh = false, quiet = false } = {})
 
   const httpServer = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://localhost');
+    // Preview only: what the stand-in text reading returns for a file name
+    // (there is no real text recognition on this computer).
+    if (url.pathname === '/preview-ocr' && req.method === 'POST') {
+      let body = '';
+      req.on('data', (chunk) => { body += chunk; });
+      req.on('end', () => {
+        const { name, text } = JSON.parse(body);
+        state.ocr[name] = text;
+        save();
+        res.writeHead(204);
+        res.end();
+      });
+      return;
+    }
     if (url.pathname === '/api') {
       if (req.method === 'GET') {
         res.writeHead(200, { 'content-type': TYPES['.json'] });

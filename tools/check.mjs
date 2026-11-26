@@ -50,6 +50,15 @@ function checkModules(result) {
 
   const imported = new Set();
   for (const mod of shipped) for (const imp of mod.imports) for (const n of imp.names) imported.add(`${imp.from}#${n.name}`);
+  // An export a test imports is used too: a piece of shipped code exported so
+  // a rule can be tested on its own (it must still be reached by a build).
+  for (const file of walk(path.join(ROOT, 'tests'), '.mjs')) {
+    const code = fs.readFileSync(file, 'utf8');
+    for (const m of code.matchAll(/import\s*\{([^}]*)\}\s*from\s*'([^']+)'/g)) {
+      const from = path.resolve(path.dirname(file), m[2]);
+      for (const name of m[1].split(',').map((n) => n.trim().split(/\s+as\s+/)[0]).filter(Boolean)) imported.add(`${from}#${name}`);
+    }
+  }
   const entries = new Set([path.join(ROOT, 'server', 'main.js')]);
   const seen = new Set();
   for (const mod of shipped) {

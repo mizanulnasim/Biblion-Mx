@@ -48,6 +48,14 @@ It starts with three users, so you can see each role:
 
 To try first-owner setup instead, start an empty preview with `npm run preview:fresh`. It prints the one-time setup code.
 
+There is no text recognition on this computer, so the preview reads uploaded files only if you tell it what they say. For example:
+
+```bash
+curl -X POST localhost:8080/preview-ocr -d '{"name":"bill.jpg","text":"Milk Vita\nMemo No: 5521\nTotal 900\nCOD"}'
+```
+
+Photos are uploaded as `.jpg`.
+
 ## Other commands
 
 | Command | What it does |
@@ -116,7 +124,7 @@ Lists show "Figures from …" when they come from the phone's copy.
    ```bash
    node tools/build.mjs --api https://script.google.com/macros/s/…/exec
    ```
-2. Push `dist/gas` to an Apps Script project with `clasp`. Deploy it as a web app that runs as you, with anyone allowed to access it (the app has its own sign-in).
+2. Push `dist/gas` to an Apps Script project with `clasp`. Deploy it as a web app that runs as you, with anyone allowed to access it (the app has its own sign-in). The project uses the Drive advanced service (v3) and asks to read and write your Drive and Docs (for keeping uploads and reading their text), and to reach other services (only for the optional Gemini reading).
 3. In the script's Project Settings, add a Script Property `SETUP_CODE` with a one-time code of your choice.
 4. In the script's Triggers page, add a time-driven trigger that runs `jobHourly` every hour. It makes automatic requisition drafts, and later other scheduled work.
 5. Publish `dist/web` on GitHub Pages.

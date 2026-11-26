@@ -29,6 +29,9 @@ import { requisitionPage, requisitionsPage } from './pages/requisitions.js';
 import { orderFormPage, ordersPage } from './pages/special-orders.js';
 import { stocktakePage } from './pages/stocktake.js';
 import { settingsBooksPage } from './pages/settings-books.js';
+import { uploadPage, uploadsPage } from './pages/upload.js';
+import { uploadDocPage } from './pages/upload-doc.js';
+import { settingsIntakePage } from './pages/settings-intake.js';
 import { NAV } from './pages/nav.js';
 import { html, render } from './ui/html.js';
 
@@ -83,7 +86,7 @@ async function startSession({ token, meta }) {
   shell = mountShell(root, { items: NAV, onSignOut: signOut });
   startRouter({
     // Pages a person has no permission for are not routes for them at all.
-    routes: [homePage, dailyPage, closingPage, booksPage, deliveryPage, deliveriesPage, bookSalesPage, suppliersPage, requisitionsPage, requisitionPage, orderFormPage, ordersPage, stocktakePage, settingsBooksPage, moneyPage, moneyFormPage, setupMoneyPage, approvalsPage, usersPage, activityPage, savedPage, mePage].filter((p) => !p.perm || can(p.perm)).concat(notFound),
+    routes: [homePage, dailyPage, closingPage, booksPage, deliveryPage, deliveriesPage, bookSalesPage, suppliersPage, requisitionsPage, requisitionPage, orderFormPage, ordersPage, stocktakePage, settingsBooksPage, uploadPage, uploadsPage, uploadDocPage, settingsIntakePage, moneyPage, moneyFormPage, setupMoneyPage, approvalsPage, usersPage, activityPage, savedPage, mePage].filter((p) => !p.perm || can(p.perm)).concat(notFound),
     outlet: shell.outlet,
     onChange: (page, path) => shell.setPage(page, path),
     confirmLeave: () => confirmDialog({ title: t('guard.title'), body: t('guard.body'), ok: t('guard.leave'), tone: 'danger' }),

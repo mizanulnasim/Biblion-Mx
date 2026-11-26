@@ -44,6 +44,12 @@ function manifest() {
     orientation: 'any',
     background_color: ICON_BACKGROUND,
     theme_color: BRAND_ACCENT,
+    share_target: {
+      action: './share-target',
+      method: 'POST',
+      enctype: 'multipart/form-data',
+      params: { title: 'title', text: 'text', files: [{ name: 'file', accept: ['image/*', 'application/pdf', 'text/csv', '.csv'] }] },
+    },
     icons: [
       { src: 'assets/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: 'assets/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },

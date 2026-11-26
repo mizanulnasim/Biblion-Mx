@@ -38,8 +38,27 @@ async function networkFirst(request) {
   }
 }
 
+// Android Share: files shared into the app wait in the "bm-shared" cache,
+// then the upload page picks them up.
+async function receiveShare(request) {
+  const form = await request.formData();
+  const cache = await caches.open('bm-shared');
+  const stamp = Date.now();
+  let i = 0;
+  for (const file of form.getAll('file')) {
+    if (!(file instanceof File) || i >= 10) continue;
+    await cache.put(`shared/${stamp}-${i}`, new Response(file, { headers: { 'Content-Type': file.type, 'X-Name': encodeURIComponent(file.name) } }));
+    i++;
+  }
+  return Response.redirect('./#/upload?shared=1', 303);
+}
+
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+  if (event.request.method === 'POST' && url.pathname.endsWith('/share-target')) {
+    event.respondWith(receiveShare(event.request));
+    return;
+  }
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
   const path = url.pathname.slice(self.registration.scope.length - self.location.origin.length);
   if (BUILD.hashed.includes(path)) {

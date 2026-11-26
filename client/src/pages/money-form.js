@@ -31,7 +31,7 @@ function accountLabel(kind) {
   return t('money.field.from_account');
 }
 
-function fieldsFor(kind, boot) {
+export function fieldsFor(kind, boot) {
   const k = KINDS[kind];
   const accounts = boot.accounts.map((a) => ({ value: a.id, label: a.name }));
   const fields = [
@@ -101,7 +101,7 @@ function fieldsFor(kind, boot) {
 }
 
 // What will happen on saving: final, or waiting and why.
-function approvalNotice(values, boot) {
+export function approvalNotice(values, boot) {
   const amount = Number(String(values.amount || '').replace(/,/g, ''));
   if (!values.kind || !(amount > 0)) return '';
   const category = boot.categories.find((c) => c.id === values.category_id);
@@ -111,8 +111,10 @@ function approvalNotice(values, boot) {
     <ul class="reasons">${reasonTexts(d.reasons).map((r) => html`<li>${r}</li>`)}</ul></div>`;
 }
 
-// Resolves {reason}, {fix}, or null when closed.
-export function duplicateDialog(prompt) {
+// Resolves {reason}, {fix}, {attach: record id} or null when closed.
+// With `attach` (an uploaded document), each earlier entry offers to file
+// the document on it instead of saving a new entry.
+export function duplicateDialog(prompt, { attach = false } = {}) {
   return new Promise((resolve) => {
     let answered = false;
     const answer = (value) => {
@@ -125,7 +127,8 @@ export function duplicateDialog(prompt) {
         <p>${t(w.code, w.params)}</p>
         ${w.existing.length ? html`<ul class="existing">${w.existing.map((e) => html`<li>
           <span>${dateShort(e.date)} · ${kindLabel(e.kind)} · <strong>${money(e.amount)}</strong> · ${details(e)}</span>
-          <span class="muted">${t('money.by_name', { name: e.entered_by_name })} <code>${e.id}</code></span></li>`)}</ul>` : ''}
+          <span class="muted">${t('money.by_name', { name: e.entered_by_name })} <code>${e.id}</code></span>
+          ${attach ? html`<button type="button" class="btn btn-small" data-act="attach" data-id="${e.id}">${t('intake.attach_here')}</button>` : ''}</li>`)}</ul>` : ''}
         ${w.fix ? html`<button type="button" class="btn" data-act="fix" data-i="${i}">${t(FIX_LABELS[w.fix.kind])}</button>` : ''}
       </li>`)}</ul>
       ${formView({
@@ -135,7 +138,10 @@ export function duplicateDialog(prompt) {
     dialog.addEventListener('close', () => {
       if (!answered) resolve(null);
     });
-    on(dialog, 'click', { fix: (e, btn) => answer({ fix: prompt.warnings[Number(btn.dataset.i)].fix }) });
+    on(dialog, 'click', {
+      fix: (e, btn) => answer({ fix: prompt.warnings[Number(btn.dataset.i)].fix }),
+      attach: (e, btn) => answer({ attach: btn.dataset.id }),
+    });
     bindForm(dialog.querySelector('form.form'), {
       schema: { reason: { type: 'text', required: true, max: 500 } },
       onSubmit: async ({ reason }) => {
