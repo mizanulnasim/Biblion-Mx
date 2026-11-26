@@ -67,7 +67,15 @@ export const TABLES = Object.freeze({
       'date', 'kind', 'amount:n', 'account_id', 'to_account_id', 'category_id', 'party_id', 'direction', 'note', 'ref',
       'status', 'approval', 'wait_reasons:j', 'approved_by', 'approved_at', 'dup_reason',
       'replaces', 'replaced_by', 'cancel_reason', 'cancelled_by', 'cancelled_at', 'entered_by',
+      // A daily shift's split, dues, cash handed over and cash count.
+      'details:j',
     ],
+  },
+  // One row per closed date; reopening keeps the row with its reason.
+  Day_Closings: {
+    group: 'accounts',
+    prefix: 'DCL',
+    columns: ['date', 'status', 'checklist:j', 'note', 'closed_by', 'closed_at', 'reopened_by', 'reopened_at', 'reopen_reason'],
   },
   Audit_Log: {
     group: 'core',

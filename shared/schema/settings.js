@@ -12,6 +12,7 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   'approve.rule.expense': 'final',
   'approve.rule.income': 'final',
   'approve.rule.transfer': 'final',
+  'approve.rule.daily': 'final',
   'approve.rule.other': 'final',
 });
 

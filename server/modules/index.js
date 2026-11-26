@@ -5,10 +5,12 @@
 import { areaVersions } from '../kernel/areas.js';
 import { AUDIT_HANDLERS } from './audit.js';
 import { AUTH_HANDLERS } from './auth.js';
+import { CLOSING_HANDLERS } from './closing.js';
 import { META_HANDLERS } from './meta.js';
 import { MONEY_HANDLERS } from './money.js';
 import { SETTINGS_HANDLERS } from './settings.js';
 import { SETUP_MONEY_HANDLERS } from './setup-money.js';
+import { SHIFT_HANDLERS } from './shift.js';
 import { SETUP_HANDLERS } from './setup.js';
 import { USER_HANDLERS } from './users.js';
 
@@ -21,5 +23,7 @@ export const HANDLERS = Object.freeze({
   ...SETTINGS_HANDLERS,
   ...SETUP_MONEY_HANDLERS,
   ...MONEY_HANDLERS,
+  ...SHIFT_HANDLERS,
+  ...CLOSING_HANDLERS,
   'sync.version': () => ({ areas: areaVersions() }),
 });

@@ -8,6 +8,7 @@ import { decide } from '../../shared/rules/approval.js';
 import { findDuplicates } from '../../shared/rules/duplicates.js';
 import { page } from '../kernel/paging.js';
 import { approvalSettings } from '../kernel/settings.js';
+import { isDayClosed } from './closing.js';
 
 const fieldError = (fields) => new AppError('VALIDATION', {}, fields);
 
@@ -15,7 +16,7 @@ function permissionsOf(ctx) {
   return ['acc.entry', 'acc.view_all', 'acc.approve', ...Object.values(KINDS).map((k) => k.perm)].filter((p) => ctx.can(p));
 }
 
-function actorOf(ctx) {
+export function actorOf(ctx) {
   return { level: ctx.level, permissions: permissionsOf(ctx) };
 }
 
@@ -23,7 +24,7 @@ const counts = (e) => e.status === 'active';
 
 // ---- Names and balances --------------------------------------------------
 
-function lookups(db) {
+export function lookups(db) {
   const map = new Map();
   for (const table of ['Money_Accounts', 'Expense_Categories', 'Due_Contacts', 'Shareholders']) {
     for (const row of db.all(table)) map.set(row.id, row);
@@ -43,13 +44,14 @@ function balances(db) {
   const loans = {};
   for (const s of db.all('Shareholders')) loans[s.id] = 0;
   for (const e of entries) {
-    if (e.party_id in dues) dues[e.party_id] += dueEffect(e);
+    const contacts = e.kind === 'daily_shift' ? new Set(e.details.dues.map((d) => d.party_id)) : [e.party_id];
+    for (const id of contacts) if (id in dues) dues[id] += dueEffect(e, id);
     if (e.party_id in loans) loans[e.party_id] += loanEffect(e);
   }
   return { accounts, dues, loans };
 }
 
-function view(entry, names) {
+export function view(entry, names) {
   const name = (id) => (id && names.get(id) ? names.get(id).name || names.get(id).display_name : '');
   return {
     id: entry.id,
@@ -67,6 +69,7 @@ function view(entry, names) {
     direction: entry.direction,
     note: entry.note,
     ref: entry.ref,
+    details: entry.details,
     status: entry.status,
     approval: entry.approval,
     wait_reasons: entry.wait_reasons || [],
@@ -101,7 +104,15 @@ function changeable(ctx, id, field) {
     throw new AppError('CONFLICT', { by: by ? by.display_name : '' });
   }
   if (!canChange(ctx, entry)) throw new AppError('FORBIDDEN');
+  assertDayOpen(ctx, entry.date, field);
   return entry;
+}
+
+// A closed day's money is changed only by a shareholder (who may also reopen the day).
+function assertDayOpen(ctx, date, field) {
+  if (!ctx.can('acc.approve') && isDayClosed(ctx.db, date)) {
+    throw fieldError({ [field]: { code: 'val.day_closed', params: { date } } });
+  }
 }
 
 // ---- Reads ---------------------------------------------------------------
@@ -229,12 +240,14 @@ function prompt(warnings, db) {
   };
 }
 
-function save(ctx, input) {
+// Saves a checked entry: duplicate warnings (needs_input until a reason is
+// given), the approval policy, the correction it replaces, and the other
+// half it cancels. Used by the money screen and the daily shift.
+export function record(ctx, entry, input) {
   const { db } = ctx;
-  const access = kindAccess(permissionsOf(ctx), input.kind);
-  if (access === 'none') throw new AppError('FORBIDDEN');
-  const entry = shape(db, input);
+  assertDayOpen(ctx, entry.date, 'date');
   const old = input.replaces ? changeable(ctx, input.replaces, 'replaces') : null;
+  if (old && (old.kind === 'daily_shift') !== (entry.kind === 'daily_shift')) throw fieldError({ replaces: { code: 'val.format', params: {} } });
   const pair = input.pair_id ? changeable(ctx, input.pair_id, 'pair_id') : null;
   if (pair && entry.kind !== 'transfer') throw fieldError({ pair_id: { code: 'val.format', params: {} } });
 
@@ -257,6 +270,7 @@ function save(ctx, input) {
     direction: entry.direction,
     note: entry.note,
     ref: entry.ref,
+    details: entry.details || null,
     status: 'active',
     approval: decision.final ? 'final' : 'waiting',
     wait_reasons: decision.reasons,
@@ -273,6 +287,11 @@ function save(ctx, input) {
     db.update('Transactions', pair, { status: 'cancelled', replaced_by: row.id, cancel_reason: input.reason || '', cancelled_by: ctx.user.id, cancelled_at: db.nowIso });
   }
   return saved(row.id, { approval: row.approval, reasons: decision.reasons });
+}
+
+function save(ctx, input) {
+  if (kindAccess(permissionsOf(ctx), input.kind) === 'none') throw new AppError('FORBIDDEN');
+  return record(ctx, shape(ctx.db, input), input);
 }
 
 function cancel(ctx, input) {
@@ -298,7 +317,14 @@ function approve(ctx, input) {
 
 function home(ctx) {
   const { db } = ctx;
-  if (!ctx.can('acc.entry')) return { waiting: [], mine_waiting: 0 };
+  if (!ctx.can('acc.entry')) return { waiting: [], mine_waiting: 0, today: null };
+  const date = new Date(db.now.getTime() + 6 * 3600000).toISOString().slice(0, 10);
+  // Today's first jobs for people who do them: the shift, then closing the day.
+  const today = ctx.can('acc.daily') ? {
+    date,
+    shift: db.all('Transactions').some((e) => e.kind === 'daily_shift' && e.status === 'active' && e.date === date),
+    closed: isDayClosed(db, date),
+  } : null;
   const names = lookups(db);
   const waiting = db.all('Transactions').filter((e) => e.status === 'active' && e.approval === 'waiting');
   return {
@@ -306,6 +332,7 @@ function home(ctx) {
       ? waiting.filter((e) => e.entered_by !== ctx.user.id).sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).map((e) => view(e, names))
       : [],
     mine_waiting: waiting.filter((e) => e.entered_by === ctx.user.id).length,
+    today,
   };
 }
 

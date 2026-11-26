@@ -64,12 +64,13 @@ function checkOne(spec, raw) {
     case 'id':
       if (typeof raw !== 'string' || !RECORD_ID.test(raw)) return { error: { code: 'val.format' } };
       return { value: raw };
-    // Taka, more than zero, at most 2 decimals. Commas and Bangla digits are accepted.
+    // Taka, more than zero (or zero too, with `zero: true`), at most 2 decimals.
+    // Commas and Bangla digits are accepted.
     case 'money': {
       const text = typeof raw === 'number' ? String(raw) : latinDigits(String(raw)).replace(/,/g, '').trim();
       if (!/^\d+(\.\d{1,2})?$/.test(text)) return { error: { code: 'val.amount' } };
       const value = Number(text);
-      if (value <= 0) return { error: { code: 'val.amount_positive' } };
+      if (value < 0 || (value === 0 && !spec.zero)) return { error: { code: 'val.amount_positive' } };
       if (value > MAX_AMOUNT) return { error: { code: 'val.max', params: { max: MAX_AMOUNT } } };
       return { value };
     }
@@ -81,6 +82,29 @@ function checkOne(spec, raw) {
   }
 }
 
+// A list of rows, each checked with `of` (a schema). Errors are reported as
+// "<field>.<row>.<column>", for example dues.0.amount.
+function checkList(spec, raw, key, fields) {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw)) {
+    fields[key] = { code: 'val.format', params: {} };
+    return null;
+  }
+  if (raw.length > (spec.max || 50)) {
+    fields[key] = { code: 'val.max', params: { max: spec.max || 50 } };
+    return null;
+  }
+  return raw.map((row, i) => {
+    const out = {};
+    for (const col of Object.keys(spec.of)) {
+      const result = checkOne(spec.of[col], row && typeof row === 'object' ? row[col] : undefined);
+      if (result.error) fields[`${key}.${i}.${col}`] = { code: result.error.code, params: result.error.params || {} };
+      else out[col] = result.value;
+    }
+    return out;
+  });
+}
+
 // Returns {value, fields}. `fields` is null when everything is valid.
 // Keys that are not in the schema are dropped, so a client can't slip
 // extra flags past the server.
@@ -89,6 +113,10 @@ export function validate(schema, input) {
   const value = {};
   const fields = {};
   for (const key of Object.keys(schema)) {
+    if (schema[key].type === 'list') {
+      value[key] = checkList(schema[key], source[key], key, fields);
+      continue;
+    }
     const result = checkOne(schema[key], source[key]);
     if (result.error) fields[key] = { code: result.error.code, params: result.error.params || {} };
     else value[key] = result.value;

@@ -10,7 +10,7 @@
 //   schema   payload rules (shared/lib/validate.js)
 
 import { ROLES } from '../schema/permissions.js';
-import { KINDS } from '../money/kinds.js';
+import { KINDS, SCREEN_KINDS } from '../money/kinds.js';
 
 // Bumped whenever a request or reply changes shape. A client built for another
 // contract is told to update itself (v1 bug S10).
@@ -116,7 +116,7 @@ export const ACTIONS = Object.freeze({
   'money.save': {
     write: true, perm: 'acc.entry', offline: true, area: 'money',
     schema: {
-      kind: { type: 'enum', required: true, values: Object.keys(KINDS) },
+      kind: { type: 'enum', required: true, values: SCREEN_KINDS },
       date: { type: 'date', required: true },
       amount: { type: 'money', required: true },
       account_id: { type: 'id' },
@@ -136,4 +136,36 @@ export const ACTIONS = Object.freeze({
     schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 500 } },
   },
   'money.approve': { write: true, perm: 'acc.approve', area: 'money', schema: { id: { type: 'id', required: true } } },
+
+  // The daily shift: what the form needs for a date, and saving it (also
+  // offline; on sending, the one-per-date rule and the guards run again).
+  'shift.prepare': { perm: 'acc.daily', cache: true, schema: { date: { type: 'date', required: true } } },
+  'shift.save': {
+    write: true, perm: 'acc.daily', offline: true, area: 'money',
+    schema: {
+      date: { type: 'date', required: true },
+      net_sales: { type: 'money', required: true },
+      books_sales: { type: 'money', zero: true },
+      cash: { type: 'money', zero: true },
+      bkash: { type: 'money', zero: true },
+      card: { type: 'money', zero: true },
+      dues: { type: 'list', max: 30, of: { party_id: { type: 'id', required: true }, amount: { type: 'money', required: true } } },
+      handed: { type: 'money', zero: true },
+      handed_to: { type: 'id' },
+      bkash_account_id: { type: 'id' },
+      card_account_id: { type: 'id' },
+      actual_cash: { type: 'money', zero: true, required: true },
+      note: { type: 'text', max: 300 },
+      replaces: { type: 'id' },
+      reason: { type: 'text', max: 500 },
+    },
+  },
+
+  // Day closing: the checklist for a date, closing it, and reopening it.
+  'closing.day': { perm: 'closing.day', schema: { date: { type: 'date', required: true } } },
+  'closing.day.close': { write: true, perm: 'closing.day', area: 'money', schema: { date: { type: 'date', required: true }, note: { type: 'text', max: 300 } } },
+  'closing.day.reopen': {
+    write: true, perm: 'acc.approve', area: 'money',
+    schema: { date: { type: 'date', required: true }, reason: { type: 'text', required: true, max: 500 } },
+  },
 });

@@ -59,6 +59,22 @@ function transferWords(entry) {
   return [{ code: 'dup.transfer_words', params: {}, existing: [], fix }];
 }
 
+// F. A due already in a daily shift, and a separate "Due taken" for the
+// same person, amount and day: warned both ways.
+function dueTwice(entry, others) {
+  const sameDue = (shift, partyId, amount) => shift.kind === 'daily_shift' && shift.date === entry.date
+    && shift.details.dues.some((d) => d.party_id === partyId && d.amount === amount);
+  if (entry.kind === 'due_taken') {
+    const found = others.filter((o) => sameDue(o, entry.party_id, entry.amount));
+    return found.length ? [{ code: 'dup.due_in_shift', params: {}, existing: found.map((o) => o.id) }] : [];
+  }
+  if (entry.kind !== 'daily_shift') return [];
+  const found = others.filter((o) => o.kind === 'due_taken' && o.date === entry.date
+    && entry.details.dues.some((d) => d.party_id === o.party_id && d.amount === o.amount));
+  return found.length ? [{ code: 'dup.due_entered', params: {}, existing: found.map((o) => o.id) }] : [];
+}
+
 export function findDuplicates(entry, others) {
-  return [...twins(entry, others), ...transferPair(entry, others), ...transferWords(entry)];
+  if (entry.kind === 'daily_shift') return dueTwice(entry, others);
+  return [...twins(entry, others), ...transferPair(entry, others), ...transferWords(entry), ...dueTwice(entry, others)];
 }

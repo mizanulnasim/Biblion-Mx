@@ -9,6 +9,9 @@
 //               a due), shareholder, or nothing
 //   cash        how it moves money: in, out, none, transfer, or
 //               either (loan repayment, by its direction)
+//   limit       false when the amount limit doesn't apply (a day's sales)
+// The daily shift is a kind of its own, entered on the Daily shift page,
+// not on the money screen; it is stored and approved like any money entry.
 // Vendor, publisher and staff pay kinds are added with the Books and HR
 // milestones; their ledgers are separate from these.
 
@@ -24,12 +27,16 @@ export const KINDS = Object.freeze({
   owner_salary: { group: 'shareholders', label: 'money.kind.owner_salary', help: 'money.help.owner_salary', perm: 'acc.shareholders', requestable: false, rule: 'other', party: 'shareholder', cash: 'out' },
   profit_share: { group: 'shareholders', label: 'money.kind.profit_share', help: 'money.help.profit_share', perm: 'acc.shareholders', requestable: false, rule: 'other', party: 'shareholder', cash: 'out' },
   owner_withdrawal: { group: 'shareholders', label: 'money.kind.owner_withdrawal', help: 'money.help.owner_withdrawal', perm: 'acc.shareholders', requestable: false, rule: 'other', party: 'shareholder', cash: 'out' },
+  daily_shift: { group: 'daily', label: 'money.kind.daily_shift', help: 'money.help.daily_shift', perm: 'acc.daily', requestable: false, rule: 'daily', party: null, cash: 'shift', limit: false },
 });
 
 export const KIND_GROUPS = Object.freeze([
   { id: 'money', label: 'money.group.money' },
   { id: 'shareholders', label: 'money.group.shareholders' },
 ]);
+
+// The kinds offered on the money screen.
+export const SCREEN_KINDS = Object.freeze(Object.keys(KINDS).filter((id) => KIND_GROUPS.some((g) => g.id === KINDS[id].group)));
 
 // May this person use this kind at all? Directly, or as a request.
 export function kindAccess(permissions, kindId) {
@@ -42,8 +49,23 @@ export function kindAccess(permissions, kindId) {
 // How much an entry moves one account's balance (+ in, − out).
 // A loan repayment's direction is 'in' (a shareholder pays the shop back)
 // or 'out' (the shop pays a shareholder back).
+//
+// A daily shift moves several accounts at once (its `details`):
+//   cash drawer (account_id): cash sales − cash handed over + short/over,
+//     so after the shift the drawer holds exactly what was counted
+//   bKash and card accounts: their sales
+//   the account the cash was handed to: the amount handed
 export function cashEffect(entry, accountId) {
   const cash = KINDS[entry.kind].cash;
+  if (cash === 'shift') {
+    const d = entry.details;
+    let sum = 0;
+    if (entry.account_id === accountId) sum += d.cash - d.handed + d.short_over;
+    if (d.bkash_account_id === accountId) sum += d.bkash;
+    if (d.card_account_id === accountId) sum += d.card;
+    if (d.handed_to === accountId) sum += d.handed;
+    return sum;
+  }
   if (cash === 'transfer') {
     if (entry.account_id === accountId) return -entry.amount;
     return entry.to_account_id === accountId ? entry.amount : 0;
@@ -54,7 +76,10 @@ export function cashEffect(entry, accountId) {
 }
 
 // What a contact owes the shop changes with dues; positive means they owe.
-export function dueEffect(entry) {
+// A daily shift can record dues for several people.
+export function dueEffect(entry, contactId) {
+  if (entry.kind === 'daily_shift') return entry.details.dues.filter((d) => d.party_id === contactId).reduce((s, d) => s + d.amount, 0);
+  if (entry.party_id !== contactId) return 0;
   if (entry.kind === 'due_taken') return entry.amount;
   return entry.kind === 'due_collected' ? -entry.amount : 0;
 }

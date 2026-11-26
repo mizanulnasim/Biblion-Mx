@@ -19,8 +19,13 @@ export function stateChip(e) {
 }
 
 // Each reason an entry waits for a shareholder, as a sentence.
+// Amounts in a reason (the limit, a short or over) are shown as money.
 export function reasonTexts(reasons) {
-  return (reasons || []).map((r) => t(r.code, r.params.limit === undefined ? r.params : { ...r.params, limit: money(r.params.limit) }));
+  return (reasons || []).map((r) => {
+    const params = { ...r.params };
+    for (const key of ['limit', 'amount']) if (typeof params[key] === 'number') params[key] = money(params[key]);
+    return t(r.code, params);
+  });
 }
 
 export function kindLabel(kind) {
