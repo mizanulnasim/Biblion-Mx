@@ -90,8 +90,23 @@ function read(file) {
   return fs.readFileSync(path.join(ROOT, file), 'utf8');
 }
 
+// Top-level placeholder names only: words inside plural branches
+// ("{count, plural, one {waits} other {wait}}") are text, not placeholders.
 function placeholders(text) {
-  return [...new Set([...text.matchAll(/\{\s*([a-z_]+)\s*[,}]/g)].map((m) => m[1]))].sort().join(',');
+  const names = new Set();
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '{') {
+      if (depth === 0) {
+        const m = /^\{\s*([a-z_]+)\s*[,}]/.exec(text.slice(i));
+        if (m) names.add(m[1]);
+      }
+      depth++;
+    } else if (text[i] === '}') {
+      depth--;
+    }
+  }
+  return [...names].sort().join(',');
 }
 
 function checkMessages(files) {

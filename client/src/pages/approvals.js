@@ -12,6 +12,7 @@ const RULES = [
   { name: 'expense', label: 'approvals.expense' },
   { name: 'income', label: 'approvals.income' },
   { name: 'transfer', label: 'approvals.transfer' },
+  { name: 'daily', label: 'approvals.daily' },
   { name: 'other', label: 'approvals.other' },
 ];
 

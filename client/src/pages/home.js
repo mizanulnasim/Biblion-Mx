@@ -32,6 +32,8 @@ function waitingView(home) {
           <span class="waiting-why">${reasonTexts(e.wait_reasons).join(' · ')}</span>
         </button></li>`)}</ul>
     </section>` : ''}
+    ${home.today && !home.today.shift ? html`<a class="notice notice-warn" href="#/daily">${icon('daily')}<span>${t('home.shift_todo')}</span></a>` : ''}
+    ${home.today && home.today.shift && !home.today.closed ? html`<a class="notice" href="#/closing">${icon('lock')}<span>${t('home.close_todo')}</span></a>` : ''}
     ${home.mine_waiting ? html`<a class="notice" href="#/money?state=waiting">${icon('money')}
       <span>${t('home.mine_waiting', { count: home.mine_waiting })}</span></a>` : ''}`;
 }

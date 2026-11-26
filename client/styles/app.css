@@ -312,3 +312,29 @@ code, .code { font-family: var(--font-mono); font-size: 0.875em; overflow-wrap: 
 }
 .waiting-item:hover { border-color: var(--accent); }
 .waiting-why { color: var(--warn-text); font-size: 0.9rem; }
+
+/* ---- Daily shift and day closing ---- */
+fieldset.panel { margin: 0; min-width: 0; }
+fieldset.panel legend { padding: 0 var(--space-2); margin-left: calc(-1 * var(--space-2)); }
+.shift-form { gap: var(--space-4); }
+.shift-form fieldset { display: grid; gap: var(--space-3); }
+.pair { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); align-items: start; }
+.subhead { font-size: 1rem; margin: var(--space-2) 0 0; }
+.dues { display: grid; gap: var(--space-2); }
+.due-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; gap: var(--space-2); align-items: end; }
+.due-row .icon-btn { margin-bottom: 4px; }
+.split-line { margin: 0; }
+.ok-text { color: var(--ok-text); }
+.warn-text { color: var(--warn-text); font-weight: 600; }
+.sums { display: grid; grid-template-columns: 1fr auto; gap: var(--space-1) var(--space-4); margin: 0 0 var(--space-3); max-width: 420px; }
+.sums dt { color: var(--text-muted); }
+.sums dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.field-inline { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: 600; }
+.field-inline input { min-height: 42px; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-small); background: var(--surface); color: var(--text); font: inherit; }
+.days { list-style: none; margin: 0 0 var(--space-4); padding: 0; display: grid; gap: var(--space-2); grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+.day { display: grid; gap: var(--space-1); justify-items: start; padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-small); color: var(--text); text-decoration: none; white-space: nowrap; }
+.day.is-current { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.checklist { list-style: none; margin: var(--space-3) 0; padding: 0; display: grid; gap: var(--space-2); }
+.check { display: flex; align-items: center; gap: var(--space-3); }
+.check a { color: var(--text); }
+@media (max-width: 520px) { .due-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; } }

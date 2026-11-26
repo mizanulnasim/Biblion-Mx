@@ -34,6 +34,10 @@ export function kindLabel(kind) {
 
 // Who or what the entry is about: "Cash → bKash", "Milk · Cash", "Rahim · Cash".
 export function details(e) {
+  if (e.kind === 'daily_shift') {
+    const so = e.details.short_over;
+    return so === 0 ? t('shift.line_balanced') : t(so < 0 ? 'shift.line_short' : 'shift.line_over', { amount: money(Math.abs(so)) });
+  }
   if (e.kind === 'transfer') return t('money.transfer_line', { from: e.account, to: e.to_account });
   return [e.category, e.party, e.account].filter(Boolean).join(' · ');
 }

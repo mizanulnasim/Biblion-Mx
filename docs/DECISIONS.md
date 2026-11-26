@@ -73,3 +73,21 @@ These are working choices made while building. Each is easy to change.
   - After that, only a shareholder can correct or cancel it.
 - **Amounts** are shown with Bangladesh digit grouping: Tk 1,00,000.
 - **Closed months** are locked in the month-closing milestone. Until then, no month is locked.
+
+## Milestone 3: daily shift and day closing (assumptions to confirm)
+- **The daily shift is stored as a money entry** of its own kind. It is approved, corrected, cancelled and logged like other money, and appears in the money list.
+- **Sales are typed in.** Uploading the Loyverse report and the photo of the shift slip come with the upload milestone.
+- **What the shift does to each account:**
+  - Cash sales go into the cash drawer, and cash handed to a shareholder comes out of it.
+  - Any short or over is booked to the drawer, so after the shift the drawer holds exactly what was counted.
+  - bKash and card sales go to the accounts chosen on the shift. Cash handed over goes to the account it was handed to, for example "Held by a shareholder".
+- **What the drawer should hold** is worked out as: the drawer's opening balance plus every entry dated up to and including that day, other than the shift itself.
+- **Any short or over makes the shift wait for a shareholder,** whatever the size. A balanced shift follows the "Daily shift" switch in Settings → Approvals.
+- **The day-closing checklist** has these steps:
+  - shift entered (needed before closing);
+  - drawer balanced;
+  - nothing from the day waiting for a shareholder;
+  - nothing unsent on this phone.
+
+  Café count, deliveries and tasks join when those are built.
+- **A closed day is locked for managers:** no new, corrected or cancelled money dated that day. A shareholder can still change it, and can reopen the day with a reason.

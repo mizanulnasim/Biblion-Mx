@@ -98,7 +98,7 @@ function approvalNotice(values, boot) {
 }
 
 // Resolves {reason}, {fix}, or null when closed.
-function duplicateDialog(prompt) {
+export function duplicateDialog(prompt) {
   return new Promise((resolve) => {
     let answered = false;
     const answer = (value) => {

@@ -45,7 +45,7 @@ function detailsView({ entry: e, history, can }) {
     <div class="entry-error"></div>
     <div class="dialog-actions">
       ${can.change ? html`<button type="button" class="btn btn-danger-quiet" data-act="cancel">${t('money.cancel_entry')}</button>
-        <a class="btn" href="#/money/new?replaces=${e.id}" data-act="correct">${t('money.correct')}</a>` : ''}
+        <a class="btn" href="${e.kind === 'daily_shift' ? `#/daily?date=${e.date}&replaces=${e.id}` : `#/money/new?replaces=${e.id}`}" data-act="correct">${t('money.correct')}</a>` : ''}
       ${can.approve ? html`<button type="button" class="btn btn-primary" data-act="approve">${t('money.approve')}</button>` : ''}
     </div>`;
 }

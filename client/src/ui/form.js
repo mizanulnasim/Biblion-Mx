@@ -35,7 +35,7 @@ function controlView(f, id, value, describedBy) {
 // field: {name, label, type: text|password|date|select|textarea|checkbox|color,
 //         options:[{value,label,disabled}] or groups:[{label, options}],
 //         placeholder (an empty first choice), help, autocomplete, inputmode, required}
-function fieldView(f, value) {
+export function fieldView(f, value) {
   const id = `f-${f.name}`;
   const describedBy = `${f.help ? `${id}-help ` : ''}${id}-err`;
   const control = controlView(f, id, value, describedBy);
@@ -64,20 +64,26 @@ export function formView({ fields, values = {}, submit, extra = '' }) {
   </form>`;
 }
 
+// Marks each field with its error. Errors for fields not on the form are
+// returned, so they can be shown in the form's message instead of lost.
 function markFields(form, fields) {
   for (const el of form.querySelectorAll('.field-error')) el.textContent = '';
   for (const el of form.querySelectorAll('[aria-invalid]')) el.removeAttribute('aria-invalid');
   let first = null;
+  const unplaced = [];
   for (const [name, err] of Object.entries(fields || {})) {
     const input = form.elements[name];
-    const slot = form.querySelector(`#f-${name}-err`);
-    if (!input || !slot) continue;
+    const slot = form.querySelector(`#${CSS.escape(`f-${name}-err`)}`);
+    if (!input || !slot) {
+      unplaced.push(t(err.code, err.params));
+      continue;
+    }
     input.setAttribute('aria-invalid', 'true');
     slot.textContent = t(err.code, err.params);
     first = first || input;
   }
   if (first) first.focus();
-  return Boolean(first);
+  return { marked: Boolean(first), unplaced };
 }
 
 export function errorText(err) {
@@ -119,12 +125,18 @@ export function bindForm(form, { schema, busyLabel, onSubmit, onSaved, guard = t
     const checked = {};
     for (const key of Object.keys(schema)) if (key in raw) checked[key] = schema[key];
     errorSlot.textContent = '';
-    if (markFields(form, validate(checked, values).fields)) return;
+    const local = markFields(form, validate(checked, values).fields);
+    if (local.marked || local.unplaced.length) {
+      errorSlot.textContent = local.unplaced.join(' ');
+      return;
+    }
     await whileBusy(button, busyLabel || t('common.busy'), async () => {
       try {
         const reply = await onSubmit(values);
         if (reply.status === 'rejected') {
-          if (!markFields(form, reply.error.fields)) errorSlot.textContent = t(errorMessageId(reply.error.code), reply.error.params);
+          const shown = markFields(form, reply.error.fields);
+          errorSlot.textContent = shown.unplaced.length ? shown.unplaced.join(' ')
+            : shown.marked ? '' : t(errorMessageId(reply.error.code), reply.error.params);
           return;
         }
         if (reply.status !== 'saved' && reply.status !== 'queued') return;
