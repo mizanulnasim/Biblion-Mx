@@ -1,8 +1,11 @@
 // A delivery from a publisher, title by title: copies received, damaged
-// copies sent back, and each copy's cost (printed price less the
-// publisher's commission unless the challan says otherwise). A title not
-// in the catalogue yet is added from here. A payment made on delivery is
-// recorded as a publisher payment. Also: the list of deliveries.
+// copies (sent back, or kept at full or a lower cost), and each copy's cost
+// (printed price less the publisher's commission unless the challan says
+// otherwise). Against a requisition, its titles still expected are filled
+// in, and copies short or extra are decided line by line. A title not in
+// the catalogue yet is added from here. A payment made on delivery is a
+// publisher payment; the delivery charge is an expense. Also: the list of
+// deliveries.
 
 import { html, on, render } from '../ui/html.js';
 import { errorBox } from '../ui/feedback.js';
@@ -15,15 +18,20 @@ import { read, write } from '../core/api.js';
 import { dateShort, money, today } from '../core/format.js';
 import { isDirty, markDirty } from '../core/router.js';
 import { ACTIONS } from '../../../shared/contract/actions.js';
-import { bookList, findBook } from './books-common.js';
+import { bookLabel, bookList, findBook } from './books-common.js';
 
 const num = (v) => Number(String(v ?? '').replace(/,/g, '')) || 0;
 const round = (n) => Math.round(n * 100) / 100;
-const emptyLine = () => ({ book: '', printed_price: '', qty: '', damaged: '', unit_cost: '' });
+const emptyLine = () => ({ book: '', printed_price: '', qty: '', damaged: '', unit_cost: '', damaged_action: 'return', damaged_cost: '', req_line: '', expected: null, short_action: 'expected', extra_action: 'keep' });
+
+function select(id, name, value, options, label) {
+  return html`<div class="field" data-for="${name.split('.').pop()}"><label for="${id}">${label}</label>
+    <select id="${id}" name="${name}">${options.map(([v, l]) => html`<option value="${v}" ${v === value ? 'selected' : ''}>${l}</option>`)}</select></div>`;
+}
 
 function lineRow(line, i, hint) {
   const id = (f) => `f-lines.${i}.${f}`;
-  const input = (f, label, extra = '') => html`<div class="field"><label for="${id(f)}">${label}</label>
+  const input = (f, label, extra = '') => html`<div class="field" data-for="${f}"><label for="${id(f)}">${label}</label>
     <input id="${id(f)}" name="lines.${i}.${f}" value="${line[f] ?? ''}" ${extra} aria-describedby="${id(f)}-err">
     <p class="field-error" id="${id(f)}-err"></p></div>`;
   return html`<div class="line-row" data-row="${i}">
@@ -35,6 +43,15 @@ function lineRow(line, i, hint) {
     ${input('damaged', t('books.damaged'), 'inputmode="numeric"')}
     ${input('unit_cost', t('books.unit_cost'), 'inputmode="decimal"')}
     <button type="button" class="icon-btn" data-act="remove-line" data-i="${i}" aria-label="${t('books.remove_line')}">×</button>
+    <div class="line-choices">
+      <input type="hidden" name="lines.${i}.req_line" value="${line.req_line}">
+      ${select(id('damaged_action'), `lines.${i}.damaged_action`, line.damaged_action,
+        [['return', t('books.damaged_return')], ['keep', t('books.damaged_keep')], ['keep_lower', t('books.damaged_keep_lower')]], t('books.damaged_action'))}
+      ${input('damaged_cost', t('books.damaged_cost'), 'inputmode="decimal"')}
+      ${line.req_line ? html`
+        ${select(id('short_action'), `lines.${i}.short_action`, line.short_action, [['expected', t('books.short_expected')], ['not_coming', t('books.short_not_coming')]], t('books.short_action'))}
+        ${select(id('extra_action'), `lines.${i}.extra_action`, line.extra_action, [['keep', t('books.extra_keep')], ['return', t('books.extra_return')]], t('books.extra_action'))}` : ''}
+    </div>
   </div>`;
 }
 
@@ -42,9 +59,10 @@ export const deliveryPage = {
   path: '/books/delivery',
   title: 'books.delivery_title',
   perm: 'books.receive',
-  mount(el) {
+  mount(el, { query }) {
     let boot = null;
     let money_ = null;
+    let reqs = [];
     let values = { date: today(), lines: [emptyLine()] };
     const opId = crypto.randomUUID();
 
@@ -58,7 +76,8 @@ export const deliveryPage = {
         if (!input.name || input.name === 'lines') continue;
         const m = /^lines\.(\d+)\.(\w+)$/.exec(input.name);
         if (m) {
-          v.lines[Number(m[1])] = v.lines[Number(m[1])] || {};
+          // Start from the line as it was, so what isn't a field (expected copies) stays.
+          v.lines[Number(m[1])] = v.lines[Number(m[1])] || { ...values.lines[Number(m[1])] };
           v.lines[Number(m[1])][m[2]] = input.value;
         } else {
           v[input.name] = input.value;
@@ -69,18 +88,40 @@ export const deliveryPage = {
     }
 
     function hintFor(line) {
+      if (line.req_line) return t('books.line_expected', { expected: line.expected });
       if (!line.book) return '';
       const book = findBook(line.book, boot.books, boot.publishers);
       return book ? t('books.line_existing', { on_hand: book.on_hand }) : t('books.line_new');
+    }
+
+    // A choice shows only when it applies: damaged copies, a lower cost,
+    // fewer or more copies than the requisition still expects.
+    function showChoices(form, l, i) {
+      const row = form.querySelector(`.line-row[data-row="${i}"]`);
+      if (!row) return;
+      const show = (name, on) => {
+        const box = row.querySelector(`[data-for="${name}"]`);
+        if (box) box.hidden = !on;
+      };
+      const damaged = num(l.damaged);
+      show('damaged_action', damaged > 0);
+      show('damaged_cost', damaged > 0 && l.damaged_action === 'keep_lower');
+      const arrived = num(l.qty) - (l.damaged_action === 'return' ? damaged : 0);
+      show('short_action', l.req_line && arrived < l.expected);
+      show('extra_action', l.req_line && arrived > l.expected);
     }
 
     function totals(form) {
       let copies = 0;
       let cost = 0;
       values.lines.forEach((l, i) => {
-        const accepted = Math.max(0, num(l.qty) - num(l.damaged));
-        copies += accepted;
-        cost += accepted * (l.unit_cost !== '' && l.unit_cost !== undefined ? num(l.unit_cost) : costOf(num(l.printed_price)));
+        const unit = l.unit_cost !== '' && l.unit_cost !== undefined ? num(l.unit_cost) : costOf(num(l.printed_price));
+        const damaged = num(l.damaged);
+        const good = Math.max(0, num(l.qty) - damaged);
+        const kept = l.damaged_action === 'return' ? 0 : damaged;
+        copies += good + kept;
+        cost += good * unit + kept * (l.damaged_action === 'keep_lower' ? num(l.damaged_cost) : unit);
+        showChoices(form, l, i);
         const costInput = form.elements[`lines.${i}.unit_cost`];
         if (costInput) costInput.placeholder = l.printed_price ? String(costOf(num(l.printed_price))) : '';
         const hint = form.querySelector(`#${CSS.escape(`f-lines.${i}.book-hint`)}`);
@@ -100,6 +141,10 @@ export const deliveryPage = {
           <section class="panel">
             <div class="pair">
               ${f({ name: 'publisher_id', label: t('books.publisher'), type: 'select', required: true, placeholder: t('money.choose'), options: boot.publishers.map((p) => ({ value: p.id, label: p.name })) })}
+              ${f({
+                name: 'requisition_id', label: t('books.against_req'), type: 'select', placeholder: t('books.no_req'),
+                options: reqs.filter((r) => r.publisher_id === values.publisher_id).map((r) => ({ value: r.id, label: `${r.number} · ${dateShort(r.date)}` })),
+              })}
               ${f({ name: 'date', label: t('money.field.date'), type: 'date', required: true })}
               ${f({ name: 'challan', label: t('books.challan') })}
             </div>
@@ -111,6 +156,14 @@ export const deliveryPage = {
             <p class="field-error" id="f-lines-err"></p>
             <button type="button" class="btn btn-small" data-act="add-line">${t('books.add_line')}</button>
             <p class="delivery-total"></p>
+          </section>
+          <section class="panel">
+            <h2 class="section-title">${t('books.charge_title')}</h2>
+            <div class="pair">
+              ${f({ name: 'charge', label: t('books.charge'), inputmode: 'decimal' })}
+              ${f({ name: 'charge_account_id', label: t('money.field.from_account'), type: 'select', placeholder: t('money.choose'), options: money_.accounts.map((a) => ({ value: a.id, label: a.name })) })}
+              ${f({ name: 'charge_category_id', label: t('money.field.category'), type: 'select', placeholder: t('money.choose'), options: money_.categories.map((c) => ({ value: c.id, label: c.name })) })}
+            </div>
           </section>
           <section class="panel">
             <h2 class="section-title">${t('books.paid_on_delivery')}</h2>
@@ -134,6 +187,15 @@ export const deliveryPage = {
       });
       form.addEventListener('change', (e) => {
         values = collect(form);
+        if (e.target.name === 'publisher_id') {
+          values.requisition_id = '';
+          draw();
+          return;
+        }
+        if (e.target.name === 'requisition_id') {
+          useRequisition(values.requisition_id);
+          return;
+        }
         // A title picked from the catalogue brings its printed price.
         const m = /^lines\.(\d+)\.book$/.exec(e.target.name);
         if (m) {
@@ -172,13 +234,19 @@ export const deliveryPage = {
             const book = findBook(l.book, boot.books, boot.publishers);
             const line = { printed_price: l.printed_price, qty: l.qty, damaged: l.damaged || 0 };
             if (l.unit_cost !== '') line.unit_cost = l.unit_cost;
+            if (num(l.damaged)) {
+              line.damaged_action = l.damaged_action;
+              if (l.damaged_action === 'keep_lower') line.damaged_cost = l.damaged_cost;
+            }
+            if (l.req_line) Object.assign(line, { req_line: l.req_line, short_action: l.short_action, extra_action: l.extra_action });
             if (book) line.book_id = book.id;
             else line.title = l.book;
             return line;
           });
           const out = { publisher_id: v.publisher_id, date: v.date, lines };
-          for (const k of ['challan', 'note', 'paid_account_id']) if (v[k]) out[k] = v[k];
+          for (const k of ['challan', 'note', 'paid_account_id', 'requisition_id', 'charge_account_id', 'charge_category_id']) if (v[k]) out[k] = v[k];
           if (v.paid) out.paid = v.paid;
+          if (v.charge) out.charge = v.charge;
           return out;
         },
         onSubmit: (payload) => write('books.delivery.save', payload, { opId }),
@@ -189,10 +257,40 @@ export const deliveryPage = {
       });
     }
 
+    // Fills the lines with the requisition's titles still expected.
+    async function useRequisition(id) {
+      if (!id) {
+        values.lines = [emptyLine()];
+        draw();
+        return;
+      }
+      const { data: r } = await read('books.req.get', { id });
+      const names = new Map(boot.publishers.map((p) => [p.id, p.name]));
+      values.publisher_id = r.publisher_id;
+      values.requisition_id = r.id;
+      values.lines = r.lines.filter((l) => l.remaining > 0).map((l) => {
+        const book = boot.books.find((b) => b.id === l.book_id);
+        return {
+          ...emptyLine(),
+          book: book ? bookLabel({ ...book, publisher: names.get(book.publisher_id) }) : l.title,
+          printed_price: book ? String(book.printed_price) : '', qty: String(l.remaining), req_line: l.key, expected: l.remaining,
+        };
+      });
+      draw();
+    }
+
     render(el, html`<div aria-busy="true"></div>`);
     (async () => {
       try {
-        [boot, money_] = await Promise.all([read('books.boot').then((r) => r.data), read('money.boot').then((r) => r.data)]);
+        [boot, money_, reqs] = await Promise.all([
+          read('books.boot').then((r) => r.data),
+          read('money.boot').then((r) => r.data),
+          read('books.reqs', { limit: 100 }).then((r) => r.data.items.filter((x) => x.status === 'sent' || x.status === 'part')),
+        ]);
+        if (query.requisition) {
+          await useRequisition(query.requisition);
+          return;
+        }
         draw();
       } catch (err) {
         render(el, errorBox(errorText(err)));

@@ -23,7 +23,7 @@ function addDays(date, days) {
 }
 
 // What is still expected on a line.
-export function remaining(line) {
+function remaining(line) {
   return Math.max(0, line.qty - (line.received || 0) - (line.cancelled || 0));
 }
 
@@ -32,7 +32,7 @@ function nextKey(lines) {
 }
 
 // Builds a draft for one publisher; null when it would be empty and `skipEmpty`.
-export function buildDraft(db, userId, publisherId, skipEmpty) {
+function buildDraft(db, userId, publisherId, skipEmpty) {
   const today = dhakaDate(db.now);
   const reqs = db.all('Requisitions').filter((r) => r.publisher_id === publisherId);
   const last = reqs.filter((r) => r.status !== 'draft').map((r) => r.sales_to).sort().pop();

@@ -15,7 +15,7 @@ import { ACTIONS } from '../../../shared/contract/actions.js';
 
 const MOVE_KINDS = {
   receive: 'books.move.receive', sale: 'books.move.sale', damaged: 'books.move.damaged',
-  lost: 'books.move.lost', found: 'books.move.found', returned: 'books.move.returned',
+  lost: 'books.move.lost', found: 'books.move.found', returned: 'books.move.returned', count: 'books.move.count',
 };
 
 function bookFields(publishers) {
@@ -144,6 +144,9 @@ export const booksPage = {
         ${can('books.receive') ? html`<a class="btn" href="#/books/delivery">${t('books.new_delivery')}</a>` : ''}
         ${can('books.sell') ? html`<a class="btn" href="#/books/sales">${t('books.type_sales')}</a>` : ''}
         <a class="btn" href="#/books/deliveries">${t('nav.deliveries')}</a>
+        <a class="btn" href="#/books/reqs">${t('nav.requisitions')}</a>
+        ${can('books.orders') ? html`<a class="btn" href="#/books/orders">${t('nav.orders')}</a>` : ''}
+        ${can('books.adjust') ? html`<a class="btn" href="#/books/stocktake">${t('nav.stocktake')}</a>` : ''}
       </div><div class="book-list"></div>`);
     const listEl = el.querySelector('.book-list');
     let list = null;

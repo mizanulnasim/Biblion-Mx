@@ -108,3 +108,23 @@ These are working choices made while building. Each is easy to change.
 - **Typed book sales** may take stock below zero, so typing a sale at the till never fails; the stock then shows in warning colour. Matching typed sales against the Loyverse upload comes with uploads.
 - **Book approval settings** ("final for a manager, can be flagged") come with review flags. Until then, deliveries, stock changes and typed sales by managers are final.
 - **Still to come in part 2:** requisitions, special orders, full stock-take, the Loyverse item import, and learning other names.
+
+## Milestone 5: books, part 2 (assumptions to confirm)
+- **A requisition draft asks again for what sold** since the publisher's last requisition, plus customers' open special orders. A publisher's first requisition looks back 30 days (a setting).
+- **Drafts can be made automatically** each week (from Saturday) or each month, by the hourly job, for publishers with something to ask for. A manager checks a draft and sends it.
+- **Matching a delivery to a requisition, title by title:**
+  - **Short copies** stay "still expected", or are marked "not coming".
+  - **Extra copies** are kept or sent back.
+  - **Damaged copies** are sent back, kept at full cost, or kept at a lower cost. Kept damaged copies count as received.
+- **Closing a requisition** marks what is left "not coming". Its special orders wait for the next requisition.
+- **Special orders:**
+  - Staff can take them, and can see the book catalogue to do so (without costs).
+  - Only managers and shareholders can see the list, because it holds customers' names and phones.
+  - An order is marked arrived when a delivery brings its title, oldest order first.
+  - "Tell the customer" opens WhatsApp with the message ready, and marks the order as told.
+- **An advance taken on a special order** is noted on the order. The money itself counts in that day's sales, through the daily shift.
+- **Stock-take:**
+  - Only one is open at a time.
+  - Counts are kept between sittings.
+  - Applying it changes only the titles counted.
+- **Still to come:** the Loyverse item import, and learning other names for titles, come with uploads.

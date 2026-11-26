@@ -38,7 +38,7 @@ export const ROLES = Object.freeze([
     'books.view', 'books.catalog', 'books.receive', 'books.sell', 'books.adjust',
     'books.requisition', 'books.order', 'books.orders',
   ] },
-  { id: 'ROL-STAFF', key: 'staff', name: 'role.staff', level: 1, permissions: ['books.order'] },
+  { id: 'ROL-STAFF', key: 'staff', name: 'role.staff', level: 1, permissions: ['books.order', 'books.view'] },
 ]);
 
 export function roleById(id) {

@@ -118,5 +118,6 @@ Lists show "Figures from …" when they come from the phone's copy.
    ```
 2. Push `dist/gas` to an Apps Script project with `clasp`. Deploy it as a web app that runs as you, with anyone allowed to access it (the app has its own sign-in).
 3. In the script's Project Settings, add a Script Property `SETUP_CODE` with a one-time code of your choice.
-4. Publish `dist/web` on GitHub Pages.
-5. Open the app and create the first shareholder account with the code. The code is deleted once it has been used.
+4. In the script's Triggers page, add a time-driven trigger that runs `jobHourly` every hour. It makes automatic requisition drafts, and later other scheduled work.
+5. Publish `dist/web` on GitHub Pages.
+6. Open the app and create the first shareholder account with the code. The code is deleted once it has been used.

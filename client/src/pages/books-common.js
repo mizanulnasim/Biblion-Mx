@@ -3,7 +3,7 @@
 
 import { html } from '../ui/html.js';
 
-function bookLabel(b) {
+export function bookLabel(b) {
   return [b.title, b.author, b.publisher].filter(Boolean).join(' · ');
 }
 
