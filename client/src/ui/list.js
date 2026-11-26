@@ -44,21 +44,37 @@ function pagerView({ offset, limit, total }) {
   </nav>`;
 }
 
+function filterView(f, value) {
+  return html`<label class="filter">
+    <select data-role="filter" data-name="${f.name}" aria-label="${f.label}">
+      <option value="">${f.label}</option>
+      ${f.options.map((o) => html`<option value="${o.value}" ${o.value === value ? 'selected' : ''}>${o.label}</option>`)}
+    </select></label>`;
+}
+
 // options: {key, action, area, columns:[{label, cell(row), kind}], empty, emptySearch,
-//           searchLabel, tools (html for the bar), onRow(row), onTool(name)}
+//           searchLabel, tools (html for the bar), onRow(row), onTool(name),
+//           filters: [{name, label, options:[{value,label}]}], initial: {name: value}}
+// A filter's empty choice shows everything; chosen values are sent with the query.
 export function mountList(el, options) {
   const saved = tab.get(`page:${options.key}`) || {};
+  const filters = options.filters || [];
   const query = {
     q: saved.q || '',
     offset: saved.offset || 0,
     limit: PAGE_SIZES.includes(device.get('pageSize')) ? device.get('pageSize') : PAGE_SIZES[0],
   };
+  for (const f of filters) {
+    const value = (options.initial || {})[f.name] || (saved.filters || {})[f.name];
+    if (value) query[f.name] = value;
+  }
   let rows = [];
 
   render(el, html`
     <div class="list-bar">
       <label class="search"><span class="sr-only">${options.searchLabel}</span>
         <input type="search" value="${query.q}" placeholder="${options.searchLabel}" data-role="search"></label>
+      ${filters.map((f) => filterView(f, query[f.name]))}
       ${options.tools || ''}
     </div>
     <div class="list-notice"></div>
@@ -70,7 +86,9 @@ export function mountList(el, options) {
   const load = latestOnly(body);
 
   function reload() {
-    tab.set(`page:${options.key}`, { q: query.q, offset: query.offset });
+    const chosen = {};
+    for (const f of filters) if (query[f.name]) chosen[f.name] = query[f.name];
+    tab.set(`page:${options.key}`, { q: query.q, offset: query.offset, filters: chosen });
     return load(
       () => read(options.action, query),
       ({ data, cachedAt }) => {
@@ -102,7 +120,12 @@ export function mountList(el, options) {
   });
   el.addEventListener('change', (e) => {
     const role = e.target.dataset.role;
-    if (role === 'size') {
+    if (role === 'filter') {
+      if (e.target.value) query[e.target.dataset.name] = e.target.value;
+      else delete query[e.target.dataset.name];
+      query.offset = 0;
+      reload();
+    } else if (role === 'size') {
       query.limit = Number(e.target.value);
       device.set('pageSize', query.limit);
       query.offset = 0;

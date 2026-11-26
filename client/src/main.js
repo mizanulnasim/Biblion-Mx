@@ -15,6 +15,10 @@ import { usersPage } from './pages/users.js';
 import { activityPage } from './pages/activity.js';
 import { savedPage } from './pages/saved.js';
 import { mePage } from './pages/me.js';
+import { moneyPage } from './pages/money.js';
+import { moneyFormPage } from './pages/money-form.js';
+import { setupMoneyPage } from './pages/setup-money.js';
+import { approvalsPage } from './pages/approvals.js';
 import { NAV } from './pages/nav.js';
 import { html, render } from './ui/html.js';
 
@@ -69,7 +73,7 @@ async function startSession({ token, meta }) {
   shell = mountShell(root, { items: NAV, onSignOut: signOut });
   startRouter({
     // Pages a person has no permission for are not routes for them at all.
-    routes: [homePage, usersPage, activityPage, savedPage, mePage].filter((p) => !p.perm || can(p.perm)).concat(notFound),
+    routes: [homePage, moneyPage, moneyFormPage, setupMoneyPage, approvalsPage, usersPage, activityPage, savedPage, mePage].filter((p) => !p.perm || can(p.perm)).concat(notFound),
     outlet: shell.outlet,
     onChange: (page, path) => shell.setPage(page, path),
     confirmLeave: () => confirmDialog({ title: t('guard.title'), body: t('guard.body'), ok: t('guard.leave'), tone: 'danger' }),

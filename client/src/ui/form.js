@@ -10,17 +10,42 @@ import { validate } from '../../../shared/lib/validate.js';
 import { errorMessageId } from '../../../shared/contract/errors.js';
 import { ApiError } from '../core/api.js';
 
-// field: {name, label, type: text|password|select|color, options:[{value,label}],
-//         help, autocomplete, required}
+const optionView = (o, value) => html`<option value="${o.value}" ${String(o.value) === String(value ?? '') ? 'selected' : ''} ${o.disabled ? 'disabled' : ''}>${o.label}</option>`;
+
+function controlView(f, id, value, describedBy) {
+  if (f.type === 'select') {
+    return html`<select id="${id}" name="${f.name}" aria-describedby="${describedBy}">
+      ${f.placeholder ? html`<option value="" ${value ? '' : 'selected'}>${f.placeholder}</option>` : ''}
+      ${f.groups
+        ? f.groups.map((g) => html`<optgroup label="${g.label}">${g.options.map((o) => optionView(o, value))}</optgroup>`)
+        : f.options.map((o) => optionView(o, value))}
+    </select>`;
+  }
+  if (f.type === 'textarea') {
+    return html`<textarea id="${id}" name="${f.name}" rows="2" aria-describedby="${describedBy}">${value ?? ''}</textarea>`;
+  }
+  if (f.type === 'checkbox') {
+    return html`<input id="${id}" name="${f.name}" type="checkbox" ${value ? 'checked' : ''} aria-describedby="${describedBy}">`;
+  }
+  return html`<input id="${id}" name="${f.name}" type="${f.type || 'text'}" value="${value ?? ''}"
+    ${f.inputmode ? html`inputmode="${f.inputmode}"` : ''}
+    autocomplete="${f.autocomplete || 'off'}" ${f.required ? 'required' : ''} aria-describedby="${describedBy}">`;
+}
+
+// field: {name, label, type: text|password|date|select|textarea|checkbox|color,
+//         options:[{value,label,disabled}] or groups:[{label, options}],
+//         placeholder (an empty first choice), help, autocomplete, inputmode, required}
 function fieldView(f, value) {
   const id = `f-${f.name}`;
   const describedBy = `${f.help ? `${id}-help ` : ''}${id}-err`;
-  const control = f.type === 'select'
-    ? html`<select id="${id}" name="${f.name}" aria-describedby="${describedBy}">
-        ${f.options.map((o) => html`<option value="${o.value}" ${String(o.value) === String(value) ? 'selected' : ''}>${o.label}</option>`)}
-      </select>`
-    : html`<input id="${id}" name="${f.name}" type="${f.type || 'text'}" value="${value ?? ''}"
-        autocomplete="${f.autocomplete || 'off'}" ${f.required ? 'required' : ''} aria-describedby="${describedBy}">`;
+  const control = controlView(f, id, value, describedBy);
+  if (f.type === 'checkbox') {
+    return html`<div class="field field-check">
+      <label for="${id}">${control} ${f.label}</label>
+      ${f.help ? html`<p class="help" id="${id}-help">${f.help}</p>` : ''}
+      <p class="field-error" id="${id}-err"></p>
+    </div>`;
+  }
   return html`<div class="field">
     <label for="${id}">${f.label}${f.required ? '' : html` <span class="optional">${t('form.optional')}</span>`}</label>
     ${control}
@@ -29,9 +54,11 @@ function fieldView(f, value) {
   </div>`;
 }
 
-export function formView({ fields, values = {}, submit }) {
+// `extra` is drawn after the fields (for example the approval notice).
+export function formView({ fields, values = {}, submit, extra = '' }) {
   return html`<form class="form" novalidate>
     ${fields.map((f) => fieldView(f, values[f.name]))}
+    ${extra}
     <div class="form-error" role="alert"></div>
     <div class="form-actions"><button type="submit" class="btn btn-primary">${submit}</button></div>
   </form>`;
@@ -76,7 +103,8 @@ export async function whileBusy(button, busyLabel, work) {
 // schema: the action's payload rules; only fields present in the form are
 //   checked here, and the server checks everything again.
 // onSubmit(values) returns a write reply or throws.
-// onSaved(reply) runs after a saved reply.
+// onSaved(reply) runs after a saved reply, or one kept on this phone
+// ('queued'). Any other status (a question the person closed) keeps the form.
 // guard: false for forms that need no unsaved-changes warning (sign-in).
 export function bindForm(form, { schema, busyLabel, onSubmit, onSaved, guard = true, mapValues = (v) => v }) {
   const errorSlot = form.querySelector('.form-error');
@@ -86,7 +114,7 @@ export function bindForm(form, { schema, busyLabel, onSubmit, onSaved, guard = t
     e.preventDefault();
     if (button.disabled) return;
     const raw = {};
-    for (const el of form.elements) if (el.name) raw[el.name] = el.value;
+    for (const el of form.elements) if (el.name) raw[el.name] = el.type === 'checkbox' ? el.checked : el.value;
     const values = mapValues(raw);
     const checked = {};
     for (const key of Object.keys(schema)) if (key in raw) checked[key] = schema[key];
@@ -99,6 +127,7 @@ export function bindForm(form, { schema, busyLabel, onSubmit, onSaved, guard = t
           if (!markFields(form, reply.error.fields)) errorSlot.textContent = t(errorMessageId(reply.error.code), reply.error.params);
           return;
         }
+        if (reply.status !== 'saved' && reply.status !== 'queued') return;
         markDirty(form, false);
         if (onSaved) await onSaved(reply);
       } catch (err) {
