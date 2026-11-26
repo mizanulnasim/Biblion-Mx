@@ -4,7 +4,7 @@
 import { BUSINESS_DEFAULTS } from '../../shared/schema/settings.js';
 import { APPROVAL_RULES } from '../../shared/rules/approval.js';
 
-function setting(db, key) {
+export function setting(db, key) {
   const row = db.findOne('Settings', 'key', key);
   return row ? row.value : BUSINESS_DEFAULTS[key];
 }

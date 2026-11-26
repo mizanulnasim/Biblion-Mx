@@ -91,7 +91,7 @@ export const TABLES = Object.freeze({
   Deliveries: {
     group: 'books',
     prefix: 'DLV',
-    columns: ['date', 'publisher_id', 'challan', 'lines:j', 'total_cost:n', 'paid:n', 'payment_id', 'note', 'entered_by'],
+    columns: ['date', 'publisher_id', 'challan', 'lines:j', 'total_cost:n', 'paid:n', 'payment_id', 'note', 'entered_by', 'requisition_id', 'charge:n', 'charge_id'],
   },
   // The stock ledger. qty is signed (+ in, − out). Stock on hand is the sum
   // of active movements; a cancelled one keeps its row and reason.
@@ -102,6 +102,33 @@ export const TABLES = Object.freeze({
       'date', 'book_id', 'kind', 'qty:n', 'unit_cost:n', 'sale_amount:n', 'ref_type', 'ref_id', 'reason',
       'status', 'cancel_reason', 'cancelled_by', 'cancelled_at', 'entered_by',
     ],
+  },
+  // A requisition to a publisher. lines: [{key, book_id, title, qty,
+  // received, cancelled, special_order_ids}]. Status: draft, sent, part
+  // (part received), received, closed (the rest isn't coming).
+  Requisitions: {
+    group: 'books',
+    prefix: 'RQN',
+    columns: [
+      'number', 'publisher_id', 'date', 'status', 'lines:j', 'sales_from', 'sales_to', 'note',
+      'sent_at', 'sent_by', 'closed_reason', 'closed_by', 'entered_by',
+    ],
+  },
+  // A customer's special order. Status: open, requested (in a requisition),
+  // arrived, told, collected, cancelled.
+  Special_Orders: {
+    group: 'books',
+    prefix: 'SPO',
+    columns: [
+      'number', 'date', 'customer_name', 'phone', 'book_id', 'title', 'publisher_id', 'qty:n', 'advance:n', 'note',
+      'status', 'requisition_id', 'arrived_at', 'told_at', 'told_by', 'collected_at', 'cancel_reason', 'taken_by',
+    ],
+  },
+  // A full stock-take. counts: {book_id: copies counted}.
+  Stock_Takes: {
+    group: 'books',
+    prefix: 'STK',
+    columns: ['number', 'date', 'publisher_id', 'status', 'counts:j', 'started_by', 'applied_by', 'applied_at', 'result:j', 'cancel_reason'],
   },
   // One row per closed date; reopening keeps the row with its reason.
   Day_Closings: {

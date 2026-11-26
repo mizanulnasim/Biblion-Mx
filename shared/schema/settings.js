@@ -15,6 +15,10 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   'approve.rule.daily': 'final',
   'approve.rule.vendor': 'final',
   'approve.rule.publisher': 'final',
+  // Requisitions: drafted automatically each week, each month, or not at all;
+  // a first requisition looks back this many days of sales.
+  'books.req_auto': 'off',
+  'books.req_days': 30,
   'approve.rule.other': 'final',
 });
 

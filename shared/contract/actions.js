@@ -225,11 +225,22 @@ export const ACTIONS = Object.freeze({
           printed_price: { type: 'money', required: true },
           qty: { type: 'int', required: true, min: 1, max: 10000 },
           damaged: { type: 'int', min: 0, max: 10000 },
+          // Damaged copies: sent back, or kept at full or a lower cost.
+          damaged_action: { type: 'enum', values: ['return', 'keep', 'keep_lower'] },
+          damaged_cost: { type: 'money', zero: true },
           unit_cost: { type: 'money', zero: true },
+          // Against a requisition: its line, and what happens to copies short or extra.
+          req_line: { type: 'text', max: 20 },
+          short_action: { type: 'enum', values: ['expected', 'not_coming'] },
+          extra_action: { type: 'enum', values: ['keep', 'return'] },
         },
       },
+      requisition_id: { type: 'id' },
       paid: { type: 'money', zero: true },
       paid_account_id: { type: 'id' },
+      charge: { type: 'money', zero: true },
+      charge_account_id: { type: 'id' },
+      charge_category_id: { type: 'id' },
       note: { type: 'text', max: 300 },
     },
   },
@@ -243,6 +254,59 @@ export const ACTIONS = Object.freeze({
     },
   },
   'books.sales.day': { perm: 'books.view', schema: { date: { type: 'date', required: true } } },
+
+  // Requisitions to publishers.
+  'books.reqs': { perm: 'books.view', schema: { ...PAGED, status: { type: 'enum', values: ['draft', 'sent', 'part', 'received', 'closed'] } } },
+  'books.req.get': { perm: 'books.view', schema: { id: { type: 'id', required: true } } },
+  'books.req.build': { write: true, perm: 'books.requisition', area: 'books', schema: { publisher_id: { type: 'id', required: true } } },
+  'books.req.save': {
+    write: true, perm: 'books.requisition', area: 'books',
+    schema: {
+      id: { type: 'id', required: true },
+      version: { type: 'int', required: true, min: 1 },
+      lines: { type: 'list', max: 300, of: { key: { type: 'text', max: 20 }, book_id: { type: 'id' }, title: { type: 'text', max: 200 }, qty: { type: 'int', required: true, min: 0, max: 10000 } } },
+      note: { type: 'text', max: 300 },
+    },
+  },
+  'books.req.send': { write: true, perm: 'books.requisition', area: 'books', schema: { id: { type: 'id', required: true } } },
+  'books.req.close': { write: true, perm: 'books.requisition', area: 'books', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 300 } } },
+
+  // Special orders from customers. Staff may take one; following them up
+  // shows customers' names and phones, so it needs books.orders.
+  'books.order.save': {
+    write: true, perm: 'books.order', offline: true, area: 'books',
+    schema: {
+      customer_name: { type: 'text', required: true, max: 80 },
+      phone: { type: 'text', required: true, max: 20 },
+      book_id: { type: 'id' },
+      title: { type: 'text', max: 200 },
+      publisher_id: { type: 'id' },
+      qty: { type: 'int', required: true, min: 1, max: 50 },
+      advance: { type: 'money', zero: true },
+      note: { type: 'text', max: 300 },
+    },
+  },
+  'books.orders': { perm: 'books.orders', schema: { ...PAGED, status: { type: 'enum', values: ['open', 'arrived', 'done'] } } },
+  'books.order.act': {
+    write: true, perm: 'books.orders', area: 'books',
+    schema: { id: { type: 'id', required: true }, act: { type: 'enum', required: true, values: ['told', 'collected', 'cancel'] }, reason: { type: 'text', max: 300 } },
+  },
+
+  // Full stock-take: start, count (in several sittings), apply.
+  'books.stocktake': { perm: 'books.adjust' },
+  'books.stocktake.start': { write: true, perm: 'books.adjust', area: 'books', schema: { publisher_id: { type: 'id' } } },
+  'books.stocktake.save': {
+    write: true, perm: 'books.adjust', area: 'books',
+    schema: { id: { type: 'id', required: true }, counts: { type: 'list', max: 5000, of: { book_id: { type: 'id', required: true }, counted: { type: 'int', min: 0, max: 100000 } } } },
+  },
+  'books.stocktake.apply': { write: true, perm: 'books.adjust', area: 'books', schema: { id: { type: 'id', required: true } } },
+  'books.stocktake.cancel': { write: true, perm: 'books.adjust', area: 'books', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 300 } } },
+
+  'settings.books': { perm: 'settings.books' },
+  'settings.books.save': {
+    write: true, perm: 'settings.books', area: 'books',
+    schema: { req_auto: { type: 'enum', required: true, values: ['off', 'weekly', 'monthly'] }, req_days: { type: 'int', required: true, min: 7, max: 365 } },
+  },
 
   // Day closing: the checklist for a date, closing it, and reopening it.
   'closing.day': { perm: 'closing.day', schema: { date: { type: 'date', required: true } } },

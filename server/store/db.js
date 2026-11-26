@@ -51,6 +51,13 @@ export function createDatabase() {
   }
 }
 
+// The next person-friendly number in a table: RQ-0001, RQ-0002… (writes hold
+// the script lock, so two can't take the same number).
+export function nextNumber(rows, prefix) {
+  const last = rows.reduce((max, r) => Math.max(max, Number(String(r.number || '').split('-').pop()) || 0), 0);
+  return `${prefix}-${String(last + 1).padStart(4, '0')}`;
+}
+
 export function newId(prefix) {
   return `${prefix}-${uuid().replace(/-/g, '').slice(0, 12).toUpperCase()}`;
 }

@@ -11,7 +11,10 @@ import { META_HANDLERS } from './meta.js';
 import { MONEY_HANDLERS } from './money.js';
 import { SETTINGS_HANDLERS } from './settings.js';
 import { SETUP_MONEY_HANDLERS } from './setup-money.js';
+import { REQUISITION_HANDLERS } from './requisitions.js';
 import { SHIFT_HANDLERS } from './shift.js';
+import { SPECIAL_ORDER_HANDLERS } from './special-orders.js';
+import { STOCKTAKE_HANDLERS } from './stocktake.js';
 import { SUPPLIER_HANDLERS } from './suppliers.js';
 import { SETUP_HANDLERS } from './setup.js';
 import { USER_HANDLERS } from './users.js';
@@ -29,5 +32,8 @@ export const HANDLERS = Object.freeze({
   ...CLOSING_HANDLERS,
   ...SUPPLIER_HANDLERS,
   ...BOOK_HANDLERS,
+  ...REQUISITION_HANDLERS,
+  ...SPECIAL_ORDER_HANDLERS,
+  ...STOCKTAKE_HANDLERS,
   'sync.version': () => ({ areas: areaVersions() }),
 });

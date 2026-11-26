@@ -148,5 +148,6 @@ export function loadServer(bundlePath, state) {
   return {
     post: (body) => JSON.parse(context.doPost({ postData: { contents: typeof body === 'string' ? body : JSON.stringify(body) } }).getContent()),
     get: () => JSON.parse(context.doGet().getContent()),
+    job: () => context.jobHourly(),
   };
 }

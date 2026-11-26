@@ -10,6 +10,7 @@ import { newId } from '../store/db.js';
 import { page } from '../kernel/paging.js';
 import { assertDayOpen, record } from './money.js';
 import { bookCosts, supplierCostRule } from './suppliers.js';
+import { ordersArrived } from './special-orders.js';
 
 const round = (n) => Math.round(n * 100) / 100;
 const fieldError = (fields) => new AppError('VALIDATION', {}, fields);
@@ -140,17 +141,23 @@ function cancelMove(ctx, { id, reason }) {
 
 // ---- Deliveries ------------------------------------------------------------
 // Each line is a title already in the catalogue or a new one (title and
-// printed price). Damaged copies go back to the publisher and are not
-// stocked. A copy's cost is the printed price less the publisher's
-// commission unless the challan says otherwise. A payment made on delivery
-// is recorded as a publisher payment.
+// printed price). A copy's cost is the printed price less the publisher's
+// commission unless the challan says otherwise.
+//   Damaged copies: sent back (not stocked), kept at full cost, or kept at a
+//   lower cost.
+//   Against a requisition line: copies beyond what is still expected are kept
+//   or sent back; copies short are still expected or not coming.
+// A payment made on delivery is a publisher payment, and the delivery charge
+// an expense. Customers' special orders for a title are marked arrived.
 
-function saveDelivery(ctx, input) {
-  const { db } = ctx;
-  assertDayOpen(ctx, input.date, 'date');
-  const publisher = db.get('Suppliers', input.publisher_id);
+function checkDelivery(db, input) {
   const fields = {};
+  const publisher = db.get('Suppliers', input.publisher_id);
   if (!publisher || publisher.kind !== 'publisher' || publisher.status !== 'active') fields.publisher_id = { code: 'val.not_found', params: {} };
+  const req = input.requisition_id ? db.get('Requisitions', input.requisition_id) : null;
+  if (input.requisition_id && (!req || req.publisher_id !== input.publisher_id || (req.status !== 'sent' && req.status !== 'part'))) {
+    fields.requisition_id = { code: 'val.not_found', params: {} };
+  }
   const lines = input.lines || [];
   if (!lines.length) fields.lines = { code: 'val.no_lines', params: {} };
   lines.forEach((l, i) => {
@@ -160,36 +167,95 @@ function saveDelivery(ctx, input) {
       fields[`lines.${i}.title`] = { code: 'val.required', params: {} };
     }
     if ((l.damaged || 0) > l.qty) fields[`lines.${i}.damaged`] = { code: 'val.more_than_qty', params: {} };
+    if (l.damaged_action === 'keep_lower' && (l.damaged_cost === null || l.damaged_cost === undefined)) fields[`lines.${i}.damaged_cost`] = { code: 'val.required', params: {} };
+    if (l.req_line && !(req && req.lines.some((x) => x.key === l.req_line))) fields[`lines.${i}.req_line`] = { code: 'val.not_found', params: {} };
   });
   if ((input.paid || 0) > 0 && !input.paid_account_id) fields.paid_account_id = { code: 'val.required', params: {} };
+  if ((input.charge || 0) > 0) {
+    if (!input.charge_account_id) fields.charge_account_id = { code: 'val.required', params: {} };
+    if (!input.charge_category_id) fields.charge_category_id = { code: 'val.required', params: {} };
+  }
   if (Object.keys(fields).length) throw fieldError(fields);
+  return { publisher, req };
+}
 
+const plainEntry = { to_account_id: '', category_id: '', party_id: '', direction: '', covers_up_to: '' };
+
+function saveDelivery(ctx, input) {
+  const { db } = ctx;
+  assertDayOpen(ctx, input.date, 'date');
+  const { publisher, req } = checkDelivery(db, input);
   const cost = supplierCostRule(publisher);
   const id = newId('DLV');
-  const stored = lines.map((l) => {
+  const reqLines = req ? req.lines.map((l) => ({ ...l })) : [];
+
+  const stored = input.lines.map((l) => {
     const book = l.book_id ? db.get('Books', l.book_id) : db.insert('Books', {
       title: l.title, author: l.author || '', isbn: '', publisher_id: publisher.id, printed_price: l.printed_price, sell_price: 0, aliases: '', status: 'active',
     });
-    const accepted = l.qty - (l.damaged || 0);
     const unitCost = l.unit_cost || l.unit_cost === 0 ? l.unit_cost : cost(l.printed_price);
-    if (accepted > 0) move(ctx, { date: input.date, book_id: book.id, kind: 'receive', qty: accepted, unit_cost: unitCost, ref_type: 'delivery', ref_id: id });
-    return { book_id: book.id, title: book.title, printed_price: l.printed_price, qty: l.qty, damaged: l.damaged || 0, accepted, unit_cost: unitCost };
+    const damaged = l.damaged || 0;
+    const damagedAction = damaged ? l.damaged_action || 'return' : '';
+    const keptDamaged = damagedAction === 'keep' || damagedAction === 'keep_lower' ? damaged : 0;
+    let good = l.qty - damaged;
+    let extraReturned = 0;
+    let short = 0;
+    const reqLine = l.req_line ? reqLines.find((x) => x.key === l.req_line) : null;
+    if (reqLine) {
+      const expected = Math.max(0, reqLine.qty - (reqLine.received || 0) - (reqLine.cancelled || 0));
+      const arrived = good + keptDamaged;
+      if (arrived > expected && l.extra_action === 'return') {
+        extraReturned = Math.min(good, arrived - expected);
+        good -= extraReturned;
+      }
+      reqLine.received = (reqLine.received || 0) + Math.min(arrived, expected);
+      short = Math.max(0, expected - arrived);
+      if (short && l.short_action === 'not_coming') reqLine.cancelled = (reqLine.cancelled || 0) + short;
+    }
+    if (good > 0) move(ctx, { date: input.date, book_id: book.id, kind: 'receive', qty: good, unit_cost: unitCost, ref_type: 'delivery', ref_id: id });
+    if (keptDamaged) {
+      move(ctx, {
+        date: input.date, book_id: book.id, kind: 'receive', qty: keptDamaged, unit_cost: damagedAction === 'keep_lower' ? l.damaged_cost : unitCost,
+        ref_type: 'delivery', ref_id: id, reason: damagedAction,
+      });
+    }
+    if (good + keptDamaged > 0) ordersArrived(db, book, good + keptDamaged);
+    return {
+      book_id: book.id, title: book.title, printed_price: l.printed_price, qty: l.qty, damaged, damaged_action: damagedAction,
+      accepted: good + keptDamaged, unit_cost: unitCost, damaged_cost: damagedAction === 'keep_lower' ? l.damaged_cost : null,
+      req_line: l.req_line || '', extra_returned: extraReturned, short, short_action: short ? l.short_action || 'expected' : '',
+    };
   });
-  const total = round(stored.reduce((s, l) => s + l.accepted * l.unit_cost, 0));
+  const total = round(stored.reduce((s, l) => s + (l.accepted - (l.damaged_action === 'keep_lower' ? l.damaged : 0)) * l.unit_cost
+    + (l.damaged_action === 'keep_lower' ? l.damaged * l.damaged_cost : 0), 0));
+
+  if (req) {
+    const done = reqLines.every((l) => (l.received || 0) + (l.cancelled || 0) >= l.qty);
+    db.update('Requisitions', req, { lines: reqLines, status: done ? 'received' : 'part' });
+  }
 
   let paymentId = '';
   if ((input.paid || 0) > 0) {
-    const reply = record(ctx, {
-      kind: 'publisher_payment', date: input.date, amount: input.paid, account_id: input.paid_account_id, to_account_id: '',
-      category_id: '', party_id: publisher.id, direction: '', note: input.challan ? `${input.challan}` : '', ref: input.challan || '', covers_up_to: '',
-    }, {}, { checkDuplicates: false });
-    paymentId = reply.record_id;
+    paymentId = record(ctx, {
+      ...plainEntry, kind: 'publisher_payment', date: input.date, amount: input.paid, account_id: input.paid_account_id,
+      party_id: publisher.id, note: '', ref: input.challan || '',
+    }, {}, { checkDuplicates: false }).record_id;
+  }
+  let chargeId = '';
+  if ((input.charge || 0) > 0) {
+    const category = db.get('Expense_Categories', input.charge_category_id);
+    chargeId = record(ctx, {
+      ...plainEntry, kind: 'expense', date: input.date, amount: input.charge, account_id: input.charge_account_id,
+      category_id: input.charge_category_id, note: input.challan || '', ref: id,
+      category_needs_shareholder: Boolean(category && category.needs_shareholder),
+    }, {}, { checkDuplicates: false }).record_id;
   }
   db.insert('Deliveries', {
     id, date: input.date, publisher_id: publisher.id, challan: input.challan || '', lines: stored, total_cost: total,
     paid: input.paid || 0, payment_id: paymentId, note: input.note || '', entered_by: ctx.user.id,
+    requisition_id: req ? req.id : '', charge: input.charge || 0, charge_id: chargeId,
   });
-  return saved(id, { total_cost: total, payment_id: paymentId });
+  return saved(id, { total_cost: total, payment_id: paymentId, charge_id: chargeId });
 }
 
 function deliveries(ctx, query) {
