@@ -9,6 +9,7 @@ import { findDuplicates } from '../../shared/rules/duplicates.js';
 import { page } from '../kernel/paging.js';
 import { approvalSettings } from '../kernel/settings.js';
 import { isDayClosed } from './closing.js';
+import { supplierBalances } from './suppliers.js';
 
 const fieldError = (fields) => new AppError('VALIDATION', {}, fields);
 
@@ -26,7 +27,7 @@ const counts = (e) => e.status === 'active';
 
 export function lookups(db) {
   const map = new Map();
-  for (const table of ['Money_Accounts', 'Expense_Categories', 'Due_Contacts', 'Shareholders']) {
+  for (const table of ['Money_Accounts', 'Expense_Categories', 'Due_Contacts', 'Shareholders', 'Suppliers']) {
     for (const row of db.all(table)) map.set(row.id, row);
   }
   for (const user of db.all('Users')) map.set(user.id, user);
@@ -69,6 +70,7 @@ export function view(entry, names) {
     direction: entry.direction,
     note: entry.note,
     ref: entry.ref,
+    covers_up_to: entry.covers_up_to,
     details: entry.details,
     status: entry.status,
     approval: entry.approval,
@@ -109,7 +111,7 @@ function changeable(ctx, id, field) {
 }
 
 // A closed day's money is changed only by a shareholder (who may also reopen the day).
-function assertDayOpen(ctx, date, field) {
+export function assertDayOpen(ctx, date, field) {
   if (!ctx.can('acc.approve') && isDayClosed(ctx.db, date)) {
     throw fieldError({ [field]: { code: 'val.day_closed', params: { date } } });
   }
@@ -123,6 +125,7 @@ function boot(ctx) {
   const sums = balances(db);
   const kinds = {};
   for (const id of Object.keys(KINDS)) kinds[id] = kindAccess(permissionsOf(ctx), id);
+  const owed = supplierBalances(db);
   return {
     kinds,
     approval: approvalSettings(db),
@@ -134,6 +137,9 @@ function boot(ctx) {
     categories: active(db.all('Expense_Categories')).map((c) => ({ id: c.id, name: c.name, area: c.area, needs_shareholder: c.needs_shareholder })),
     contacts: active(db.all('Due_Contacts')).map((c) => ({ id: c.id, name: c.name, phone: c.phone, due: sums.dues[c.id] })),
     shareholders: active(db.all('Shareholders')).map((s) => ({ id: s.id, name: s.name, loan: ctx.can('acc.view_all') ? sums.loans[s.id] : null })),
+    suppliers: active(db.all('Suppliers')).map((s) => ({
+      id: s.id, kind: s.kind, name: s.name, pays_on: s.pays_on, owed: ctx.can('acc.view_all') ? owed.get(s.id) || 0 : null,
+    })),
   };
 }
 
@@ -206,12 +212,16 @@ function shape(db, input) {
   }
   if (kind.cash === 'either') need('direction');
   if (kind.party === 'category') need('category_id');
-  if (kind.party === 'contact' || kind.party === 'shareholder') need('party_id');
+  if (kind.party && kind.party !== 'category') need('party_id');
   activeIn('Money_Accounts', 'account_id');
   activeIn('Money_Accounts', 'to_account_id');
   const category = kind.party === 'category' ? activeIn('Expense_Categories', 'category_id') : null;
   if (kind.party === 'contact') activeIn('Due_Contacts', 'party_id');
   if (kind.party === 'shareholder') activeIn('Shareholders', 'party_id');
+  if (kind.party === 'vendor' || kind.party === 'publisher') {
+    const supplier = activeIn('Suppliers', 'party_id');
+    if (supplier && supplier.kind !== kind.party) fields.party_id = { code: 'val.not_found', params: {} };
+  }
   if (Object.keys(fields).length) throw fieldError(fields);
   return {
     kind: input.kind,
@@ -220,10 +230,11 @@ function shape(db, input) {
     account_id: kind.cash === 'none' ? '' : input.account_id,
     to_account_id: kind.cash === 'transfer' ? input.to_account_id : '',
     category_id: kind.party === 'category' ? input.category_id : '',
-    party_id: kind.party === 'contact' || kind.party === 'shareholder' ? input.party_id : '',
+    party_id: kind.party && kind.party !== 'category' ? input.party_id : '',
     direction: kind.cash === 'either' ? input.direction : '',
     note: input.note || '',
     ref: input.ref || '',
+    covers_up_to: kind.covers ? input.covers_up_to || '' : '',
     category_needs_shareholder: Boolean(category && category.needs_shareholder),
   };
 }
@@ -241,9 +252,11 @@ function prompt(warnings, db) {
 }
 
 // Saves a checked entry: duplicate warnings (needs_input until a reason is
-// given), the approval policy, the correction it replaces, and the other
-// half it cancels. Used by the money screen and the daily shift.
-export function record(ctx, entry, input) {
+// given; a blocking one is a field error), the approval policy, the
+// correction it replaces, and the other half it cancels. Used by the money
+// screen, the daily shift, and payments made with a book delivery (which
+// skip the duplicate checks: the delivery itself is the record).
+export function record(ctx, entry, input, { checkDuplicates = true } = {}) {
   const { db } = ctx;
   assertDayOpen(ctx, entry.date, 'date');
   const old = input.replaces ? changeable(ctx, input.replaces, 'replaces') : null;
@@ -253,7 +266,10 @@ export function record(ctx, entry, input) {
 
   const ignore = new Set([input.replaces, input.pair_id]);
   const others = db.all('Transactions').filter((e) => counts(e) && !ignore.has(e.id));
-  const warnings = findDuplicates(entry, others);
+  const suppliers = db.all('Suppliers').filter((s) => s.status === 'active');
+  const warnings = checkDuplicates ? findDuplicates(entry, others, suppliers) : [];
+  const blocking = warnings.find((w) => w.blocks);
+  if (blocking) throw fieldError({ [blocking.blocks]: { code: blocking.code, params: blocking.params } });
   if (warnings.length && !input.reason) return { status: 'needs_input', prompt: prompt(warnings, db) };
   const dupReason = warnings.length ? input.reason : '';
 
@@ -271,6 +287,7 @@ export function record(ctx, entry, input) {
     note: entry.note,
     ref: entry.ref,
     details: entry.details || null,
+    covers_up_to: entry.covers_up_to || '',
     status: 'active',
     approval: decision.final ? 'final' : 'waiting',
     wait_reasons: decision.reasons,

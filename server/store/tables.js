@@ -69,6 +69,38 @@ export const TABLES = Object.freeze({
       'replaces', 'replaced_by', 'cancel_reason', 'cancelled_by', 'cancelled_at', 'entered_by',
       // A daily shift's split, dues, cash handed over and cash count.
       'details:j',
+      // A publisher payment: the latest date of sales it settles.
+      'covers_up_to',
+    ],
+  },
+  // Vendors and publishers. commission: the publisher's discount to the
+  // shop (%), so a copy costs printed price less commission. sell_discount:
+  // the shop's discount to customers (%). pays_on: a publisher is owed for
+  // copies as they sell, or for everything delivered.
+  Suppliers: {
+    group: 'accounts',
+    prefix: 'SUP',
+    columns: ['kind', 'name', 'phone', 'commission:n', 'sell_discount:n', 'pays_on', 'opening_due:n', 'status'],
+  },
+  Books: {
+    group: 'books',
+    prefix: 'BOK',
+    columns: ['title', 'author', 'isbn', 'publisher_id', 'printed_price:n', 'sell_price:n', 'aliases', 'status'],
+  },
+  // A delivery from a publisher, line by line; its stock is in Stock_Movements.
+  Deliveries: {
+    group: 'books',
+    prefix: 'DLV',
+    columns: ['date', 'publisher_id', 'challan', 'lines:j', 'total_cost:n', 'paid:n', 'payment_id', 'note', 'entered_by'],
+  },
+  // The stock ledger. qty is signed (+ in, − out). Stock on hand is the sum
+  // of active movements; a cancelled one keeps its row and reason.
+  Stock_Movements: {
+    group: 'books',
+    prefix: 'STM',
+    columns: [
+      'date', 'book_id', 'kind', 'qty:n', 'unit_cost:n', 'sale_amount:n', 'ref_type', 'ref_id', 'reason',
+      'status', 'cancel_reason', 'cancelled_by', 'cancelled_at', 'entered_by',
     ],
   },
   // One row per closed date; reopening keeps the row with its reason.

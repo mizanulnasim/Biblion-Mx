@@ -5,7 +5,7 @@
 //
 // actor:    {level, permissions}
 // entry:    {kind, amount, category_needs_shareholder, dup_reason, short_over}
-// settings: {limit, rules: {expense, income, transfer, daily, other}}, each rule
+// settings: {limit, rules: {expense, income, transfer, daily, vendor, publisher, other}}, each rule
 //           'final' (final for a manager) or 'shareholder' (a shareholder confirms)
 //
 // - A shareholder's own entries are final.
@@ -19,7 +19,7 @@
 
 import { KINDS } from '../money/kinds.js';
 
-export const APPROVAL_RULES = Object.freeze(['expense', 'income', 'transfer', 'daily', 'other']);
+export const APPROVAL_RULES = Object.freeze(['expense', 'income', 'transfer', 'daily', 'vendor', 'publisher', 'other']);
 
 export function decide(actor, entry, settings) {
   if (actor.level >= 3) return { final: true, needsShareholder: false, reasons: [] };

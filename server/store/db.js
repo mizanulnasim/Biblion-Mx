@@ -10,7 +10,7 @@ import { BASE_COLUMNS, TABLES } from './tables.js';
 import { createSpreadsheet, getProp, openSpreadsheet, setProp, uuid } from '../platform.js';
 import { AppError } from '../../shared/contract/errors.js';
 
-const GROUP_NAMES = { core: 'Biblion data · core', accounts: 'Biblion data · accounts' };
+const GROUP_NAMES = { core: 'Biblion data · core', accounts: 'Biblion data · accounts', books: 'Biblion data · books' };
 
 function parseColumn(spec) {
   const [name, type = 's'] = spec.split(':');

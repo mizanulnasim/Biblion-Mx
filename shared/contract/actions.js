@@ -126,6 +126,7 @@ export const ACTIONS = Object.freeze({
       direction: { type: 'enum', values: ['in', 'out'] },
       note: { type: 'text', max: 300 },
       ref: { type: 'text', max: 60 },
+      covers_up_to: { type: 'date' },
       replaces: { type: 'id' },
       pair_id: { type: 'id' },
       reason: { type: 'text', max: 500 },
@@ -160,6 +161,88 @@ export const ACTIONS = Object.freeze({
       reason: { type: 'text', max: 500 },
     },
   },
+
+  // Vendors and publishers: their terms, what is owed, and statements.
+  'setup.supplier.save': {
+    write: true, perm: 'setup.books', area: 'books',
+    schema: {
+      ...SETUP_BASE,
+      kind: { type: 'enum', required: true, values: ['vendor', 'publisher'] },
+      phone: { type: 'text', max: 20 },
+      commission: { type: 'int', min: 0, max: 100 },
+      sell_discount: { type: 'int', min: 0, max: 100 },
+      pays_on: { type: 'enum', values: ['sale', 'delivery'] },
+      opening_due: { type: 'int', min: 0 },
+    },
+  },
+  // What the shop owes is for people who see all money (shareholders).
+  'suppliers.list': { perm: 'acc.view_all' },
+  'supplier.statement': { perm: 'acc.view_all', schema: { id: { type: 'id', required: true } } },
+  'publisher.suggest': { perm: 'acc.view_all', schema: { id: { type: 'id', required: true }, amount: { type: 'money', zero: true } } },
+
+  // Books: the catalogue, stock, deliveries and typed sales.
+  'books.boot': { perm: 'books.view', cache: true },
+  'books.list': { perm: 'books.view', cache: true, schema: { ...PAGED, publisher_id: { type: 'id' }, stock: { type: 'enum', values: ['in', 'out'] } } },
+  'books.save': {
+    write: true, perm: 'books.catalog', area: 'books',
+    schema: {
+      id: { type: 'id' },
+      version: { type: 'int', min: 1 },
+      title: { type: 'text', required: true, max: 200 },
+      author: { type: 'text', max: 120 },
+      isbn: { type: 'text', max: 20 },
+      publisher_id: { type: 'id', required: true },
+      printed_price: { type: 'money', required: true },
+      sell_price: { type: 'money' },
+      aliases: { type: 'text', max: 300 },
+      status: STATUS,
+    },
+  },
+  'books.adjust': {
+    write: true, perm: 'books.adjust', area: 'books',
+    schema: {
+      book_id: { type: 'id', required: true },
+      date: { type: 'date', required: true },
+      kind: { type: 'enum', required: true, values: ['damaged', 'lost', 'found', 'returned'] },
+      qty: { type: 'int', required: true, min: 1, max: 10000 },
+      reason: { type: 'text', required: true, max: 300 },
+    },
+  },
+  'books.moves': { perm: 'books.view', schema: { book_id: { type: 'id', required: true } } },
+  'books.move.cancel': { write: true, perm: 'books.adjust', area: 'books', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 300 } } },
+  'books.delivery.save': {
+    write: true, perm: 'books.receive', area: 'books',
+    schema: {
+      date: { type: 'date', required: true },
+      publisher_id: { type: 'id', required: true },
+      challan: { type: 'text', max: 60 },
+      lines: {
+        type: 'list', max: 300,
+        of: {
+          book_id: { type: 'id' },
+          title: { type: 'text', max: 200 },
+          author: { type: 'text', max: 120 },
+          printed_price: { type: 'money', required: true },
+          qty: { type: 'int', required: true, min: 1, max: 10000 },
+          damaged: { type: 'int', min: 0, max: 10000 },
+          unit_cost: { type: 'money', zero: true },
+        },
+      },
+      paid: { type: 'money', zero: true },
+      paid_account_id: { type: 'id' },
+      note: { type: 'text', max: 300 },
+    },
+  },
+  'books.deliveries': { perm: 'books.view', schema: PAGED },
+  'books.delivery.get': { perm: 'books.view', schema: { id: { type: 'id', required: true } } },
+  'books.sales.save': {
+    write: true, perm: 'books.sell', offline: true, area: 'books',
+    schema: {
+      date: { type: 'date', required: true },
+      lines: { type: 'list', max: 200, of: { book_id: { type: 'id', required: true }, qty: { type: 'int', required: true, min: 1, max: 10000 }, amount: { type: 'money', zero: true, required: true } } },
+    },
+  },
+  'books.sales.day': { perm: 'books.view', schema: { date: { type: 'date', required: true } } },
 
   // Day closing: the checklist for a date, closing it, and reopening it.
   'closing.day': { perm: 'closing.day', schema: { date: { type: 'date', required: true } } },

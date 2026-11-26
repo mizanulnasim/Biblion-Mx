@@ -3,7 +3,7 @@
 
 import { getProp, setProp } from '../platform.js';
 
-const AREAS = Object.freeze(['core', 'money']);
+const AREAS = Object.freeze(['core', 'money', 'books']);
 
 export function bumpArea(area) {
   const key = `AREA_${area}`;

@@ -6,14 +6,15 @@
 //               (saved and counted now, waiting for a shareholder)
 //   rule        which approval switch in Settings → Approvals applies
 //   party       who or what it is about: category, contact (a person with
-//               a due), shareholder, or nothing
+//               a due), shareholder, vendor, publisher, or nothing
 //   cash        how it moves money: in, out, none, transfer, or
 //               either (loan repayment, by its direction)
 //   limit       false when the amount limit doesn't apply (a day's sales)
 // The daily shift is a kind of its own, entered on the Daily shift page,
 // not on the money screen; it is stored and approved like any money entry.
-// Vendor, publisher and staff pay kinds are added with the Books and HR
-// milestones; their ledgers are separate from these.
+// Vendor and publisher kinds keep their own payables ledger: a payment only
+// pays off what is owed and is never an expense (book cost is counted as
+// copies sell, a vendor's when goods are bought). Staff pay comes with HR.
 
 export const KINDS = Object.freeze({
   expense: { group: 'money', label: 'money.kind.expense', help: 'money.help.expense', perm: 'acc.expense', requestable: true, rule: 'expense', party: 'category', cash: 'out' },
@@ -27,11 +28,20 @@ export const KINDS = Object.freeze({
   owner_salary: { group: 'shareholders', label: 'money.kind.owner_salary', help: 'money.help.owner_salary', perm: 'acc.shareholders', requestable: false, rule: 'other', party: 'shareholder', cash: 'out' },
   profit_share: { group: 'shareholders', label: 'money.kind.profit_share', help: 'money.help.profit_share', perm: 'acc.shareholders', requestable: false, rule: 'other', party: 'shareholder', cash: 'out' },
   owner_withdrawal: { group: 'shareholders', label: 'money.kind.owner_withdrawal', help: 'money.help.owner_withdrawal', perm: 'acc.shareholders', requestable: false, rule: 'other', party: 'shareholder', cash: 'out' },
+  vendor_purchase_credit: { group: 'vendors', label: 'money.kind.vendor_purchase_credit', help: 'money.help.vendor_purchase_credit', perm: 'acc.vendor.purchase', requestable: true, rule: 'vendor', party: 'vendor', cash: 'none', bill: true },
+  vendor_purchase_paid: { group: 'vendors', label: 'money.kind.vendor_purchase_paid', help: 'money.help.vendor_purchase_paid', perm: 'acc.vendor.purchase', requestable: true, rule: 'vendor', party: 'vendor', cash: 'out', bill: true },
+  vendor_payment: { group: 'vendors', label: 'money.kind.vendor_payment', help: 'money.help.vendor_payment', perm: 'acc.vendor.pay', requestable: true, rule: 'vendor', party: 'vendor', cash: 'out' },
+  vendor_credit_note: { group: 'vendors', label: 'money.kind.vendor_credit_note', help: 'money.help.vendor_credit_note', perm: 'acc.vendor.purchase', requestable: true, rule: 'vendor', party: 'vendor', cash: 'none' },
+  publisher_payment: { group: 'publishers', label: 'money.kind.publisher_payment', help: 'money.help.publisher_payment', perm: 'acc.publisher.pay', requestable: true, rule: 'publisher', party: 'publisher', cash: 'out', covers: true },
+  publisher_refund: { group: 'publishers', label: 'money.kind.publisher_refund', help: 'money.help.publisher_refund', perm: 'acc.publisher.pay', requestable: true, rule: 'publisher', party: 'publisher', cash: 'in' },
+  publisher_writeoff: { group: 'publishers', label: 'money.kind.publisher_writeoff', help: 'money.help.publisher_writeoff', perm: 'acc.publisher.pay', requestable: true, rule: 'publisher', party: 'publisher', cash: 'none' },
   daily_shift: { group: 'daily', label: 'money.kind.daily_shift', help: 'money.help.daily_shift', perm: 'acc.daily', requestable: false, rule: 'daily', party: null, cash: 'shift', limit: false },
 });
 
 export const KIND_GROUPS = Object.freeze([
   { id: 'money', label: 'money.group.money' },
+  { id: 'vendors', label: 'money.group.vendors' },
+  { id: 'publishers', label: 'money.group.publishers' },
   { id: 'shareholders', label: 'money.group.shareholders' },
 ]);
 
@@ -82,6 +92,18 @@ export function dueEffect(entry, contactId) {
   if (entry.party_id !== contactId) return 0;
   if (entry.kind === 'due_taken') return entry.amount;
   return entry.kind === 'due_collected' ? -entry.amount : 0;
+}
+
+// What the shop owes a vendor or publisher changes with these entries;
+// positive means the shop owes. (Book deliveries and sales add to what a
+// publisher is owed; see server/modules/suppliers.js.)
+const PAYABLE = {
+  vendor_purchase_credit: 1, vendor_payment: -1, vendor_credit_note: -1,
+  publisher_payment: -1, publisher_refund: 1, publisher_writeoff: 1,
+};
+
+export function payableEffect(entry) {
+  return (PAYABLE[entry.kind] || 0) * entry.amount;
 }
 
 // A shareholder's loan balance; positive means the shareholder owes the shop.

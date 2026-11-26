@@ -1,15 +1,16 @@
 // The one duplicate service. Typed entries use it now; uploads, imports and
 // the nightly check use the same guards when they are built.
 //
-//   findDuplicates(entry, others) → warnings[]
+//   findDuplicates(entry, others, suppliers) → warnings[]
 //
 // `others` are the entries that still count: cancelled and replaced ones
 // are left out by the caller (v1 forgot "removed"), and so is the entry
 // being corrected. A warning is
-//   {code, params, existing: [ids], fix?: {kind, …figures}}
+//   {code, params, existing: [ids], fix?: {kind, …figures}, blocks?: field}
 // Saving past a warning needs a reason, and the entry then waits for a
-// shareholder. Guards that block outright (the same vendor bill number)
-// come with the vendor kinds.
+// shareholder. A warning with `blocks` can't be saved past: it is shown on
+// that field. `suppliers` are the vendors and publishers ({id, kind, name}),
+// for spotting an expense that is really a vendor or publisher entry.
 
 const DAY_MS = 86400000;
 const TWIN_DAYS = 7;
@@ -74,7 +75,49 @@ function dueTwice(entry, others) {
   return found.length ? [{ code: 'dup.due_entered', params: {}, existing: found.map((o) => o.id) }] : [];
 }
 
-export function findDuplicates(entry, others) {
+// D. The same bill number for the same vendor (ignoring case and spaces) is blocked.
+const billKey = (ref) => String(ref || '').toLowerCase().replace(/\s+/g, '');
+const BILL_KINDS = new Set(['vendor_purchase_credit', 'vendor_purchase_paid']);
+
+function vendorBill(entry, others) {
+  if (!BILL_KINDS.has(entry.kind) || !billKey(entry.ref)) return [];
+  const found = others.filter((o) => BILL_KINDS.has(o.kind) && o.party_id === entry.party_id && billKey(o.ref) === billKey(entry.ref));
+  return found.length ? [{ code: 'dup.vendor_bill', params: { id: found[0].id }, existing: found.map((o) => o.id), blocks: 'ref' }] : [];
+}
+
+// Does the note name this supplier? Names of 4 letters or more, as words.
+function names(note, supplier) {
+  const name = supplier.name.toLowerCase().trim();
+  if (name.length < 4) return false;
+  const text = ` ${String(note || '').toLowerCase()} `;
+  return text.includes(` ${name} `) || text.includes(` ${name},`) || text.includes(` ${name}.`);
+}
+
+// B. An expense that matches a vendor bill within 7 days, or names a vendor.
+// C. An expense that names a publisher.
+function supplierExpense(entry, others, suppliers) {
+  if (entry.kind !== 'expense') return [];
+  const out = [];
+  const asVendor = (vendorId) => ({ kind: 'vendor_purchase_paid', date: entry.date, amount: entry.amount, account_id: entry.account_id, party_id: vendorId, note: entry.note });
+  const bill = others.find((o) => BILL_KINDS.has(o.kind) && o.amount === entry.amount && daysApart(o.date, entry.date) <= TWIN_DAYS);
+  if (bill) out.push({ code: 'dup.vendor_bill_match', params: { days: TWIN_DAYS }, existing: [bill.id], fix: asVendor(bill.party_id) });
+  for (const s of suppliers) {
+    if (!names(entry.note, s) || (bill && bill.party_id === s.id)) continue;
+    out.push(s.kind === 'vendor'
+      ? { code: 'dup.names_vendor', params: { name: s.name }, existing: [], fix: asVendor(s.id) }
+      : { code: 'dup.names_publisher', params: { name: s.name }, existing: [], fix: { kind: 'publisher_payment', date: entry.date, amount: entry.amount, account_id: entry.account_id, party_id: s.id, note: entry.note } });
+  }
+  return out;
+}
+
+export function findDuplicates(entry, others, suppliers = []) {
   if (entry.kind === 'daily_shift') return dueTwice(entry, others);
-  return [...twins(entry, others), ...transferPair(entry, others), ...transferWords(entry), ...dueTwice(entry, others)];
+  return [
+    ...vendorBill(entry, others),
+    ...twins(entry, others),
+    ...transferPair(entry, others),
+    ...transferWords(entry),
+    ...dueTwice(entry, others),
+    ...supplierExpense(entry, others, suppliers),
+  ];
 }
