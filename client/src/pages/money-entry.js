@@ -29,6 +29,7 @@ function detailsView({ entry: e, history, can }) {
       ${row(t('money.field.direction'), e.direction ? t(DIRECTIONS[e.direction]) : '')}
       ${row(t('money.field.note'), e.note)}
       ${row(t('money.field.ref'), e.ref)}
+      ${e.covers_up_to ? row(t('money.field.covers_up_to'), dateShort(e.covers_up_to)) : ''}
       ${row(t('money.field.entered_by'), t('money.by_at', { name: e.entered_by_name, time: dateShortTime(e.created_at) }))}
       ${e.approved_by ? row(t('money.field.approved_by'), t('money.by_at', { name: e.approved_by, time: dateShortTime(e.approved_at) })) : ''}
       ${row(t('money.field.dup_reason'), e.dup_reason)}

@@ -75,8 +75,9 @@ function dueTwice(entry, others) {
   return found.length ? [{ code: 'dup.due_entered', params: {}, existing: found.map((o) => o.id) }] : [];
 }
 
-// D. The same bill number for the same vendor (ignoring case and spaces) is blocked.
-const billKey = (ref) => String(ref || '').toLowerCase().replace(/\s+/g, '');
+// D. The same bill number for the same vendor is blocked. Case, spaces and
+// punctuation are ignored: "MV-7", "mv 7" and "MV/7" are one bill.
+const billKey = (ref) => String(ref || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
 const BILL_KINDS = new Set(['vendor_purchase_credit', 'vendor_purchase_paid']);
 
 function vendorBill(entry, others) {

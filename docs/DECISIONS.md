@@ -91,3 +91,20 @@ These are working choices made while building. Each is easy to change.
 
   Café count, deliveries and tasks join when those are built.
 - **A closed day is locked for managers:** no new, corrected or cancelled money dated that day. A shareholder can still change it, and can reopen the day with a reason.
+
+## Milestone 4: books, part 1 (assumptions to confirm)
+- **Vendor and publisher entries** are stored with the other money entries but keep their own payables. They are never expenses, and they don't change profit.
+- **What a publisher is owed:**
+  - "Paid for copies as they sell": the cost of copies sold.
+  - "Paid for everything delivered": the cost of copies delivered, less copies returned.
+  - Both add the opening due, refunds and advances written off, and subtract payments.
+- **A copy's cost** is the average cost of its deliveries. Before any delivery, it is the printed price less the publisher's commission.
+- **Selling price** is the title's own price if it has one. Otherwise it is the printed price less the publisher's shop discount to customers, rounded to the taka.
+- **"Covers sales up to"** is suggested as the latest sales day the payments so far, with this one, fully settle. You can change it.
+- **"Bought with cash" from a publisher** isn't a separate kind. Record a delivery with "Paid on delivery" instead.
+- **Damaged copies in a delivery** are sent back and never stocked. Keeping damaged copies at full or lower cost, extra and short copies, and delivery charges come with requisitions in part 2.
+- **Same vendor bill number twice is blocked.** Case, spaces and punctuation are ignored ("MV-7", "mv 7" and "MV/7" are one bill). This is a little wider than the blueprint's "case and spaces".
+- **What the shop owes vendors and publishers,** and supplier statements, are for shareholders only, like account balances.
+- **Typed book sales** may take stock below zero, so typing a sale at the till never fails; the stock then shows in warning colour. Matching typed sales against the Loyverse upload comes with uploads.
+- **Book approval settings** ("final for a manager, can be flagged") come with review flags. Until then, deliveries, stock changes and typed sales by managers are final.
+- **Still to come in part 2:** requisitions, special orders, full stock-take, the Loyverse item import, and learning other names.

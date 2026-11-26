@@ -338,3 +338,23 @@ fieldset.panel legend { padding: 0 var(--space-2); margin-left: calc(-1 * var(--
 .check { display: flex; align-items: center; gap: var(--space-3); }
 .check a { color: var(--text); }
 @media (max-width: 520px) { .due-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; } }
+
+/* ---- Books ---- */
+.lines { display: grid; gap: var(--space-3); }
+.line-row {
+  display: grid; gap: var(--space-2); align-items: end;
+  grid-template-columns: minmax(0, 3fr) repeat(4, minmax(0, 1fr)) auto;
+  padding-bottom: var(--space-3); border-bottom: 1px solid var(--border);
+}
+.sale-row { display: grid; gap: var(--space-2); align-items: end; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr) minmax(0, 1fr) auto; }
+.line-row .icon-btn, .sale-row .icon-btn { margin-bottom: 4px; }
+@media (max-width: 760px) {
+  .line-row, .sale-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .line-row .line-title, .sale-row .line-title { grid-column: 1 / -1; }
+  .line-row .icon-btn, .sale-row .icon-btn { grid-column: 1 / -1; justify-self: end; }
+}
+.delivery-total, .sales-total { font-weight: 600; margin: var(--space-2) 0 0; }
+.moves { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+.moves li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-2); padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
+.moves li.is-cancelled > span:first-child { text-decoration: line-through; color: var(--text-muted); }
+.book-links { justify-content: flex-start; }

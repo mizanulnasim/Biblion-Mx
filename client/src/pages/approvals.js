@@ -13,6 +13,8 @@ const RULES = [
   { name: 'income', label: 'approvals.income' },
   { name: 'transfer', label: 'approvals.transfer' },
   { name: 'daily', label: 'approvals.daily' },
+  { name: 'vendor', label: 'approvals.vendor' },
+  { name: 'publisher', label: 'approvals.publisher' },
   { name: 'other', label: 'approvals.other' },
 ];
 

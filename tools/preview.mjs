@@ -44,6 +44,12 @@ function seed(server, state) {
   const categories = [['Milk', 'cafe', false], ['Snacks', 'cafe', false], ['Utilities', 'shared', false], ['Rent', 'shared', true], ['Book shipping', 'books', false]];
   for (const [name, area, needs] of categories) call(server, 'setup.category.save', { name, area, needs_shareholder: needs, status: 'active' }, token);
   call(server, 'setup.contact.save', { name: 'Rahim (regular)', phone: '01711000000', opening_due: 350, status: 'active' }, token);
+  const supplier = (fields) => call(server, 'setup.supplier.save', { status: 'active', ...fields }, token).data.record_id;
+  const pathak = supplier({ kind: 'publisher', name: 'Pathak Shamabesh', commission: 25, sell_discount: 10, pays_on: 'sale' });
+  supplier({ kind: 'publisher', name: 'Prothoma', commission: 20, sell_discount: 10, pays_on: 'delivery' });
+  supplier({ kind: 'vendor', name: 'Milk Vita' });
+  const titles = [['Padma Nadir Majhi', 'Manik Bandopadhyay', 400], ['Aranyak', 'Bibhutibhushan', 350], ['Lalsalu', 'Syed Waliullah', 250]];
+  for (const [title, author, price] of titles) call(server, 'books.save', { title, author, publisher_id: pathak, printed_price: price, status: 'active' }, token);
   for (const name of ['Preview Owner', 'Second Shareholder']) call(server, 'setup.shareholder.save', { name, status: 'active' }, token);
   call(server, 'auth.logout', {}, token);
 }

@@ -39,11 +39,20 @@ function show() {
 }
 
 let lastHash = location.hash;
+// While the person is asked whether to leave, further address changes (the
+// Back button) wait; the answer then applies to the latest address.
+let asking = false;
 async function onHashChange() {
-  if (location.hash === lastHash) return;
-  if (dirtyForms.size && !(await confirmLeave())) {
-    history.replaceState(null, '', lastHash || '#/');
-    return;
+  if (location.hash === lastHash || asking) return;
+  // Only forms still on the page count: a form already gone can't lose anything.
+  if (hasUnsavedChanges()) {
+    asking = true;
+    const leave = await confirmLeave();
+    asking = false;
+    if (!leave) {
+      history.replaceState(null, '', lastHash || '#/');
+      return;
+    }
   }
   lastHash = location.hash;
   show();
@@ -56,7 +65,7 @@ export function startRouter(options) {
   confirmLeave = options.confirmLeave;
   window.addEventListener('hashchange', onHashChange);
   window.addEventListener('beforeunload', (event) => {
-    if (dirtyForms.size) event.preventDefault();
+    if (hasUnsavedChanges()) event.preventDefault();
   });
   lastHash = location.hash;
   show();

@@ -102,12 +102,14 @@ test('vendors: owed from purchases on credit, less payments and credit notes; th
   assert.equal(st.supplier.owed, 550);
 });
 
-test('D: the same vendor bill number twice is blocked (ignoring case and spaces)', () => {
+test('D: the same vendor bill number twice is blocked (ignoring case, spaces and punctuation)', () => {
   const s = bookshop();
-  const bill = (ref) => s.call(s.manager, 'money.save', { kind: 'vendor_purchase_credit', date: '2026-11-10', amount: 700, party_id: s.ids.dairy, ref }).data;
+  const bill = (ref, amount = 700) => s.call(s.manager, 'money.save', { kind: 'vendor_purchase_credit', date: '2026-11-10', amount, party_id: s.ids.dairy, ref }).data;
   const first = bill('INV 77');
-  const again = bill('inv77');
-  assert.deepEqual(again.error.fields.ref, { code: 'dup.vendor_bill', params: { id: first.record_id } });
+  for (const ref of ['inv77', 'INV-77', 'inv/77']) {
+    assert.deepEqual(bill(ref).error.fields.ref, { code: 'dup.vendor_bill', params: { id: first.record_id } });
+  }
+  assert.equal(bill('INV 78', 650).status, 'saved');
 });
 
 test('B and C: an expense that names a vendor or publisher offers to switch', () => {

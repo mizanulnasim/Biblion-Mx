@@ -20,9 +20,9 @@ import { decide } from '../../../shared/rules/approval.js';
 import { details, kindLabel, reasonTexts } from './money-common.js';
 
 // What a fix turns the entry into, by kind.
-const FIX_LABELS = { transfer: 'dup.fix.transfer' };
+const FIX_LABELS = { transfer: 'dup.fix.transfer', vendor_purchase_paid: 'dup.fix.vendor', publisher_payment: 'dup.fix.publisher' };
 
-const FIELDS = ['kind', 'date', 'amount', 'account_id', 'to_account_id', 'category_id', 'party_id', 'direction', 'note', 'ref'];
+const FIELDS = ['kind', 'date', 'amount', 'account_id', 'to_account_id', 'category_id', 'party_id', 'direction', 'covers_up_to', 'note', 'ref'];
 
 function accountLabel(kind) {
   const cash = KINDS[kind].cash;
@@ -67,6 +67,18 @@ function fieldsFor(kind, boot) {
       options: boot.shareholders.map((s) => ({ value: s.id, label: s.name })),
     });
   }
+  if (k.party === 'vendor' || k.party === 'publisher') {
+    fields.push({
+      name: 'party_id', label: t(k.party === 'vendor' ? 'money.field.vendor' : 'money.field.publisher'), type: 'select', required: true, placeholder: t('money.choose'),
+      options: boot.suppliers.filter((s) => s.kind === k.party).map((s) => ({
+        value: s.id, label: s.owed === null ? s.name : t('money.supplier_owed', { name: s.name, owed: money(s.owed) }),
+      })),
+      help: boot.suppliers.some((s) => s.kind === k.party) ? '' : t('money.no_suppliers'),
+    });
+  }
+  if (k.covers) {
+    fields.push({ name: 'covers_up_to', label: t('money.field.covers_up_to'), type: 'date', help: t('money.covers_help') });
+  }
   if (k.cash === 'either') {
     fields.push({
       name: 'direction', label: t('money.field.direction'), type: 'select', required: true, placeholder: t('money.choose'),
@@ -81,7 +93,9 @@ function fieldsFor(kind, boot) {
   }
   fields.push(
     { name: 'note', label: t('money.field.note'), type: 'textarea' },
-    { name: 'ref', label: t('money.field.ref'), help: t('money.ref_help') },
+    k.bill
+      ? { name: 'ref', label: t('money.field.bill_no'), help: t('money.bill_help') }
+      : { name: 'ref', label: t('money.field.ref'), help: t('money.ref_help') },
   );
   return fields;
 }
@@ -161,6 +175,34 @@ export const moneyFormPage = {
       return next;
     }
 
+    // For a publisher payment: what is owed, what earlier payments settled,
+    // and the latest sales day this payment settles (filled in if empty).
+    let hintSeq = 0;
+    async function publisherHint(form) {
+      const slot = form.querySelector('.supplier-slot');
+      if (!KINDS[values.kind].covers || !values.party_id || boot.suppliers.every((s) => s.owed === null)) {
+        render(slot, '');
+        return;
+      }
+      const mine = ++hintSeq;
+      try {
+        const amount = Number(String(values.amount || '0').replace(/,/g, '')) || 0;
+        const { data } = await read('publisher.suggest', { id: values.party_id, amount });
+        if (mine !== hintSeq || !form.isConnected) return;
+        render(slot, html`<p class="approval">${t('money.publisher_hint', { owed: money(data.owed) })}
+          ${data.settled_to ? html`<br>${t('money.settled_to', { date: dateShort(data.settled_to) })}` : ''}
+          ${data.suggest ? html`<br>${t('money.suggest_covers', { date: dateShort(data.suggest) })}` : ''}</p>`);
+        const covers = form.elements.covers_up_to;
+        if (covers && data.suggest && (!covers.value || covers.dataset.suggested === '1')) {
+          covers.value = data.suggest;
+          covers.dataset.suggested = '1';
+          values.covers_up_to = data.suggest;
+        }
+      } catch (err) {
+        render(slot, '');
+      }
+    }
+
     function draw() {
       const old = el.querySelector('form');
       const wasDirty = old && isDirty(old);
@@ -173,15 +215,19 @@ export const moneyFormPage = {
           fields: fieldsFor(values.kind, boot),
           values,
           submit: replaces ? t('money.save_correction') : t('common.save'),
-          extra: html`<div class="approval-slot" aria-live="polite">${approvalNotice(values, boot)}</div>`,
+          extra: html`<div class="supplier-slot" aria-live="polite"></div><div class="approval-slot" aria-live="polite">${approvalNotice(values, boot)}</div>`,
         })}</section>`);
       const form = el.querySelector('form');
       if (wasDirty) markDirty(form, true);
       form.addEventListener('change', (e) => {
         values = current();
         if (e.target.name === 'kind') draw();
+        else if (e.target.name === 'party_id' || e.target.name === 'amount') publisherHint(form);
       });
-      form.addEventListener('input', () => {
+      publisherHint(form);
+      form.addEventListener('input', (e) => {
+        // A date typed by the person is kept; only a suggested one is updated.
+        if (e.target.name === 'covers_up_to') e.target.dataset.suggested = '0';
         values = current();
         render(form.querySelector('.approval-slot'), approvalNotice(values, boot));
       });
