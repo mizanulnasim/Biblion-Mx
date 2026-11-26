@@ -10,6 +10,7 @@
 //   schema   payload rules (shared/lib/validate.js)
 
 import { ROLES } from '../schema/permissions.js';
+import { KINDS } from '../money/kinds.js';
 
 // Bumped whenever a request or reply changes shape. A client built for another
 // contract is told to update itself (v1 bug S10).
@@ -24,6 +25,9 @@ const PAGED = {
 };
 
 const NAME = { type: 'text', required: true, max: 80 };
+const STATUS = { type: 'enum', required: true, values: ['active', 'inactive'] };
+const RULE = { type: 'enum', required: true, values: ['final', 'shareholder'] };
+const SETUP_BASE = { id: { type: 'id' }, version: { type: 'int', min: 1 }, name: NAME, status: STATUS };
 const USERNAME = { type: 'username', required: true, min: 3, max: 40 };
 
 export const ACTIONS = Object.freeze({
@@ -71,4 +75,65 @@ export const ACTIONS = Object.freeze({
     },
   },
   'audit.list': { perm: 'audit.view', schema: PAGED },
+
+  'home.get': {},
+  'settings.approvals': { perm: 'settings.manage' },
+  'settings.approvals.save': {
+    write: true, perm: 'settings.manage', area: 'money',
+    schema: {
+      limit: { type: 'money', required: true },
+      expense: RULE, income: RULE, transfer: RULE, other: RULE,
+    },
+  },
+
+  'setup.money': { perm: 'acc.setup' },
+  'setup.account.save': {
+    write: true, perm: 'acc.setup', area: 'money',
+    schema: { ...SETUP_BASE, kind: { type: 'enum', required: true, values: ['drawer', 'bkash', 'bank', 'owner'] }, opening: { type: 'int', min: 0 } },
+  },
+  'setup.category.save': {
+    write: true, perm: 'acc.setup', area: 'money',
+    schema: { ...SETUP_BASE, area: { type: 'enum', required: true, values: ['books', 'cafe', 'shared'] }, needs_shareholder: { type: 'bool' }, confirm_similar: { type: 'bool' } },
+  },
+  'setup.contact.save': {
+    write: true, perm: 'acc.setup', area: 'money',
+    schema: { ...SETUP_BASE, phone: { type: 'text', max: 20 }, opening_due: { type: 'int', min: 0 } },
+  },
+  'setup.shareholder.save': {
+    write: true, perm: 'acc.setup', area: 'money',
+    schema: { ...SETUP_BASE, phone: { type: 'text', max: 20 } },
+  },
+
+  'money.boot': { perm: 'acc.entry', cache: true },
+  'money.list': {
+    perm: 'acc.entry', cache: true,
+    schema: { ...PAGED, kind: { type: 'enum', values: Object.keys(KINDS) }, state: { type: 'enum', values: ['waiting', 'final', 'cancelled'] } },
+  },
+  'money.get': { perm: 'acc.entry', schema: { id: { type: 'id', required: true } } },
+  // Saved offline too. `reason` answers a duplicate warning; `replaces`
+  // makes this a correction of an earlier entry; `pair_id` cancels the
+  // other half when an expense and income are turned into one transfer.
+  'money.save': {
+    write: true, perm: 'acc.entry', offline: true, area: 'money',
+    schema: {
+      kind: { type: 'enum', required: true, values: Object.keys(KINDS) },
+      date: { type: 'date', required: true },
+      amount: { type: 'money', required: true },
+      account_id: { type: 'id' },
+      to_account_id: { type: 'id' },
+      category_id: { type: 'id' },
+      party_id: { type: 'id' },
+      direction: { type: 'enum', values: ['in', 'out'] },
+      note: { type: 'text', max: 300 },
+      ref: { type: 'text', max: 60 },
+      replaces: { type: 'id' },
+      pair_id: { type: 'id' },
+      reason: { type: 'text', max: 500 },
+    },
+  },
+  'money.cancel': {
+    write: true, perm: 'acc.entry', area: 'money',
+    schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 500 } },
+  },
+  'money.approve': { write: true, perm: 'acc.approve', area: 'money', schema: { id: { type: 'id', required: true } } },
 });

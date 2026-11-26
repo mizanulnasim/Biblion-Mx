@@ -10,7 +10,7 @@ import { BASE_COLUMNS, TABLES } from './tables.js';
 import { createSpreadsheet, getProp, openSpreadsheet, setProp, uuid } from '../platform.js';
 import { AppError } from '../../shared/contract/errors.js';
 
-const GROUP_NAMES = { core: 'Biblion data · core' };
+const GROUP_NAMES = { core: 'Biblion data · core', accounts: 'Biblion data · accounts' };
 
 function parseColumn(spec) {
   const [name, type = 's'] = spec.split(':');
@@ -66,9 +66,10 @@ export function openDb(now) {
 
   function spreadsheet(group) {
     if (!spreadsheets[group]) {
-      const id = getProp(`DB_ID_${group}`);
-      if (!id) throw new AppError('NOT_INITIALIZED');
-      spreadsheets[group] = openSpreadsheet(id);
+      if (!isInitialized()) throw new AppError('NOT_INITIALIZED');
+      // A group added in a later release is created the first time it is used.
+      if (!getProp(`DB_ID_${group}`)) createDatabase();
+      spreadsheets[group] = openSpreadsheet(getProp(`DB_ID_${group}`));
     }
     return spreadsheets[group];
   }
@@ -226,6 +227,10 @@ export function openDb(now) {
     },
     setContext(next) {
       context = next;
+    },
+    // The reason given for this write (a cancellation, a duplicate), kept in the activity log.
+    setReason(reason) {
+      context = { ...context, reason };
     },
     all,
     get,

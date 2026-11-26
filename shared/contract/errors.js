@@ -8,6 +8,7 @@ const ERRORS = Object.freeze({
   FORBIDDEN: 'err.forbidden',
   VALIDATION: 'err.validation',
   CONFLICT: 'err.conflict',
+  OWN_ENTRY: 'err.own_entry',
   NOT_FOUND: 'err.not_found',
   NOT_INITIALIZED: 'err.not_initialized',
   ALREADY_SET_UP: 'err.already_set_up',

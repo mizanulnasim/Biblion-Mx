@@ -3,10 +3,16 @@
 import { matcher } from '../../shared/lib/search.js';
 import { PAGE_SIZES } from '../../shared/contract/actions.js';
 
-export function page(rows, query, textOf) {
+// keyOf gives the sort key (newest = largest); ties fall back to row order.
+export function page(rows, query, textOf, keyOf = (r) => r.created_at) {
   const match = matcher(query.q);
   const found = (match ? rows.filter((r) => match(textOf(r))) : rows.slice())
-    .sort((a, b) => (a.created_at === b.created_at ? b._row - a._row : a.created_at < b.created_at ? 1 : -1));
+    .sort((a, b) => {
+      const ka = keyOf(a);
+      const kb = keyOf(b);
+      if (ka === kb) return b._row - a._row;
+      return ka < kb ? 1 : -1;
+    });
   const limit = query.limit || PAGE_SIZES[0];
   const offset = Math.min(query.offset || 0, Math.max(0, found.length - 1));
   const start = offset - (offset % limit);

@@ -7,7 +7,7 @@ import { ACTIONS, CONTRACT } from '../../shared/contract/actions.js';
 import { AppError } from '../../shared/contract/errors.js';
 import { SAVED, rejected } from '../../shared/contract/reply.js';
 import { validate } from '../../shared/lib/validate.js';
-import { effectivePermissions } from '../../shared/schema/permissions.js';
+import { effectivePermissions, roleById } from '../../shared/schema/permissions.js';
 import { isInitialized, openDb } from '../store/db.js';
 import { withLock } from '../platform.js';
 import { bumpArea } from './areas.js';
@@ -51,7 +51,7 @@ function dispatch(req) {
 
   const db = openDb(new Date());
   db.setContext({ action: req.action, op_id: req.op_id || '' });
-  const ctx = { db, user: null, session: null, can: () => false };
+  const ctx = { db, user: null, session: null, level: 0, can: () => false };
 
   if (!def.public) {
     const found = resolveSession(db, req.token);
@@ -59,6 +59,7 @@ function dispatch(req) {
     const permissions = new Set(effectivePermissions(found.user));
     ctx.user = found.user;
     ctx.session = found.session;
+    ctx.level = roleById(found.user.role_id).level;
     ctx.can = (perm) => permissions.has(perm);
     db.setActor(found.user);
     if (def.perm && !ctx.can(def.perm)) return fail('FORBIDDEN');

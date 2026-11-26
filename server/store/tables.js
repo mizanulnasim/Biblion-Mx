@@ -31,6 +31,44 @@ export const TABLES = Object.freeze({
     columns: ['op_id', 'user_id', 'action', 'record_id', 'reply:j'],
     log: true,
   },
+  // Business settings that differ from their defaults (shared/schema/settings.js).
+  Settings: {
+    group: 'core',
+    prefix: 'SET',
+    columns: ['key', 'value:j'],
+  },
+  Money_Accounts: {
+    group: 'accounts',
+    prefix: 'MAC',
+    columns: ['name', 'kind', 'opening:n', 'status'],
+  },
+  Expense_Categories: {
+    group: 'accounts',
+    prefix: 'EXC',
+    columns: ['name', 'area', 'needs_shareholder:b', 'status'],
+  },
+  Due_Contacts: {
+    group: 'accounts',
+    prefix: 'DUC',
+    columns: ['name', 'phone', 'opening_due:n', 'status'],
+  },
+  Shareholders: {
+    group: 'accounts',
+    prefix: 'SHR',
+    columns: ['name', 'phone', 'status'],
+  },
+  // Money entries are append-only: a correction is a new row that
+  // `replaces` the old one, and the old one is marked replaced; a
+  // cancellation keeps the row with its reason. Nothing is deleted.
+  Transactions: {
+    group: 'accounts',
+    prefix: 'TRX',
+    columns: [
+      'date', 'kind', 'amount:n', 'account_id', 'to_account_id', 'category_id', 'party_id', 'direction', 'note', 'ref',
+      'status', 'approval', 'wait_reasons:j', 'approved_by', 'approved_at', 'dup_reason',
+      'replaces', 'replaced_by', 'cancel_reason', 'cancelled_by', 'cancelled_at', 'entered_by',
+    ],
+  },
   Audit_Log: {
     group: 'core',
     prefix: 'AUD',

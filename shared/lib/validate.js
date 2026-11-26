@@ -6,6 +6,16 @@ import { latinDigits } from './search.js';
 
 const COLOR = /^#[0-9a-f]{6}$/i;
 const USERNAME = /^[a-z0-9._-]+$/;
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const RECORD_ID = /^[A-Z]{3}-[A-Z0-9]{4,20}$/;
+const MAX_AMOUNT = 1000000000;
+
+function realDate(text) {
+  const m = ISO_DATE.exec(text);
+  if (!m) return false;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  return d.getUTCFullYear() === Number(m[1]) && d.getUTCMonth() === Number(m[2]) - 1 && d.getUTCDate() === Number(m[3]);
+}
 
 function checkOne(spec, raw) {
   const empty = raw === undefined || raw === null || raw === '';
@@ -43,6 +53,26 @@ function checkOne(spec, raw) {
     case 'enum':
       if (!spec.values.includes(raw)) return { error: { code: 'val.choice' } };
       return { value: raw };
+    case 'bool':
+      if (typeof raw !== 'boolean') return { error: { code: 'val.format' } };
+      return { value: raw };
+    case 'date': {
+      const value = latinDigits(String(raw)).trim();
+      if (!realDate(value)) return { error: { code: 'val.date' } };
+      return { value };
+    }
+    case 'id':
+      if (typeof raw !== 'string' || !RECORD_ID.test(raw)) return { error: { code: 'val.format' } };
+      return { value: raw };
+    // Taka, more than zero, at most 2 decimals. Commas and Bangla digits are accepted.
+    case 'money': {
+      const text = typeof raw === 'number' ? String(raw) : latinDigits(String(raw)).replace(/,/g, '').trim();
+      if (!/^\d+(\.\d{1,2})?$/.test(text)) return { error: { code: 'val.amount' } };
+      const value = Number(text);
+      if (value <= 0) return { error: { code: 'val.amount_positive' } };
+      if (value > MAX_AMOUNT) return { error: { code: 'val.max', params: { max: MAX_AMOUNT } } };
+      return { value };
+    }
     case 'color':
       if (typeof raw !== 'string' || !COLOR.test(raw)) return { error: { code: 'val.format' } };
       return { value: raw.toLowerCase() };
