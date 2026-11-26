@@ -21,15 +21,18 @@ function shiftOf(db, date) {
 }
 
 // Each step: done, to do (blocks closing), or a warning (shown, doesn't block).
-// Steps for café counts, deliveries and tasks join when those are built.
+// Steps for deliveries and tasks join when those are built.
 function steps(db, date) {
   const shift = shiftOf(db, date);
   const waiting = db.all('Transactions').filter((e) => e.status === 'active' && e.approval === 'waiting' && e.date === date).length;
   const shortOver = shift ? shift.details.short_over : 0;
+  const counted = db.all('Cafe_Counts').some((c) => c.date === date);
+  const cafeStock = db.all('Cafe_Items').some((i) => i.status === 'active' && i.kind === 'stock');
   return [
     { id: 'shift', state: shift ? 'done' : 'todo', params: {}, record_id: shift ? shift.id : '' },
     { id: 'drawer', state: !shift ? 'todo' : shortOver === 0 ? 'done' : 'warn', params: { amount: Math.abs(shortOver), short: shortOver < 0 } },
     { id: 'waiting', state: waiting ? 'warn' : 'done', params: { count: waiting } },
+    ...(cafeStock ? [{ id: 'cafe', state: counted ? 'done' : 'warn', params: {} }] : []),
   ];
 }
 

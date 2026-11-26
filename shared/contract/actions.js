@@ -349,6 +349,84 @@ export const ACTIONS = Object.freeze({
     schema: { ai: { type: 'enum', required: true, values: ['off', 'bills'] }, key: { type: 'text', max: 200 }, clear_key: { type: 'bool' } },
   },
 
+  // Café: items, the daily count, expiry, and orders.
+  'cafe.items': { perm: 'cafe.view', cache: true },
+  'cafe.item.save': {
+    write: true, perm: 'cafe.setup', area: 'cafe',
+    schema: {
+      id: { type: 'id' },
+      version: { type: 'int', min: 1 },
+      name: NAME,
+      name_bn: { type: 'text', max: 80 },
+      aliases: { type: 'text', max: 300 },
+      kind: { type: 'enum', required: true, values: ['stock', 'supply'] },
+      unit: { type: 'text', required: true, max: 20 },
+      vendor_id: { type: 'id' },
+      shelf_life_days: { type: 'int', min: 0, max: 3650 },
+      cover_days: { type: 'int', min: 1, max: 120 },
+      lead_days: { type: 'int', min: 0, max: 60 },
+      min_order: { type: 'int', min: 0, max: 100000 },
+      order_multiple: { type: 'int', min: 1, max: 10000 },
+      status: STATUS,
+    },
+  },
+  'cafe.starter.add': { write: true, perm: 'cafe.setup', area: 'cafe', schema: { keys: { type: 'list', max: 60, of: { key: { type: 'text', required: true, max: 20 } } } } },
+  'cafe.count.get': { perm: 'cafe.count', cache: true, schema: { date: { type: 'date', required: true } } },
+  'cafe.count.save': {
+    write: true, perm: 'cafe.count', offline: true, area: 'cafe',
+    schema: {
+      date: { type: 'date', required: true },
+      lines: {
+        type: 'list', max: 200,
+        of: {
+          item_id: { type: 'id', required: true },
+          counted: { type: 'money', zero: true, required: true },
+          wasted: { type: 'money', zero: true },
+          waste_reason: { type: 'text', max: 100 },
+          expired: { type: 'money', zero: true },
+        },
+      },
+    },
+  },
+  'cafe.expiry': { perm: 'cafe.view' },
+  'cafe.orders': { perm: 'cafe.view', schema: { ...PAGED, status: { type: 'enum', values: ['draft', 'waiting', 'approved', 'part', 'bought', 'closed'] } } },
+  'cafe.order.get': { perm: 'cafe.view', schema: { id: { type: 'id', required: true } } },
+  'cafe.order.new': { write: true, perm: 'cafe.order', area: 'cafe', schema: { vendor_id: { type: 'id' }, cover: { type: 'enum', required: true, values: ['auto', 'item', '7', '14', '30', '60', '90'] } } },
+  'cafe.order.save': {
+    write: true, perm: 'cafe.order', area: 'cafe',
+    schema: {
+      id: { type: 'id', required: true },
+      version: { type: 'int', required: true, min: 1 },
+      lines: { type: 'list', max: 200, of: { item_id: { type: 'id', required: true }, on_hand: { type: 'money', zero: true }, qty: { type: 'money', zero: true, required: true }, reason: { type: 'text', max: 200 } } },
+      note: { type: 'text', max: 300 },
+    },
+  },
+  'cafe.order.submit': { write: true, perm: 'cafe.order', area: 'cafe', schema: { id: { type: 'id', required: true } } },
+  'cafe.order.approve': { write: true, perm: 'cafe.approve', area: 'cafe', schema: { id: { type: 'id', required: true } } },
+  'cafe.order.receive': {
+    write: true, perm: 'cafe.receive', area: 'cafe',
+    schema: {
+      id: { type: 'id', required: true },
+      date: { type: 'date', required: true },
+      vendor_id: { type: 'id', required: true },
+      bill_no: { type: 'text', max: 60 },
+      paid: { type: 'enum', required: true, values: ['now', 'later'] },
+      account_id: { type: 'id' },
+      lines: { type: 'list', max: 200, of: { item_id: { type: 'id', required: true }, qty: { type: 'money', required: true }, cost: { type: 'money', zero: true, required: true }, expiry: { type: 'date' } } },
+      reason: { type: 'text', max: 500 },
+    },
+  },
+  'cafe.order.close': { write: true, perm: 'cafe.order', area: 'cafe', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 300 } } },
+
+  'settings.cafe': { perm: 'settings.manage' },
+  'settings.cafe.save': {
+    write: true, perm: 'settings.manage', area: 'cafe',
+    schema: {
+      approve: { type: 'enum', required: true, values: ['final', 'shareholder'] },
+      expiry_warn_days: { type: 'int', required: true, min: 0, max: 30 },
+      min_history_days: { type: 'int', required: true, min: 3, max: 28 },
+    },
+  },
   'settings.books': { perm: 'settings.books' },
   'settings.books.save': {
     write: true, perm: 'settings.books', area: 'books',

@@ -22,6 +22,12 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   // Reading documents: the optional Gemini key is used for receipts and bills
   // ('bills') or not at all ('off').
   'intake.ai': 'off',
+  // Café: an order by a manager is final, or a shareholder confirms it;
+  // expiry is warned this many days ahead; suggestions need this many
+  // days of counts, from the last 28.
+  'approve.cafe_order': 'final',
+  'cafe.expiry_warn_days': 2,
+  'cafe.min_history_days': 14,
   'approve.rule.other': 'final',
 });
 

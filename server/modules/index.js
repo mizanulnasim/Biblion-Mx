@@ -6,6 +6,8 @@ import { areaVersions } from '../kernel/areas.js';
 import { AUDIT_HANDLERS } from './audit.js';
 import { AUTH_HANDLERS } from './auth.js';
 import { BOOK_HANDLERS } from './books.js';
+import { CAFE_HANDLERS } from './cafe.js';
+import { CAFE_ORDER_HANDLERS } from './cafe-orders.js';
 import { CLOSING_HANDLERS } from './closing.js';
 import { INTAKE_HANDLERS } from './intake.js';
 import { META_HANDLERS } from './meta.js';
@@ -37,5 +39,7 @@ export const HANDLERS = Object.freeze({
   ...SPECIAL_ORDER_HANDLERS,
   ...STOCKTAKE_HANDLERS,
   ...INTAKE_HANDLERS,
+  ...CAFE_HANDLERS,
+  ...CAFE_ORDER_HANDLERS,
   'sync.version': () => ({ areas: areaVersions() }),
 });

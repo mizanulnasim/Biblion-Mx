@@ -80,8 +80,8 @@ test('permissions are checked on the server', () => {
   const staffToken = env.login('staff1', 'staff-pass').data.token;
   assert.equal(env.call('users.list', {}, { token: staffToken }).error.code, 'FORBIDDEN');
   assert.equal(env.call('audit.list', {}, { token: staffToken }).error.code, 'FORBIDDEN');
-  // Staff may see the catalogue and take a customer's special order; nothing else.
-  assert.deepEqual(env.call('meta.get', {}, { token: staffToken }).data.permissions, ['books.order', 'books.view']);
+  // Staff may see the catalogue, take a customer's special order, and count the café.
+  assert.deepEqual(env.call('meta.get', {}, { token: staffToken }).data.permissions, ['books.order', 'books.view', 'cafe.count']);
 });
 
 test('a write sent twice with the same op_id is saved once (idempotency on the record)', () => {

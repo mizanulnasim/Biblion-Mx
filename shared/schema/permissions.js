@@ -17,6 +17,11 @@
 //   books.order       take a customer's special order (staff too)
 //   books.orders      see and follow up special orders (customer names and phones)
 //   intake.upload     upload documents and confirm what they make
+//   cafe.view         see café items, stock and orders
+//   cafe.count        the daily café count and waste (staff too)
+//   cafe.order        make café orders; cafe.approve approves them
+//   cafe.receive      enter what an order brought (bills, expiry dates)
+//   cafe.setup        café items and their ordering rules
 //   setup.books       vendors and publishers and their terms
 //   acc.view_all      see every money entry and the account balances
 //   acc.approve       approve entries waiting for a shareholder
@@ -29,6 +34,7 @@ const PERMISSIONS = Object.freeze([
   'acc.vendor.purchase', 'acc.vendor.pay', 'acc.publisher.pay',
   'books.view', 'books.catalog', 'books.receive', 'books.sell', 'books.adjust', 'setup.books',
   'books.requisition', 'books.order', 'books.orders', 'settings.books', 'intake.upload',
+  'cafe.view', 'cafe.count', 'cafe.order', 'cafe.approve', 'cafe.receive', 'cafe.setup',
 ]);
 
 // Staff never enter money, so the Staff role has no money permission.
@@ -38,8 +44,9 @@ export const ROLES = Object.freeze([
     'acc.entry', 'acc.expense', 'acc.transfer', 'acc.dues', 'acc.daily', 'closing.day', 'acc.vendor.purchase',
     'books.view', 'books.catalog', 'books.receive', 'books.sell', 'books.adjust',
     'books.requisition', 'books.order', 'books.orders', 'intake.upload',
+    'cafe.view', 'cafe.count', 'cafe.order', 'cafe.approve', 'cafe.receive',
   ] },
-  { id: 'ROL-STAFF', key: 'staff', name: 'role.staff', level: 1, permissions: ['books.order', 'books.view'] },
+  { id: 'ROL-STAFF', key: 'staff', name: 'role.staff', level: 1, permissions: ['books.order', 'books.view', 'cafe.count'] },
 ]);
 
 export function roleById(id) {

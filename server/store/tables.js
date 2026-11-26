@@ -149,6 +149,42 @@ export const TABLES = Object.freeze({
       'discard_reason', 'confirmed_by', 'confirmed_at', 'uploaded_by',
     ],
   },
+  // Café items. kind: stock (counted at every daily closing) or supply
+  // (checked when ordering). cover_days: how long an order usually buys for.
+  Cafe_Items: {
+    group: 'cafe',
+    prefix: 'CIT',
+    columns: [
+      'name', 'name_bn', 'aliases', 'kind', 'unit', 'vendor_id', 'shelf_life_days:n', 'cover_days:n', 'lead_days:n',
+      'min_order:n', 'order_multiple:n', 'unit_cost:n', 'status',
+    ],
+  },
+  // A count of one item on one date: the daily closing count for stock, or
+  // a check of what is on hand for a supply. used: since the count before it,
+  // over `days` days.
+  Cafe_Counts: {
+    group: 'cafe',
+    prefix: 'CCT',
+    columns: ['date', 'item_id', 'counted:n', 'wasted:n', 'waste_reason', 'expired:n', 'received:n', 'used:n', 'days:n', 'counted_by'],
+  },
+  // What came in, by batch, with its expiry date. How much of a batch is
+  // left is worked out from the counts (used up oldest first), never stored.
+  Cafe_Batches: {
+    group: 'cafe',
+    prefix: 'CBT',
+    columns: ['item_id', 'received_date', 'expiry_date', 'qty:n', 'unit_cost:n', 'order_id', 'entry_id'],
+  },
+  // A café order. lines: [{item_id, name, unit, on_hand, suggested, qty,
+  // reason, bought}]. Status: draft, waiting (for a shareholder), approved,
+  // part (part bought), bought, closed (the rest isn't being bought).
+  Cafe_Orders: {
+    group: 'cafe',
+    prefix: 'COR',
+    columns: [
+      'number', 'date', 'vendor_id', 'cover', 'status', 'lines:j', 'note', 'entry_ids:j',
+      'approved_by', 'approved_at', 'closed_reason', 'entered_by',
+    ],
+  },
   // One row per closed date; reopening keeps the row with its reason.
   Day_Closings: {
     group: 'accounts',
