@@ -25,6 +25,8 @@ export const NAV = Object.freeze([
   { path: '/me/pay', group: 'today', title: 'nav.my_pay', hint: 'nav.my_pay_hint', icon: 'wallet', perm: 'self.staff' },
   { path: '/closing', group: 'today', title: 'nav.closing', hint: 'nav.closing_hint', icon: 'lock', perm: 'closing.day' },
   { path: '/saved', group: 'today', title: 'nav.saved', hint: 'nav.saved_hint', icon: 'phone' },
+  { path: '/closing/month', group: 'money', title: 'nav.month_closing', hint: 'nav.month_closing_hint', icon: 'lock', perm: 'closing.month' },
+  { path: '/shareholders', group: 'money', title: 'nav.shareholders', hint: 'nav.shareholders_hint', icon: 'badge', perm: 'acc.shareholders' },
   { path: '/money', group: 'money', title: 'nav.money', hint: 'nav.money_hint', icon: 'money', perm: 'acc.entry', bottom: true },
   { path: '/suppliers', group: 'money', title: 'nav.suppliers', hint: 'nav.suppliers_hint', icon: 'truck', perm: 'acc.view_all' },
   { path: '/setup/money', group: 'money', title: 'nav.setup_money', hint: 'nav.setup_money_hint', icon: 'wallet', perm: 'acc.setup' },

@@ -147,7 +147,28 @@ export const ACTIONS = Object.freeze({
   },
   'setup.shareholder.save': {
     write: true, perm: 'acc.setup', area: 'money',
-    schema: { ...SETUP_BASE, phone: { type: 'text', max: 20 } },
+    schema: { ...SETUP_BASE, phone: { type: 'text', max: 20 }, salary: { type: 'money', zero: true } },
+  },
+  // ---- Month closing and shareholders ----
+  'month.view': { perm: 'closing.month', schema: { month: { type: 'month' } } },
+  'month.close': { write: true, perm: 'closing.month', area: 'money', schema: { month: { type: 'month', required: true }, note: { type: 'text', max: 300 } } },
+  'month.reopen': { write: true, perm: 'closing.month', area: 'money', schema: { month: { type: 'month', required: true }, reason: { type: 'text', required: true, max: 300 } } },
+  'shareholders.view': { perm: 'acc.shareholders' },
+  'shareholders.shares.save': {
+    write: true, perm: 'closing.month', area: 'money',
+    schema: {
+      from: { type: 'date', required: true },
+      shares: { type: 'list', required: true, max: 20, of: { shareholder_id: { type: 'id', required: true }, percent: { type: 'number', required: true, min: 0, max: 100 } } },
+      note: { type: 'text', max: 300 },
+    },
+  },
+  'shareholders.loan.save': {
+    write: true, perm: 'acc.loans', area: 'money',
+    schema: {
+      id: { type: 'id' }, version: { type: 'int', min: 1 }, shareholder_id: { type: 'id', required: true },
+      direction: { type: 'enum', required: true, values: ['taken', 'given'] }, rate: { type: 'number', min: 0, max: 100 },
+      opened: { type: 'date', required: true }, note: { type: 'text', max: 300 }, status: { type: 'enum', required: true, values: ['open', 'closed'] },
+    },
   },
 
   'money.boot': { perm: 'acc.entry', cache: true },
@@ -175,6 +196,7 @@ export const ACTIONS = Object.freeze({
       covers_up_to: { type: 'date' },
       period: { type: 'month' },
       instalment: { type: 'money' },
+      loan_id: { type: 'id' },
       replaces: { type: 'id' },
       pair_id: { type: 'id' },
       reason: { type: 'text', max: 500 },

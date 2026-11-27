@@ -89,5 +89,6 @@
   "shift.pos_expected": "Loyverse's expected cash (Tk)",
   "shift.pos_expected_help": "From the Loyverse shift report, if you have it. Shown beside the app's figure; the app's figure counts.",
   "shift.pos_expected_short": "Loyverse expected",
-  "shift.pos_gap": "Against Loyverse"
+  "shift.pos_gap": "Against Loyverse",
+  "val.month_locked": "That month is closed. A shareholder reopens it, with a reason, to change it."
 }

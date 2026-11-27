@@ -130,5 +130,10 @@
   "tasks.record": "Done with",
   "tasks.record_help": "The entry or record you made for this task.",
   "tasks.record_none": "Nothing made yet: open it with the task's button and save it first.",
-  "tasks.receipt": "Receipt or bill photo"
+  "tasks.receipt": "Receipt or bill photo",
+  "err.month_not_ready": "The month can't close yet: it must have ended and each of its days be closed.",
+  "err.shares_missing": "Set the shareholders' shares (adding up to 100%) before closing a month.",
+  "err.month_order": "Months close and reopen in order: see {month} first.",
+  "val.shares_total": "The shares add up to {total}%; they must make 100%.",
+  "val.month_closed": "That reaches into a closed month (to {date})."
 }

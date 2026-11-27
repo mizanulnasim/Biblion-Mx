@@ -9,6 +9,7 @@
 //               a due), shareholder, vendor, publisher, staff, or nothing
 //   period      the month it is for (salary paid)
 //   instalment  repaid in instalments of a set amount (an advance)
+//   loan        belongs to a loan (with its interest rate)
 //   cash        how it moves money: in, out, none, transfer, or
 //               either (loan repayment, by its direction)
 //   limit       false when the amount limit doesn't apply (a day's sales)
@@ -26,9 +27,9 @@ export const KINDS = Object.freeze({
   income: { group: 'money', label: 'money.kind.income', help: 'money.help.income', perm: 'acc.income', requestable: true, rule: 'income', party: null, cash: 'in' },
   due_taken: { group: 'money', label: 'money.kind.due_taken', help: 'money.help.due_taken', perm: 'acc.dues', requestable: true, rule: 'other', party: 'contact', cash: 'none' },
   due_collected: { group: 'money', label: 'money.kind.due_collected', help: 'money.help.due_collected', perm: 'acc.dues', requestable: true, rule: 'other', party: 'contact', cash: 'in' },
-  loan_to_shareholder: { group: 'money', label: 'money.kind.loan_to_shareholder', help: 'money.help.loan_to_shareholder', perm: 'acc.loans', requestable: true, rule: 'other', party: 'shareholder', cash: 'out' },
-  loan_from_shareholder: { group: 'money', label: 'money.kind.loan_from_shareholder', help: 'money.help.loan_from_shareholder', perm: 'acc.loans', requestable: true, rule: 'other', party: 'shareholder', cash: 'in' },
-  loan_repayment: { group: 'money', label: 'money.kind.loan_repayment', help: 'money.help.loan_repayment', perm: 'acc.loans', requestable: true, rule: 'other', party: 'shareholder', cash: 'either' },
+  loan_to_shareholder: { group: 'money', label: 'money.kind.loan_to_shareholder', help: 'money.help.loan_to_shareholder', perm: 'acc.loans', requestable: true, rule: 'other', party: 'shareholder', cash: 'out', loan: true },
+  loan_from_shareholder: { group: 'money', label: 'money.kind.loan_from_shareholder', help: 'money.help.loan_from_shareholder', perm: 'acc.loans', requestable: true, rule: 'other', party: 'shareholder', cash: 'in', loan: true },
+  loan_repayment: { group: 'money', label: 'money.kind.loan_repayment', help: 'money.help.loan_repayment', perm: 'acc.loans', requestable: true, rule: 'other', party: 'shareholder', cash: 'either', loan: true },
   transfer: { group: 'money', label: 'money.kind.transfer', help: 'money.help.transfer', perm: 'acc.transfer', requestable: true, rule: 'transfer', party: null, cash: 'transfer' },
   owner_salary: { group: 'shareholders', label: 'money.kind.owner_salary', help: 'money.help.owner_salary', perm: 'acc.shareholders', requestable: false, rule: 'other', party: 'shareholder', cash: 'out' },
   profit_share: { group: 'shareholders', label: 'money.kind.profit_share', help: 'money.help.profit_share', perm: 'acc.shareholders', requestable: false, rule: 'other', party: 'shareholder', cash: 'out' },

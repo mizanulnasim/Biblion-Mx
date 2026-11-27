@@ -69,12 +69,14 @@ const SECTIONS = [
     fields: () => [
       { name: 'name', label: t('users.name'), required: true },
       { name: 'phone', label: t('setup.phone'), inputmode: 'tel' },
+      { name: 'salary', label: t('sh.salary'), inputmode: 'decimal', help: t('sh.salary_help') },
       { name: 'status', label: t('users.status'), type: 'select', required: true, options: STATUS_OPTIONS() },
     ],
     defaults: { status: 'active' },
     columns: () => [
       { label: t('users.name'), cell: (r) => r.name },
       { label: t('setup.phone'), cell: (r) => r.phone, kind: 'nowrap' },
+      { label: t('sh.salary'), cell: (r) => money(r.salary || 0), kind: 'nowrap num' },
     ],
   },
 ];
@@ -103,7 +105,7 @@ function openRecord(section, record, onSaved) {
     busyLabel: t('common.saving'),
     mapValues: (v) => {
       const out = { ...v, id: record ? record.id : null, version: record ? record.version : null };
-      for (const key of ['opening', 'opening_due']) if (key in out && out[key] === '') out[key] = null;
+      for (const key of ['opening', 'opening_due', 'salary']) if (key in out && out[key] === '') out[key] = null;
       return out;
     },
     onSubmit: async (payload) => {

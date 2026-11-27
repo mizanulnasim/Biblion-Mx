@@ -14,7 +14,13 @@ function closingRow(db, date) {
 
 export function isDayClosed(db, date) {
   const row = closingRow(db, date);
-  return Boolean(row && row.status === 'closed');
+  return Boolean(row && row.status === 'closed') || isMonthClosed(db, date);
+}
+
+// A closed accounting month locks its days for everyone; it is reopened
+// (with a reason) to change them.
+export function isMonthClosed(db, date) {
+  return db.all('Month_Closings').some((c) => c.status === 'closed' && c.figures.period_from <= date && c.figures.period_to >= date);
 }
 
 function shiftOf(db, date) {

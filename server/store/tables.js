@@ -52,10 +52,34 @@ export const TABLES = Object.freeze({
     prefix: 'DUC',
     columns: ['name', 'phone', 'opening_due:n', 'status'],
   },
+  // salary: the owner salary a month.
   Shareholders: {
     group: 'accounts',
     prefix: 'SHR',
-    columns: ['name', 'phone', 'status'],
+    columns: ['name', 'phone', 'salary:n', 'status'],
+  },
+  // Shareholders' shares from a date: shares:j [{shareholder_id, percent}],
+  // adding up to 100.
+  Share_History: {
+    group: 'accounts',
+    prefix: 'SHH',
+    columns: ['from', 'shares:j', 'note', 'entered_by'],
+  },
+  // A loan between a shareholder and the business, with a yearly interest
+  // rate. direction: taken (the shareholder took it from the business) or
+  // given (the shareholder lent it to the business). Its money moves are
+  // loan entries with details.loan_id. Status: open, closed.
+  Loans: {
+    group: 'accounts',
+    prefix: 'LON',
+    columns: ['number', 'shareholder_id', 'direction', 'rate:n', 'opened', 'note', 'status'],
+  },
+  // A closed accounting month: figures:j the month's figures as closed
+  // (profit, loss carried, each share). Status: closed, reopened.
+  Month_Closings: {
+    group: 'accounts',
+    prefix: 'MCL',
+    columns: ['month', 'status', 'figures:j', 'note', 'closed_by', 'closed_at', 'reopened_by', 'reopened_at', 'reopen_reason'],
   },
   // Money entries are append-only: a correction is a new row that
   // `replaces` the old one, and the old one is marked replaced; a

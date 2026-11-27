@@ -8,7 +8,7 @@ import { decide } from '../../shared/rules/approval.js';
 import { findDuplicates } from '../../shared/rules/duplicates.js';
 import { page } from '../kernel/paging.js';
 import { approvalSettings } from '../kernel/settings.js';
-import { isDayClosed } from './closing.js';
+import { isDayClosed, isMonthClosed } from './closing.js';
 import { supplierBalances } from './suppliers.js';
 import { payAccount } from './payroll.js';
 import { planner } from './rota.js';
@@ -123,6 +123,7 @@ function changeable(ctx, id, field) {
 
 // A closed day's money is changed only by a shareholder (who may also reopen the day).
 export function assertDayOpen(ctx, date, field) {
+  if (isMonthClosed(ctx.db, date)) throw fieldError({ [field]: { code: 'val.month_locked', params: { date } } });
   if (!ctx.can('acc.approve') && isDayClosed(ctx.db, date)) {
     throw fieldError({ [field]: { code: 'val.day_closed', params: { date } } });
   }
@@ -146,6 +147,8 @@ function boot(ctx) {
       balance: ctx.can('acc.view_all') ? sums.accounts.find((s) => s.id === a.id).balance : null,
     })),
     categories: active(db.all('Expense_Categories')).map((c) => ({ id: c.id, name: c.name, area: c.area, needs_shareholder: c.needs_shareholder })),
+    // Open loans, for loan entries to name theirs (interest is worked out on it).
+    loans: db.all('Loans').filter((l) => l.status === 'open').map((l) => ({ id: l.id, number: l.number, shareholder_id: l.shareholder_id, direction: l.direction, rate: l.rate })),
     contacts: active(db.all('Due_Contacts')).map((c) => ({ id: c.id, name: c.name, phone: c.phone, due: sums.dues[c.id] })),
     shareholders: active(db.all('Shareholders')).map((s) => ({
       id: s.id, name: s.name, loan: ctx.can('acc.view_all') ? sums.loans[s.id] : null, advance: ctx.can('acc.view_all') ? sums.advances[s.id] : null,
@@ -254,6 +257,11 @@ function shape(db, input) {
     if (!person || (person.status !== 'active' && !person.left_on)) fields.party_id = { code: 'val.not_found', params: {} };
   }
   if (kind.period) need('period');
+  // A loan entry names its loan (for interest), of the same shareholder.
+  if (kind.loan && input.loan_id) {
+    const loan = db.get('Loans', input.loan_id);
+    if (!loan || loan.status !== 'open' || loan.shareholder_id !== input.party_id) fields.loan_id = { code: 'val.not_found', params: {} };
+  }
   // A deduction recovers an advance, so it can't be more than is owed back.
   if ((input.kind === 'staff_deduction' || input.kind === 'shareholder_deduction') && input.party_id && !fields.party_id) {
     const outstanding = advanceOf(db, input.kind === 'staff_deduction' ? 'Staff' : 'Shareholders', input.party_id, input.replaces);
@@ -278,6 +286,7 @@ function shape(db, input) {
     covers_up_to: kind.covers ? input.covers_up_to || '' : '',
     period: kind.period ? input.period : '',
     ...(kind.instalment && input.instalment ? { details: { instalment: input.instalment } } : {}),
+    ...(kind.loan && input.loan_id ? { details: { loan_id: input.loan_id } } : {}),
     category_needs_shareholder: Boolean(category && category.needs_shareholder),
   };
 }

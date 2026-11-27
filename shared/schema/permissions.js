@@ -64,7 +64,7 @@
 const PERMISSIONS = Object.freeze([
   'users.manage', 'audit.view', 'settings.manage', 'me.password',
   'acc.entry', 'acc.expense', 'acc.income', 'acc.dues', 'acc.loans', 'acc.transfer', 'acc.shareholders',
-  'acc.daily', 'closing.day', 'acc.view_all', 'acc.approve', 'acc.setup',
+  'acc.daily', 'closing.day', 'closing.month', 'acc.view_all', 'acc.approve', 'acc.setup',
   'acc.vendor.purchase', 'acc.vendor.pay', 'acc.publisher.pay',
   'books.view', 'books.catalog', 'books.receive', 'books.sell', 'books.adjust', 'setup.books',
   'books.requisition', 'books.order', 'books.orders', 'settings.books', 'intake.upload',

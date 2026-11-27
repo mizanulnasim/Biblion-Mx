@@ -22,7 +22,7 @@ import { details, kindLabel, reasonTexts } from './money-common.js';
 // What a fix turns the entry into, by kind.
 const FIX_LABELS = { transfer: 'dup.fix.transfer', vendor_purchase_paid: 'dup.fix.vendor', publisher_payment: 'dup.fix.publisher' };
 
-const FIELDS = ['kind', 'date', 'amount', 'account_id', 'to_account_id', 'category_id', 'party_id', 'direction', 'covers_up_to', 'period', 'instalment', 'note', 'ref'];
+const FIELDS = ['kind', 'date', 'amount', 'account_id', 'to_account_id', 'category_id', 'party_id', 'direction', 'covers_up_to', 'period', 'instalment', 'loan_id', 'note', 'ref'];
 
 function accountLabel(kind) {
   const cash = KINDS[kind].cash;
@@ -85,6 +85,13 @@ export function fieldsFor(kind, boot) {
         value: s.id, label: s.owed === null ? s.name : t('money.supplier_owed', { name: s.name, owed: money(s.owed) }),
       })),
       help: boot.suppliers.some((s) => s.kind === k.party) ? '' : t('money.no_suppliers'),
+    });
+  }
+  if (k.loan && boot.loans.length) {
+    const names = new Map(boot.shareholders.map((s) => [s.id, s.name]));
+    fields.push({
+      name: 'loan_id', label: t('money.field.loan'), type: 'select', placeholder: t('money.no_loan'), help: t('money.loan_help'),
+      options: boot.loans.map((l) => ({ value: l.id, label: `${l.number} · ${names.get(l.shareholder_id) || ''} · ${l.rate}%` })),
     });
   }
   if (k.instalment) {
@@ -171,6 +178,7 @@ function fromEntry(e) {
   for (const f of FIELDS) values[f] = e[f] ?? '';
   values.amount = String(e.amount);
   values.instalment = e.details && e.details.instalment ? String(e.details.instalment) : '';
+  values.loan_id = e.details && e.details.loan_id ? e.details.loan_id : '';
   return values;
 }
 

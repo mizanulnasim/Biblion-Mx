@@ -83,7 +83,7 @@ function saveContact(ctx, input) {
 function saveShareholder(ctx, input) {
   const { db } = ctx;
   if (sameName(db.all('Shareholders'), input)) throw fieldError('name', 'val.taken');
-  const row = upsert(db, 'Shareholders', input, { name: input.name, phone: input.phone || '', status: input.status });
+  const row = upsert(db, 'Shareholders', input, { name: input.name, phone: input.phone || '', salary: input.salary || 0, status: input.status });
   return saved(row.id, pick(row));
 }
 

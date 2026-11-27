@@ -94,6 +94,17 @@ function foodDates(db, staff, p) {
   return all.filter((d) => worked.has(d));
 }
 
+// A person's pay for an accounting month, for the month's figures: the
+// issued payslip's net (else the draft's) and the food allowance earned in it.
+export function monthPay(db, staff, month, p = planner(db)) {
+  const per = period(db, month);
+  if (!employedDates(per, joinedOn(staff), staff.left_on).length) return { net: 0, food: 0 };
+  const slip = db.all('Payslips').find((s) => s.staff_id === staff.id && s.month === month && s.status === 'issued');
+  const net = slip ? slip.net : salaryChanges(db, staff).length ? draft(db, staff, month, p).net : 0;
+  const food = foodEarned(setting(db, 'food.rates'), foodDates(db, staff, p).filter((d) => d >= per.from && d <= per.to));
+  return { net, food };
+}
+
 export function payAccount(db, staff, p = planner(db)) {
   const opening = db.all('Pay_Openings').find((o) => o.staff_id === staff.id) || { owed: 0, advance: 0 };
   const slips = db.all('Payslips').filter((s) => s.staff_id === staff.id && s.status === 'issued');
