@@ -277,6 +277,7 @@ function shape(db, input) {
     ref: input.ref || '',
     covers_up_to: kind.covers ? input.covers_up_to || '' : '',
     period: kind.period ? input.period : '',
+    ...(kind.instalment && input.instalment ? { details: { instalment: input.instalment } } : {}),
     category_needs_shareholder: Boolean(category && category.needs_shareholder),
   };
 }

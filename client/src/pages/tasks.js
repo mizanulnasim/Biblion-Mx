@@ -1,7 +1,7 @@
 // Tasks: my tasks (overdue, today, the days ahead, done this week), tasks
-// waiting for my check, everyone's tasks for a date, giving a task, and the
-// repeating tasks. Doing a task works offline: it is kept on the phone and
-// sent when online.
+// waiting for my check, everyone's tasks for a date, giving a task (to a
+// person or a role), and the repeating tasks. Doing a task works offline:
+// it is kept on the phone and sent when online.
 
 import { html, on, render } from '../ui/html.js';
 import { chip, emptyState, errorBox, staleNotice } from '../ui/feedback.js';
@@ -14,7 +14,8 @@ import { can } from '../core/state.js';
 import { onArea } from '../core/live.js';
 import { dateShort, dateShortTime, today } from '../core/format.js';
 import { ACTIONS } from '../../../shared/contract/actions.js';
-import { TASK_LINKS } from '../../../shared/tasks/tasks.js';
+import { errorMessageId } from '../../../shared/contract/errors.js';
+import { TASK_LINKS, TASK_ROLES } from '../../../shared/tasks/tasks.js';
 import { decideRequest } from './rota.js';
 
 const STATUS = {
@@ -24,6 +25,8 @@ const STATUS = {
   not_done: ['tasks.status.not_done', 'danger'],
   skipped: ['tasks.status.skipped', 'muted'],
 };
+// "Anyone who is a …", for a task given to a role.
+const ROLE_ANYONE = { manager: 'tasks.anyone_manager', staff: 'tasks.anyone_staff' };
 const WEEKDAYS = ['date.wd.sun', 'date.wd.mon', 'date.wd.tue', 'date.wd.wed', 'date.wd.thu', 'date.wd.fri', 'date.wd.sat'];
 const shortDate = (date) => dateShort(`${date}T06:00:00Z`);
 
@@ -32,29 +35,37 @@ function whenText(task) {
   return task.due_time ? t('tasks.due_at', { day, time: task.due_time }) : day;
 }
 
+const whoText = (task) => task.staff_name || t(ROLE_ANYONE[task.role]);
+
 // One task. mine: the person's own (they can do it); manage: managers'
-// buttons to move or cancel it; check: buttons to check it.
+// buttons to move, cancel or allow it without its record; check: buttons to
+// check it.
 export function taskItem(task, { mine = false, manage = false, who = false, check = false } = {}) {
   const link = task.link ? TASK_LINKS[task.link] : null;
   const status = STATUS[task.status];
+  const open = task.status === 'open';
   return html`<li class="check-item task ${task.overdue ? 'is-overdue' : ''}">
-    <span><strong>${who ? `${task.staff_name} · ` : ''}${task.title}</strong>
+    <span><strong>${who || (mine && !task.staff_id) ? `${whoText(task)} · ` : ''}${task.title}</strong>
       ${status ? chip(t(status[0]), status[1]) : ''}
       ${task.overdue ? chip(t('tasks.overdue'), 'danger') : ''}
+      ${task.move_flag === 'no_day' && open ? chip(t('tasks.no_earlier_day'), 'warn') : ''}
       <span class="muted">${whenText(task)}${task.moved_from ? ` · ${t('tasks.moved_from', { date: shortDate(task.moved_from) })}` : ''}</span></span>
     ${task.details ? html`<span>${task.details}</span>` : ''}
     ${task.note ? html`<span class="muted">${t('hr.note', { note: task.note })}</span>` : ''}
     ${task.check_note ? html`<span class="muted">${t('tasks.check_note', { note: task.check_note })}</span>` : ''}
+    ${link && open && !task.override_reason ? html`<span class="muted">${t('tasks.needs_record', { what: t(link.label) })}</span>` : ''}
+    ${task.override_reason ? html`<span class="muted">${t('tasks.allowed_note', { note: task.override_reason })}</span>` : ''}
     ${task.skip_reason ? html`<span class="muted">${t('tasks.skip_note', { note: task.skip_reason === 'leave' ? t('tasks.skip_leave') : task.skip_reason })}</span>` : ''}
     ${task.comments.length ? html`<details class="comments"><summary>${t('tasks.comments', { count: task.comments.length })}</summary>
       <ul>${task.comments.map((c) => html`<li><strong>${c.name}</strong> <span class="muted">${dateShortTime(c.at)}</span><br>${c.text}</li>`)}</ul></details>` : ''}
     <span class="check-actions">
       ${link && task.status === 'open' && can(link.perm) && mine ? html`<a class="btn btn-small" href="#${link.path}">${t(link.label)}</a>` : ''}
       ${mine && task.status === 'open' ? html`
-        <button type="button" class="btn btn-small btn-primary" data-act="done" data-id="${task.id}">${t(task.needs_check ? 'tasks.done_check' : 'tasks.done')}</button>
+        <button type="button" class="btn btn-small btn-primary" data-act="done" data-id="${task.id}">${t('tasks.done')}</button>
         <button type="button" class="btn btn-small" data-act="not-done" data-id="${task.id}">${t('tasks.not_done')}</button>` : ''}
       ${mine || can('tasks.view_all') ? html`<button type="button" class="btn btn-small" data-act="comment" data-id="${task.id}">${t('tasks.comment')}</button>` : ''}
-      ${manage && task.status === 'open' ? html`
+      ${manage && open && link && !task.override_reason ? html`<button type="button" class="btn btn-small" data-act="allow" data-id="${task.id}">${t('tasks.allow')}</button>` : ''}
+      ${manage && open ? html`
         <button type="button" class="btn btn-small" data-act="move" data-id="${task.id}">${t('tasks.move')}</button>
         <button type="button" class="btn btn-small" data-act="cancel" data-id="${task.id}">${t('tasks.cancel')}</button>` : ''}
       ${check ? html`
@@ -86,7 +97,8 @@ export function taskActions(findTask, onDone) {
       btn.disabled = true;
       const reply = await write('tasks.complete', { id: task.id }, { label: task.title });
       if (reply.status === 'queued') toast(t('tasks.queued'));
-      else if (reply.status === 'saved') toast(t(task.needs_check ? 'tasks.sent_for_check' : 'tasks.marked_done'));
+      else if (reply.status === 'saved') toast(t(reply.data.status === 'to_check' ? 'tasks.sent_for_check' : 'tasks.marked_done'));
+      else if (reply.status === 'rejected') toast(t(errorMessageId(reply.error.code), reply.error.params), 'error');
       onDone();
     },
     'not-done': (e, btn) => textDialog({
@@ -100,6 +112,15 @@ export function taskActions(findTask, onDone) {
   };
 }
 
+// "Given to": a person, or anyone of a role. Sent as staff_id or role.
+const whoOptions = (staff) => [...staff.map((s) => ({ value: `staff:${s.id}`, label: s.name })), ...TASK_ROLES.map((r) => ({ value: `role:${r}`, label: t(ROLE_ANYONE[r]) }))];
+const whoValue = (x) => (x.role ? `role:${x.role}` : x.staff_id ? `staff:${x.staff_id}` : '');
+const WHO = { who: { type: 'text', required: true } };
+function fromWho(who) {
+  const [kind, value] = who.split(':');
+  return { staff_id: kind === 'staff' ? value : null, role: kind === 'role' ? value : null };
+}
+
 const linkOptions = () => [{ value: '', label: t('tasks.link.none') }, ...Object.keys(TASK_LINKS).map((k) => ({ value: k, label: t(TASK_LINKS[k].label) }))];
 
 function giveTask(staff, onDone) {
@@ -109,18 +130,17 @@ function giveTask(staff, onDone) {
     fields: [
       { name: 'title', label: t('tasks.title'), required: true },
       { name: 'details', label: t('tasks.details'), type: 'textarea' },
-      { name: 'staff_id', label: t('tasks.who'), type: 'select', required: true, placeholder: t('money.choose'), options: staff.map((s) => ({ value: s.id, label: s.name })) },
+      { name: 'who', label: t('tasks.who'), type: 'select', required: true, placeholder: t('money.choose'), options: whoOptions(staff) },
       { name: 'due_date', label: t('tasks.due_date'), type: 'date', required: true },
       { name: 'due_time', label: t('tasks.due_time'), type: 'time' },
       { name: 'link', label: t('tasks.link'), type: 'select', options: linkOptions(), help: t('tasks.link_help') },
-      { name: 'needs_check', label: t('tasks.needs_check'), type: 'checkbox', help: t('tasks.needs_check_help') },
     ],
   }));
   bindForm(dialog.querySelector('form.form'), {
-    schema: ACTIONS['tasks.create'].schema,
+    schema: { ...ACTIONS['tasks.create'].schema, ...WHO },
     busyLabel: t('common.saving'),
-    mapValues: (v) => ({ ...v, due_time: v.due_time || null, link: v.link || null }),
-    onSubmit: (v) => write('tasks.create', v),
+    mapValues: (v) => ({ ...v, ...fromWho(v.who), due_time: v.due_time || null, link: v.link || null }),
+    onSubmit: ({ who, ...v }) => write('tasks.create', v),
     onSaved: () => {
       dialog.close();
       toast(t('tasks.given'));
@@ -193,6 +213,10 @@ export const tasksPage = {
       ...taskActions(find, load),
       verify: (e, btn) => decideRequest('tasks.verify', btn, load),
       give: () => giveTask(all.staff, load),
+      allow: (e, btn) => textDialog({
+        title: t('tasks.allow'), label: t('tasks.allow_reason'), action: 'tasks.allow', payload: { id: btn.dataset.id }, field: 'reason',
+        onDone: load, done: t('tasks.allowed'),
+      }),
       move: (e, btn) => moveTask(find(btn.dataset.id), all.staff, load),
       cancel: (e, btn) => textDialog({
         title: t('tasks.cancel'), label: t('hr.fix_reason'), action: 'tasks.cancel', payload: { id: btn.dataset.id }, field: 'reason',
@@ -225,7 +249,7 @@ function repeatText(tpl) {
 const TEMPLATE_STATUS = { active: ['users.active', 'ok'], paused: ['tasks.paused', 'warn'], ended: ['tasks.ended', 'muted'] };
 
 function editTemplate(tpl, staff, onDone) {
-  const values = tpl ? { ...tpl, day_of_month: tpl.day_of_month ? String(tpl.day_of_month) : '' } : { repeat: 'daily', start_date: today(), status: 'active' };
+  const values = tpl ? { ...tpl, who: whoValue(tpl), day_of_month: tpl.day_of_month ? String(tpl.day_of_month) : '' } : { repeat: 'daily', start_date: today(), status: 'active' };
   if (tpl) for (const d of tpl.days) values[`day_${d}`] = true;
   const dialog = formDialog(tpl ? tpl.title : t('tasks.add_repeating'), formView({
     submit: t('common.save'),
@@ -233,13 +257,12 @@ function editTemplate(tpl, staff, onDone) {
     fields: [
       { name: 'title', label: t('tasks.title'), required: true },
       { name: 'details', label: t('tasks.details'), type: 'textarea' },
-      { name: 'staff_id', label: t('tasks.who'), type: 'select', required: true, placeholder: t('money.choose'), options: staff.map((s) => ({ value: s.id, label: s.name })) },
+      { name: 'who', label: t('tasks.who'), type: 'select', required: true, placeholder: t('money.choose'), options: whoOptions(staff) },
       { name: 'repeat', label: t('tasks.repeat'), type: 'select', required: true, options: [{ value: 'daily', label: t('tasks.repeat.daily') }, { value: 'weekly', label: t('tasks.repeat.weekly') }, { value: 'monthly', label: t('tasks.repeat.monthly') }] },
       ...WEEKDAYS.map((wd, day) => ({ name: `day_${day}`, label: t(wd), type: 'checkbox' })),
       { name: 'day_of_month', label: t('tasks.day_of_month'), inputmode: 'numeric', help: t('tasks.day_of_month_help') },
       { name: 'due_time', label: t('tasks.due_time'), type: 'time' },
       { name: 'link', label: t('tasks.link'), type: 'select', options: linkOptions(), help: t('tasks.link_help') },
-      { name: 'needs_check', label: t('tasks.needs_check'), type: 'checkbox', help: t('tasks.needs_check_help') },
       { name: 'start_date', label: t('tasks.start_date'), type: 'date', required: true },
       { name: 'end_date', label: t('tasks.end_date'), type: 'date' },
       { name: 'status', label: t('users.status'), type: 'select', required: true, options: Object.keys(TEMPLATE_STATUS).map((k) => ({ value: k, label: t(TEMPLATE_STATUS[k][0]) })), help: t('tasks.status_help') },
@@ -255,15 +278,15 @@ function editTemplate(tpl, staff, onDone) {
   form.elements.repeat.addEventListener('change', showRepeat);
   showRepeat();
   bindForm(form, {
-    schema: ACTIONS['tasks.template.save'].schema,
+    schema: { ...ACTIONS['tasks.template.save'].schema, ...WHO },
     busyLabel: t('common.saving'),
     mapValues: (v) => ({
-      id: tpl ? tpl.id : null, version: tpl ? tpl.version : null, title: v.title, details: v.details, staff_id: v.staff_id, repeat: v.repeat,
+      id: tpl ? tpl.id : null, version: tpl ? tpl.version : null, title: v.title, details: v.details, ...fromWho(v.who), who: v.who, repeat: v.repeat,
       days: WEEKDAYS.map((wd, day) => day).filter((day) => v[`day_${day}`]).map((day) => ({ day })),
-      day_of_month: v.day_of_month || null, due_time: v.due_time || null, link: v.link || null, needs_check: v.needs_check,
+      day_of_month: v.day_of_month || null, due_time: v.due_time || null, link: v.link || null,
       start_date: v.start_date, end_date: v.end_date || null, status: v.status,
     }),
-    onSubmit: (v) => write('tasks.template.save', v),
+    onSubmit: ({ who, ...v }) => write('tasks.template.save', v),
     onSaved: () => {
       dialog.close();
       toast(t('setup.saved'));
@@ -283,7 +306,7 @@ export const repeatingTasksPage = {
         data = (await read('tasks.templates')).data;
         render(el, html`<div class="list-bar"><button type="button" class="btn btn-primary" data-act="add">${t('tasks.add_repeating')}</button></div>
           <section class="panel">${data.items.length ? html`<ul class="punches">${data.items.map((x) => html`<li class="punch">
-            <span><strong>${x.title}</strong> <span class="muted">${x.staff_name} · ${repeatText(x)}${x.due_time ? ` · ${x.due_time}` : ''}</span></span>
+            <span><strong>${x.title}</strong> <span class="muted">${whoText(x)} · ${repeatText(x)}${x.due_time ? ` · ${x.due_time}` : ''}</span></span>
             ${chip(t(TEMPLATE_STATUS[x.status][0]), TEMPLATE_STATUS[x.status][1])}
             <button type="button" class="btn btn-small" data-act="edit" data-id="${x.id}">${t('common.edit')}</button></li>`)}</ul>` : emptyState(t('tasks.no_repeating'))}</section>`);
       } catch (err) {

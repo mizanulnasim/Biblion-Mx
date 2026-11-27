@@ -8,6 +8,7 @@
 //   party       who or what it is about: category, contact (a person with
 //               a due), shareholder, vendor, publisher, staff, or nothing
 //   period      the month it is for (salary paid)
+//   instalment  repaid in instalments of a set amount (an advance)
 //   cash        how it moves money: in, out, none, transfer, or
 //               either (loan repayment, by its direction)
 //   limit       false when the amount limit doesn't apply (a day's sales)
@@ -42,7 +43,7 @@ export const KINDS = Object.freeze({
   salary_paid: { group: 'staff', label: 'money.kind.salary_paid', help: 'money.help.salary_paid', perm: 'acc.staffpay', requestable: false, rule: 'other', party: 'staff', cash: 'out', period: true },
   food_paid: { group: 'staff', label: 'money.kind.food_paid', help: 'money.help.food_paid', perm: 'acc.staffpay', requestable: false, rule: 'other', party: 'staff', cash: 'out' },
   bonus_paid: { group: 'staff', label: 'money.kind.bonus_paid', help: 'money.help.bonus_paid', perm: 'acc.staffpay', requestable: false, rule: 'other', party: 'staff', cash: 'out' },
-  staff_advance: { group: 'staff', label: 'money.kind.staff_advance', help: 'money.help.staff_advance', perm: 'acc.staffpay', requestable: false, rule: 'other', party: 'staff', cash: 'out' },
+  staff_advance: { group: 'staff', label: 'money.kind.staff_advance', help: 'money.help.staff_advance', perm: 'acc.staffpay', requestable: false, rule: 'other', party: 'staff', cash: 'out', instalment: true },
   staff_deduction: { group: 'staff', label: 'money.kind.staff_deduction', help: 'money.help.staff_deduction', perm: 'acc.staffpay', requestable: false, rule: 'other', party: 'staff', cash: 'none' },
   shareholder_advance: { group: 'shareholders', label: 'money.kind.shareholder_advance', help: 'money.help.shareholder_advance', perm: 'acc.shareholders', requestable: false, rule: 'other', party: 'shareholder', cash: 'out' },
   shareholder_deduction: { group: 'shareholders', label: 'money.kind.shareholder_deduction', help: 'money.help.shareholder_deduction', perm: 'acc.shareholders', requestable: false, rule: 'other', party: 'shareholder', cash: 'none' },

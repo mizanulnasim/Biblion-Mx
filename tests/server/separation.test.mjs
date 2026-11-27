@@ -16,7 +16,8 @@ function team() {
   const add = (fields) => s.call(s.owner, 'staff.save', { status: 'active', joined_on: plus(today(), -200), days_off: [], ...fields }).data.record_id;
   s.ids.sumi = add({ name: 'Sumi', user_id: userId('staff'), position: 'Café assistant', salary: 12000, work_start: '10:00', work_end: '18:00' });
   s.ids.rafi = add({ name: 'Rafi', user_id: userId('manager'), salary: 20000 });
-  s.call(s.owner, 'settings.payroll.save', { divisor: 'fixed_30', food_rule: 'every_day', food_rates: [{ from: '2000-01-01', amount: 0 }] });
+  // Calendar months here (the accounting month has its own tests).
+  s.call(s.owner, 'settings.payroll.save', { divisor: 'fixed_30', food_rule: 'every_day', food_rates: [{ from: '2000-01-01', amount: 0 }], month_start_day: 1 });
   return s;
 }
 

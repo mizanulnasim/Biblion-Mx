@@ -38,6 +38,7 @@ const ATTENDANCE_KEYS = Object.freeze({
   late_grace: 'attendance.late_grace_min', early_grace: 'attendance.early_grace_min', incomplete_after: 'attendance.incomplete_after_min',
   duplicate_window_sec: 'attendance.duplicate_window_sec', clock_skew_flag_min: 'attendance.clock_skew_flag_min',
   offline_max_age_days: 'attendance.offline_max_age_days', offline_auto_validate: 'attendance.offline_auto_validate',
+  device_enabled: 'attendance.device_enabled', shop_open: 'attendance.shop_open', shop_close: 'attendance.shop_close',
 });
 
 function attendanceSettings(db) {
@@ -50,7 +51,8 @@ function saveAttendance(ctx, input) {
   if ((input.lat === null) !== (input.lng === null)) {
     throw new AppError('VALIDATION', {}, { [input.lat === null ? 'lat' : 'lng']: { code: 'val.required', params: {} } });
   }
-  for (const [name, key] of Object.entries(ATTENDANCE_KEYS)) saveSetting(ctx.db, key, name === 'offline_auto_validate' ? Boolean(input[name]) : input[name]);
+  if (input.shop_close <= input.shop_open) throw new AppError('VALIDATION', {}, { shop_close: { code: 'val.time_after', params: {} } });
+  for (const [name, key] of Object.entries(ATTENDANCE_KEYS)) saveSetting(ctx.db, key, name === 'offline_auto_validate' || name === 'device_enabled' ? Boolean(input[name]) : input[name]);
   return saved(null, attendanceSettings(ctx.db));
 }
 

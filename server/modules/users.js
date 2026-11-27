@@ -13,6 +13,8 @@ function listItem(u) {
     username: u.username,
     role_id: u.role_id,
     status: u.status,
+    // May change their own password (shareholders always may).
+    own_password: roleById(u.role_id).level === 3 || (u.perm_grants || []).includes('me.password'),
     last_login_at: u.last_login_at,
     version: u.version,
   };
@@ -38,10 +40,15 @@ function save(ctx, input) {
   if (clash) throw fieldError('username', 'val.taken');
 
   const base = { display_name: input.display_name, username: input.username, role_id: input.role_id, status: input.status };
+  // Passwords are set by shareholders; others change their own only when allowed.
+  const grantsOf = (u) => {
+    const others = ((u && u.perm_grants) || []).filter((g) => g !== 'me.password');
+    return input.own_password && roleById(input.role_id).level < 3 ? [...others, 'me.password'] : others;
+  };
   if (!input.id) {
     if (!input.password) throw fieldError('password', 'val.required');
     const row = db.insert('Users', {
-      ...base, perm_grants: [], perm_denies: [], settings: {}, failed_attempts: 0, ...passwordFields(input.password),
+      ...base, perm_grants: grantsOf(null), perm_denies: [], settings: {}, failed_attempts: 0, ...passwordFields(input.password),
     });
     return saved(row.id, listItem(row));
   }
@@ -55,7 +62,8 @@ function save(ctx, input) {
   const losesOwner = roleById(current.role_id).level === 3 && (input.status !== 'active' || roleById(input.role_id).level !== 3);
   if (losesOwner && activeOwners(users).length <= 1) throw fieldError('role_id', 'val.last_owner');
 
-  const patch = input.password ? { ...base, ...passwordFields(input.password), failed_attempts: 0, locked_until: '' } : base;
+  const withGrants = { ...base, perm_grants: grantsOf(current) };
+  const patch = input.password ? { ...withGrants, ...passwordFields(input.password), failed_attempts: 0, locked_until: '' } : withGrants;
   const row = db.update('Users', current, patch, input.version);
   return saved(row.id, listItem(row));
 }

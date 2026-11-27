@@ -22,7 +22,7 @@ import { details, kindLabel, reasonTexts } from './money-common.js';
 // What a fix turns the entry into, by kind.
 const FIX_LABELS = { transfer: 'dup.fix.transfer', vendor_purchase_paid: 'dup.fix.vendor', publisher_payment: 'dup.fix.publisher' };
 
-const FIELDS = ['kind', 'date', 'amount', 'account_id', 'to_account_id', 'category_id', 'party_id', 'direction', 'covers_up_to', 'period', 'note', 'ref'];
+const FIELDS = ['kind', 'date', 'amount', 'account_id', 'to_account_id', 'category_id', 'party_id', 'direction', 'covers_up_to', 'period', 'instalment', 'note', 'ref'];
 
 function accountLabel(kind) {
   const cash = KINDS[kind].cash;
@@ -86,6 +86,9 @@ export function fieldsFor(kind, boot) {
       })),
       help: boot.suppliers.some((s) => s.kind === k.party) ? '' : t('money.no_suppliers'),
     });
+  }
+  if (k.instalment) {
+    fields.push({ name: 'instalment', label: t('money.field.instalment'), inputmode: 'decimal', help: t('money.instalment_help') });
   }
   if (k.covers) {
     fields.push({ name: 'covers_up_to', label: t('money.field.covers_up_to'), type: 'date', help: t('money.covers_help') });
@@ -167,6 +170,7 @@ function fromEntry(e) {
   const values = {};
   for (const f of FIELDS) values[f] = e[f] ?? '';
   values.amount = String(e.amount);
+  values.instalment = e.details && e.details.instalment ? String(e.details.instalment) : '';
   return values;
 }
 

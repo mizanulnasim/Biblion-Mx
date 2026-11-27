@@ -217,6 +217,7 @@ export const uploadDocPage = {
         .filter(([, v]) => v !== undefined);
       const params = new URLSearchParams({ date: s.date, from_doc: d.id });
       for (const k of ['net_sales', 'cash', 'bkash', 'card', 'actual_cash']) if (s[k] !== undefined) params.set(k, s[k]);
+      if (s.expected_cash !== undefined) params.set('pos_expected', s.expected_cash);
       if (s.shift_no) params.set('note', t('intake.shift.note', { no: s.shift_no }));
       return html`<p class="muted">${t('intake.shift.read', { no: s.shift_no || '—' })}</p>
         <dl class="slip">${rows.map(([label, v]) => html`<dt>${t(label)}</dt><dd>${money(v)}</dd>`)}</dl>

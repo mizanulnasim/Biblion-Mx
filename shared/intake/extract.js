@@ -29,15 +29,19 @@ const MONTHS = {
 };
 const L = '\\p{L}\\p{M}';
 
-// Lines, with Bangla digits as Latin and spacing tidied.
+// Lines, with Bangla digits as Latin and spacing tidied. A VAT column
+// "(0%)" or "(15%)" is not a terms "%", so it is taken out.
 function lines(text) {
-  return latinDigits(String(text || '')).split(/\r?\n/).map((l) => l.replace(/[ \t]+/g, ' ').trim()).filter(Boolean);
+  return latinDigits(String(text || '')).split(/\r?\n/)
+    .map((l) => l.replace(/\(\s*\d+(?:\.\d+)?\s*%\s*\)/g, ' ').replace(/[ \t]+/g, ' ').trim()).filter(Boolean);
 }
 
 const ISBN = /\b(?:97[89][- ]?)?\d{1,5}[- ]\d{1,7}[- ]\d{1,7}[- ][\dX]\b|\b97[89]\d{10}\b|\b\d{9}[\dX]\b/g;
 const PHONE = /(?:\+?88)?\b01[3-9]\d{2}[- ]?\d{6}\b|\b0\d{2}\*+\d{3}\b/g;
 const DATE_LIKE = /\b\d{1,4}[/.-]\d{1,2}[/.-]\d{1,4}\b/g;
 const TIME = /\b\d{1,2}:\d{2}(?::\d{2})?\s*(?:am|pm)?\b/gi;
+// "Page-176", "page- 32": a book's page count, not a figure.
+const PAGES = /(?<![\p{L}\p{M}])pages?\s*[-:]?\s*\d+/giu;
 // Counted units: the number before one of these is a quantity.
 const COUNT_UNIT = '(?:pcs?|ps|p|pkts?|packs?|box(?:es)?|nos?|টি|পিস|পিচ|প্যাকেট)';
 // An amount: 1,250 or 1250.50, optionally after Tk, BDT or ৳ (tk only as a
@@ -54,7 +58,7 @@ const ROW_NO = new RegExp(`^(?:sl\\.?\\s*)?\\d{1,3}[.)]?\\s+(?=[${L}(])`, 'u');
 // The amounts on one line, leaving out ISBNs, phone numbers, dates, times,
 // sizes and counts.
 export function amountsIn(line) {
-  const clean = latinDigits(line).replace(ISBN, ' ').replace(PHONE, ' ').replace(DATE_LIKE, ' ').replace(TIME, ' ');
+  const clean = latinDigits(line).replace(ISBN, ' ').replace(PHONE, ' ').replace(DATE_LIKE, ' ').replace(TIME, ' ').replace(PAGES, ' ');
   const out = [];
   for (const m of clean.matchAll(AMOUNT)) {
     const value = Number(m[1].replace(/,/g, ''));
@@ -110,7 +114,7 @@ const hasDate = (line) => Boolean(findDate(line));
 
 export function findBillNo(text) {
   const t = latinDigits(String(text || ''));
-  const labelled = /(?:bill|invoice|inv|memo|challan|receipt|voucher|consignment|চালান|মেমো|বিল|রসিদ)\s*(?:no\.?|number|#|নং)?\s*[:#.-]?\s*([A-Za-z]{0,4}[-/]?\d[\w/-]{0,23})/i.exec(t);
+  const labelled = /(?:bill|invoice|inv|memo|challan|receipt|voucher|consignment|চালান|মেমো|বিল|রসিদ)\s*(?:no\.?|number|#|নং)?\s*[:#.-]?\s*([A-Za-z]{0,4}[-/]{0,2}\d[\w/-]{0,23})/i.exec(t);
   if (labelled) return labelled[1].replace(/[/-]+$/, '');
   // "No. : 6123", "SL No. 0305", "Ref: 12": a number on its own label.
   const plain = /(?:^|\n)\s*(?:sl\.?\s*|serial\s*)?(?:no|ref)\.?\s*[:.]?\s*(\d[\w/-]{0,15})/im.exec(t);
@@ -119,14 +123,26 @@ export function findBillNo(text) {
 
 // A bKash, Nagad or bank transaction id, labelled in English or Bangla, on
 // the same line or the next.
+const TRX_LABEL = /trx\s*id|txn\s*id|transaction\s*id|ট্রানজেকশন\s*আইডি|লেনদেন\s*আইডি/iu;
+const TRX_VALUE = /\b(?=[A-Z0-9]*\d)(?=[A-Z0-9]*[A-Z])[A-Z0-9]{8,12}\b/;
+
 export function findTrxId(text) {
-  const m = /(?:trx\s*id|txn\s*id|transaction\s*id|ট্রানজেকশন\s*আইডি|লেনদেন\s*আইডি)\s*[:#]?\s*([A-Z0-9]{8,12})\b/iu.exec(String(text || ''));
-  return m ? m[1].toUpperCase() : '';
+  const t = String(text || '');
+  const same = new RegExp(`(?:${TRX_LABEL.source})\\s*[:#]?\\s*([A-Z0-9]{8,12})\\b`, 'iu').exec(t);
+  if (same && TRX_VALUE.test(same[1].toUpperCase())) return same[1].toUpperCase();
+  // The label beside another ("Time Transaction ID"), the id on the next line.
+  const all = lines(t);
+  const i = all.findIndex((l) => TRX_LABEL.test(l));
+  const m = i >= 0 && i + 1 < all.length ? TRX_VALUE.exec(all[i + 1]) : null;
+  return m ? m[0] : '';
 }
 
 // Paid now (COD, Received), later (To-Pay, due), or unknown.
 export function paymentState(text) {
   const t = String(text || '');
+  // "Paid Amount: 0.00 / Due Amount: 18,771.00": a due above zero is not paid.
+  const due = lines(t).find((l) => word('due amount|amount due|balance due|বাকি').test(l) && amountsIn(l).length);
+  if (due && amountsIn(due).pop() > 0) return 'later';
   if (PAY_LATER.test(t) && !PAID_NOW.test(t.replace(/to-?pay/gi, ''))) return 'later';
   if (PAID_NOW.test(t)) return 'now';
   return '';
@@ -149,7 +165,12 @@ export function findTotals(text) {
   let discount = null;
   let charges = 0;
   all.forEach((line, i) => {
-    if (line.includes('%')) return;
+    // "After 25% Discount: 4198.5" is the total after the discount; any
+    // other line with "%" is terms.
+    if (line.includes('%')) {
+      if (DISCOUNT.test(line) && word('after|net|less').test(line)) total = amountsIn(line).pop() ?? total;
+      return;
+    }
     if (BARE_TOTAL.test(line) && i + 1 < all.length) {
       const next = amountsIn(all[i + 1]);
       if (next.length === 1) total = next[0];
@@ -172,20 +193,6 @@ export function findTotals(text) {
 const HEADING = word('qty|quantity|price|rate|amount|title|description|particulars|item|বইয়ের নাম|বইএর নাম|পরিমাণ|দর|মূল্য|সংখ্যা');
 
 const notItem = (line) => line.includes('%') || FIELD.test(line) || hasDate(line) || LETTERHEAD.test(line);
-
-// Joins an item row that wrapped: a line of words with no figures (not a
-// column heading, field, or letterhead), followed by a line with figures.
-function joinWrapped(all) {
-  const out = [];
-  for (const line of all) {
-    const prev = out[out.length - 1];
-    const wrapped = prev && !amountsIn(prev).length && amountsIn(line).length >= 2 && !notItem(line)
-      && new RegExp(`[${L}]{3}`, 'u').test(prev) && !HEADING.test(prev) && !notItem(prev) && !TOTAL.test(prev);
-    if (wrapped) out[out.length - 1] = `${prev} ${line}`;
-    else out.push(line);
-  }
-  return out;
-}
 
 const near = (a, b) => Math.abs(a - b) <= Math.max(1, b * 0.01);
 
@@ -220,20 +227,69 @@ function rowFigures(line) {
 
 // Item lines: a name, then copies and a price (and maybe the line amount).
 // Totals, charges, terms, fields and letterhead lines are not items.
+// The words of an item line, without figures, sizes, ISBNs or page counts.
+function nameOf(line) {
+  return line.replace(ISBN, ' ').replace(/(?<![\p{L}\p{M}])page\s*-?\s*\d+/giu, ' ')
+    .replace(new RegExp(`\\d+\\s?(?:${COUNT_UNIT}|l|ml|kg|gm?|ltr)(?![${L}])`, 'giu'), ' ')
+    .replace(new RegExp(`(?<![${L}])[xX×](?![${L}])`, 'gu'), ' ').replace(/[\d.,৳@=*/-]+/g, ' ')
+    .replace(new RegExp(`(?<![${L}])(?:tk|bdt|pcs|copies|qty)(?![${L}])`, 'giu'), ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+
+// At least three letters (short-word titles such as "হ য ব র ল" count).
+// A title line above or below a row: only ISBNs and page counts go (a
+// number in a title stays).
+const titleText = (line) => line.replace(ISBN, ' ').replace(PAGES, ' ').replace(/\s+/g, ' ').trim();
+
+const hasWords = (text) => new RegExp(`(?:[${L}][^${L}]*){3}`, 'u').test(text);
+const openBracket = (name) => (name.match(/\(/g) || []).length > (name.match(/\)/g) || []).length;
+// A line that closes a bracket before opening one finishes the title above.
+const closesFirst = (line) => line.includes(')') && (!line.includes('(') || line.indexOf(')') < line.indexOf('('));
+const ISBN_LINE = new RegExp(`^(?:isbn\\s*:?\\s*)?(${ISBN.source})\\s*$`, 'i');
+
+// Item rows: a name, then copies and a price (and maybe the row amount).
+// A row's title may wrap: words on the lines above it belong to it, a title
+// with an open bracket goes on until the bracket closes, and an ISBN on its
+// own line belongs to the row above. Totals, charges, terms, fields and
+// letterhead lines are not items.
 export function findItems(text) {
   const items = [];
-  for (const raw of joinWrapped(lines(text))) {
+  let pending = [];
+  let last = null;
+  for (const raw of lines(text)) {
+    const isbn = ISBN_LINE.exec(raw);
+    if (isbn) {
+      if (last) last.isbn = isbn[1].replace(/[- ]/g, '');
+      last = null;
+      pending = [];
+      continue;
+    }
     const line = raw.replace(ROW_NO, '');
-    if (notItem(raw) || TOTAL.test(line) || SUBTOTAL.test(line) || DISCOUNT.test(line) || CHARGES.test(line) || TERMS.test(line)) continue;
-    const name = line.replace(ISBN, ' ').replace(new RegExp(`\\d+\\s?(?:${COUNT_UNIT}|l|ml|kg|gm?|ltr)(?![${L}])`, 'giu'), ' ')
-      .replace(new RegExp(`(?<![${L}])[xX×](?![${L}])`, 'gu'), ' ').replace(/[\d.,৳@=*/-]+/g, ' ').replace(new RegExp(`(?<![${L}])(?:tk|bdt|pcs|copies|qty)(?![${L}])`, 'giu'), ' ')
-      .replace(/\s+/g, ' ').trim();
-    if (!new RegExp(`[${L}]{3}`, 'u').test(name)) continue;
-    const figures = rowFigures(line);
-    if (!figures || !Number.isInteger(figures.qty) || figures.qty < 1 || figures.qty > 10000) continue;
-    items.push({ name, ...figures });
+    const blocked = notItem(raw) || TOTAL.test(line) || SUBTOTAL.test(line) || DISCOUNT.test(line) || CHARGES.test(line) || TERMS.test(line);
+    const figures = blocked || amountsIn(line).length < 1 ? null : rowFigures(line);
+    if (figures && Number.isInteger(figures.qty) && figures.qty >= 1 && figures.qty <= 10000) {
+      const name = [...pending, nameOf(line)].join(' ').replace(/\s+/g, ' ').trim();
+      pending = [];
+      if (!hasWords(name)) {
+        last = null;
+        continue;
+      }
+      last = { name, ...figures };
+      items.push(last);
+      continue;
+    }
+    // Title words (a number in a title, "100 films", is allowed).
+    const words = !blocked && amountsIn(line).length <= 1 && hasWords(line) && !HEADING.test(line);
+    if (words && last && openBracket(last.name) && closesFirst(line)) last.name = `${last.name} ${titleText(line)}`.trim();
+    else if (words) {
+      pending.push(titleText(line));
+      last = null;
+    } else {
+      pending = [];
+      last = null;
+    }
   }
-  return items;
+  return items.map((i) => ({ ...i, name: i.name.replace(/\s+/g, ' ').trim() }));
 }
 
 // A bKash slip: what kind of transaction, its id, amount, when, with whom,
@@ -249,20 +305,28 @@ const BKASH_TYPES = [
   ['payment', /মার্চেন্ট|merchant|পেমেন্ট|payment/i],
 ];
 
+// The reference: the line after its label; beside "Amount", the last value.
+function reference(all) {
+  const i = all.findIndex((l) => /^(?:.*\s)?(?:reference|রেফারেন্স)$/i.test(l));
+  if (i < 0 || i + 1 >= all.length) return '';
+  const alone = /^(?:reference|রেফারেন্স)$/i.test(all[i]);
+  return alone ? all[i + 1] : all[i + 1].split(' ').pop();
+}
+
 export function readBkash(text) {
   const t = String(text || '');
   if (!/bkash|বিকাশ/i.test(t) || !findTrxId(t)) return null;
   const all = lines(t);
-  const after = (label) => {
-    const i = all.findIndex((l) => label.test(l));
-    return i >= 0 && i + 1 < all.length ? all[i + 1] : '';
-  };
   const type = (BKASH_TYPES.find(([, re]) => re.test(t)) || [''])[0];
-  const { total } = findTotals(t);
+  // The amount: the ৳ figure under "সর্বমোট" or "Amount" (often beside
+  // another label, both values on the next line).
+  const label = all.findIndex((l) => /সর্বমোট|amount/i.test(l) && !amountsIn(l).length);
+  const taka = label >= 0 && label + 1 < all.length ? /৳\s*([\d,]+(?:\.\d{1,2})?)/.exec(all[label + 1]) : null;
+  const total = taka ? Number(taka[1].replace(/,/g, '')) : findTotals(t).total;
   const party = all.slice(1, 4).find((l) => /\d{11}/.test(l) || (/^[A-Z][A-Z .&-]{3,}$/.test(l) && !/^VISA$/.test(l))) || '';
   return {
     type, trx_id: findTrxId(t), amount: total, date: findDate(t),
-    party: party.replace(/[^\w .&-]/g, '').trim(), reference: after(/^(?:reference|রেফারেন্স)$/i),
+    party: party.replace(/[^\w .&-]/g, '').trim(), reference: reference(all),
   };
 }
 
@@ -351,7 +415,9 @@ export function guessKind(text) {
   if (/consignment|courier|sundarban|pathao|redx|steadfast|paribahan|কুরিয়ার/.test(t)) return 'courier_slip';
   if ((/challan|চালান/.test(t) || /commission|কমিশন/.test(t)) && /isbn|book|বই|প্রকাশ|publication|prokashon|লেখক/.test(t)) return 'book_delivery';
   if (/trx\s*id|transaction id|ট্রানজেকশন|bkash|বিকাশ|deposit slip|money receipt/.test(t)) return 'payment_receipt';
-  if (/electric|desco|dpdc|wasa|titas|gas bill|internet bill|বিদ্যুৎ|গ্যাস|পানি/.test(t)) return 'utility_bill';
+  // Two or more ISBNs: a publisher's invoice.
+  if ((t.match(new RegExp(ISBN.source, 'g')) || []).length >= 2) return 'book_delivery';
+  if (/electric|desco|dpdc|wasa|titas|gas bill|internet bill|বিদ্যুৎ বিল|গ্যাস বিল|পানির বিল/.test(t)) return 'utility_bill';
   if (/invoice|bill|memo|challan|বিল|মেমো/.test(t)) return 'vendor_bill';
   return t.trim() ? 'expense' : '';
 }

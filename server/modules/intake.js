@@ -108,6 +108,7 @@ function moneyProposal(db, kind, found, date) {
     if (bkash.type === 'to_bank') Object.assign(entry, { kind: 'transfer', to_account_id: firstAccount(db, 'bank') });
     if (bkash.type === 'cash_in') Object.assign(entry, { kind: 'transfer', account_id: firstAccount(db, 'drawer'), to_account_id: firstAccount(db, 'bkash') });
     if (bkash.type === 'received') entry.kind = 'income';
+    if (bkash.amount) entry.amount = bkash.amount;
     entry.note = [bkash.party, bkash.reference].filter(Boolean).join(' · ');
   }
   if (kind === 'courier_slip') {
@@ -119,7 +120,9 @@ function moneyProposal(db, kind, found, date) {
   return {
     target: 'money', entry,
     // What the document says about payment ("now", "later" or unknown), shown to the person.
-    paid: found.paid, via: found.via, bkash_type: bkash ? bkash.type : '', unsure: found.unsure,
+    paid: found.paid, via: found.via, bkash_type: bkash ? bkash.type : '',
+    // A bKash slip read whole has its amount and TrxID for sure.
+    unsure: bkash && bkash.amount && bkash.trx_id ? found.unsure.filter((u) => u !== 'amount' && u !== 'ref') : found.unsure,
   };
 }
 

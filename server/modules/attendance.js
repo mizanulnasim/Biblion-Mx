@@ -11,13 +11,14 @@
 import { AppError } from '../../shared/contract/errors.js';
 import { saved } from '../../shared/contract/reply.js';
 import {
-  COUNTED, OFFLINE_AFTER_MS, daySummary, dhakaDate, dhakaIso, dhakaMinutes, distanceM, nextType, punchMoment, punchText,
+  COUNTED, OFFLINE_AFTER_MS, daySummary, dhakaDate, dhakaIso, dhakaMinutes, distanceM, nextTypes, outsideHours, punchMoment, punchText,
 } from '../../shared/hr/attendance.js';
 import { BUSINESS_DEFAULTS } from '../../shared/schema/settings.js';
 import { setting } from '../kernel/settings.js';
 import { newToken, sameHex, signHex } from '../kernel/crypto.js';
 import { joinedOn, mayDecideFor, staffOfUser } from './staff.js';
 import { planner } from './rota.js';
+import { datesBetween } from '../../shared/hr/plan.js';
 
 const DAY_MS = 86400000;
 const MINUTE_MS = 60000;
@@ -38,6 +39,7 @@ function attendanceRules(db) {
     incomplete_after: get('attendance.incomplete_after_min'), duplicate_window_sec: get('attendance.duplicate_window_sec'),
     clock_skew_flag_min: get('attendance.clock_skew_flag_min'), offline_max_age_days: get('attendance.offline_max_age_days'),
     offline_auto_validate: get('attendance.offline_auto_validate'),
+    shop_open: get('attendance.shop_open'), shop_close: get('attendance.shop_close'),
   };
 }
 
@@ -63,12 +65,14 @@ function recordPunch(ctx, staff, p, source, deviceId) {
     return saved(twin.id, { duplicate: true, type: twin.type, at: twin.at, status: twin.status });
   }
 
-  // In, out, in, out. A punch kept on a phone is checked instead.
+  // In, (break, back,) out. A punch kept on a phone is checked instead.
   if (!offline) {
-    const day = mine.filter((x) => x.date === date).map(asMoment);
-    if (nextType(day) !== p.type) {
-      if (p.type === 'out') throw new AppError('NOT_IN');
-      throw new AppError('SEQUENCE', { time: hhmm(day.sort((a, b) => a.at - b.at)[day.length - 1].at) });
+    const day = mine.filter((x) => x.date === date).map(asMoment).sort((a, b) => a.at - b.at);
+    const last = day[day.length - 1];
+    if (!nextTypes(day).includes(p.type)) {
+      if (last && last.type === 'break') throw new AppError('ON_BREAK', { time: hhmm(last.at) });
+      if (p.type === 'in') throw new AppError('SEQUENCE', { time: hhmm(last.at) });
+      throw new AppError(p.type === 'back' ? 'NOT_ON_BREAK' : 'NOT_IN');
     }
   }
 
@@ -90,7 +94,9 @@ function recordPunch(ctx, staff, p, source, deviceId) {
   }
   if (offline) flags.push('offline');
   if (Math.abs(skewMs) > rules.clock_skew_flag_min * MINUTE_MS) flags.push('skew');
-  const check = flags.includes('outside') || flags.includes('no_location') || (offline && !rules.offline_auto_validate);
+  // Outside the shop's hours: a manager checks it.
+  if (outsideHours(at, rules.shop_open, rules.shop_close)) flags.push('hours');
+  const check = flags.includes('outside') || flags.includes('no_location') || flags.includes('hours') || (offline && !rules.offline_auto_validate);
   const row = db.insert('Punches', {
     staff_id: staff.id, date, type: p.type, at: new Date(at).toISOString(), device_ts: p.device_ts, source, device_id: deviceId || '',
     lat: p.lat, lng: p.lng, accuracy: p.accuracy, distance_m: distance, flags, reason: p.reason || '', status: check ? 'check' : 'ok',
@@ -150,10 +156,12 @@ function fixView(db, f) {
 }
 
 // One person's month of days with totals (also used by payroll).
+// input: {month} (a calendar month), or {from, to} (an accounting month).
 export function attendanceMonth(db, staff, input) {
   const today = dhakaDate(db.now.getTime());
   const m = input.month || today.slice(0, 7);
-  const days = daysFor(db, staff, monthDates(m, today).filter((d) => d >= joinedOn(staff)));
+  const dates = input.from ? datesBetween(input.from, input.to < today ? input.to : today).reverse() : monthDates(m, today);
+  const days = daysFor(db, staff, dates.filter((d) => d >= joinedOn(staff)));
   const totals = { worked_min: 0, late_days: 0, absent_days: 0, incomplete_days: 0, leave_days: 0 };
   for (const d of days) {
     totals.worked_min += d.worked_min;
@@ -162,7 +170,8 @@ export function attendanceMonth(db, staff, input) {
     if (d.state === 'incomplete') totals.incomplete_days++;
     if (d.state === 'leave') totals.leave_days++;
   }
-  const fixes = db.all('Attendance_Fixes').filter((f) => f.staff_id === staff.id && f.date.slice(0, 7) === m).map((f) => fixView(db, f));
+  const inRange = (d) => (input.from ? d >= input.from && d <= input.to : d.slice(0, 7) === m);
+  const fixes = db.all('Attendance_Fixes').filter((f) => f.staff_id === staff.id && inRange(f.date)).map((f) => fixView(db, f));
   return { staff: staffHeader(staff), month: m, days, totals, fixes };
 }
 
@@ -172,7 +181,7 @@ function today(ctx) {
   if (!mine) return { staff: null };
   const [day] = daysFor(db, mine, [dhakaDate(db.now.getTime())]);
   const todays = day.punches.filter(counted).map((p) => ({ type: p.type, at: Date.parse(p.at) }));
-  return { staff: staffHeader(mine), day, next: nextType(todays) };
+  return { staff: staffHeader(mine), day, next: nextTypes(todays) };
 }
 
 function board(ctx, { date }) {
@@ -263,7 +272,13 @@ function withdrawFix(ctx, { id }) {
 
 // ---- Shop punch devices -----------------------------------------------------
 
+// The shop's punch device works only when a shareholder has turned it on.
+function devicesOn(db) {
+  if (!setting(db, 'attendance.device_enabled')) throw new AppError('DEVICE');
+}
+
 function register(ctx, { name }) {
+  devicesOn(ctx.db);
   const secret = newToken();
   const row = ctx.db.insert('Punch_Devices', { name, secret, status: 'active' });
   // The only time the secret leaves the server. This reply is never stored.
@@ -285,6 +300,7 @@ function saveDevice(ctx, input) {
 }
 
 function activeDevice(db, id) {
+  devicesOn(db);
   const dev = db.get('Punch_Devices', id);
   if (!dev || dev.status !== 'active') throw new AppError('DEVICE');
   return dev;
@@ -301,7 +317,7 @@ function deviceStaff(ctx, { device_id, ts, sig }) {
   const punches = db.all('Punches').filter((p) => p.date === today && counted(p));
   const staff = db.all('Staff').filter((s) => s.status === 'active' && s.pin_hash).sort((a, b) => a.name.localeCompare(b.name)).map((s) => ({
     id: s.id, name: s.name, name_bn: s.name_bn, pin_salt: s.pin_salt, pin_iter: s.pin_iter,
-    next: nextType(punches.filter((p) => p.staff_id === s.id).map((p) => ({ type: p.type, at: Date.parse(p.at) }))),
+    next: nextTypes(punches.filter((p) => p.staff_id === s.id).map((p) => ({ type: p.type, at: Date.parse(p.at) }))),
   }));
   return { device: { id: dev.id, name: dev.name }, staff };
 }

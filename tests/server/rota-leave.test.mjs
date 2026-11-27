@@ -26,8 +26,12 @@ function team() {
   const add = (fields) => s.call(s.owner, 'staff.save', { status: 'active', work_start: '10:00', work_end: '18:00', days_off: [{ day: 5 }], ...fields }).data.record_id;
   s.ids.sumi = add({ name: 'Sumi', user_id: userId('staff'), joined_on: monthsAgo(6) });
   s.ids.rafi = add({ name: 'Rafi', user_id: userId('manager'), joined_on: monthsAgo(6) });
+  // These tests count leave by full months of service (the default counts
+  // calendar months, with the first part month by its days).
+  assert.equal(s.call(s.owner, 'settings.leave').data.timing, 'calendar_month');
+  s.call(s.owner, 'settings.leave.save', { ...s.call(s.owner, 'settings.leave').data, timing: 'service_month' });
   s.ids.morning = s.call(s.manager, 'rota.shift.save', { name: 'Morning', start: '07:00', end: '13:00', status: 'active' }).data.record_id;
-  s.ids.late = s.call(s.manager, 'rota.shift.save', { name: 'Late', start: '15:00', end: '23:00', self_confirm: true, status: 'active' }).data.record_id;
+  s.ids.late = s.call(s.manager, 'rota.shift.save', { name: 'Late', start: '15:00', end: '23:00', status: 'active' }).data.record_id;
   return s;
 }
 
@@ -48,11 +52,13 @@ test('a manager sets the rota; staff see only their own row', () => {
   assert.equal(s.call(s.staff, 'rota.set', { staff_id: s.ids.sumi, date: d, value: 'off' }).error.code, 'FORBIDDEN');
 });
 
-test('choosing a shift: within the days ahead, with enough rest, confirmed by a manager unless the shift allows it', () => {
+test('choosing a shift: within the days ahead, with enough rest, always confirmed by a manager', () => {
   const s = team();
   const d = nextWeekday(2, 2);
+  // Every choice waits for a manager.
   const late = s.call(s.staff, 'rota.request', { kind: 'shift', date: d, shift_id: s.ids.late }).data;
-  assert.equal(late.data.final, true);
+  assert.equal(late.data.final, false);
+  s.call(s.manager, 'rota.decide', { id: late.record_id, decision: 'accept' });
   assert.equal(dayOf(s, s.staff, d).shift, 'Late');
   // Late ends at 23:00 and Morning starts at 07:00: 8 hours' rest, refused
   // once 9 are needed.

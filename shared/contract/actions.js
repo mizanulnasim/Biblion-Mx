@@ -13,6 +13,8 @@ import { ROLES } from '../schema/permissions.js';
 import { KINDS, SCREEN_KINDS } from '../money/kinds.js';
 import { INTAKE_KINDS, MAX_UPLOAD_BYTES, UPLOAD_TYPES } from '../intake/kinds.js';
 import { LETTER_KINDS } from '../hr/letters.js';
+import { PUNCH_TYPES } from '../hr/attendance.js';
+import { TASK_ROLES } from '../tasks/tasks.js';
 
 // Bumped whenever a request or reply changes shape. A client built for another
 // contract is told to update itself (v1 bug S10).
@@ -31,7 +33,7 @@ const STATUS = { type: 'enum', required: true, values: ['active', 'inactive'] };
 const RULE = { type: 'enum', required: true, values: ['final', 'shareholder'] };
 const SETUP_BASE = { id: { type: 'id' }, version: { type: 'int', min: 1 }, name: NAME, status: STATUS };
 const USERNAME = { type: 'username', required: true, min: 3, max: 40 };
-const PUNCH_TYPE = { type: 'enum', required: true, values: ['in', 'out'] };
+const PUNCH_TYPE = { type: 'enum', required: true, values: PUNCH_TYPES };
 const PLACE = {
   lat: { type: 'number', min: -90, max: 90 },
   lng: { type: 'number', min: -180, max: 180 },
@@ -44,10 +46,11 @@ const LETTER_TEXT = { type: 'text', required: true, max: 4000 };
 const TASK_FIELDS = {
   title: { type: 'text', required: true, max: 120 },
   details: { type: 'text', max: 1000 },
-  staff_id: { type: 'id', required: true },
+  // A person or a role, one of the two.
+  staff_id: { type: 'id' },
+  role: { type: 'enum', values: TASK_ROLES },
   due_time: { type: 'time' },
   link: { type: 'text', max: 40 },
-  needs_check: { type: 'bool' },
 };
 const DECISION = {
   id: { type: 'id', required: true },
@@ -73,7 +76,7 @@ export const ACTIONS = Object.freeze({
   },
   'auth.logout': { write: true, replay: false },
   'auth.password': {
-    write: true, replay: false,
+    write: true, replay: false, perm: 'me.password',
     schema: { current: { type: 'text', required: true }, next: { type: 'password', required: true } },
   },
   'meta.get': {},
@@ -97,6 +100,7 @@ export const ACTIONS = Object.freeze({
       role_id: { type: 'enum', required: true, values: ROLES.map((r) => r.id) },
       status: { type: 'enum', required: true, values: ['active', 'inactive'] },
       password: { type: 'password' },
+      own_password: { type: 'bool' },
     },
   },
   'audit.list': { perm: 'audit.view', schema: PAGED },
@@ -153,6 +157,7 @@ export const ACTIONS = Object.freeze({
       ref: { type: 'text', max: 60 },
       covers_up_to: { type: 'date' },
       period: { type: 'month' },
+      instalment: { type: 'money' },
       replaces: { type: 'id' },
       pair_id: { type: 'id' },
       reason: { type: 'text', max: 500 },
@@ -182,6 +187,9 @@ export const ACTIONS = Object.freeze({
       bkash_account_id: { type: 'id' },
       card_account_id: { type: 'id' },
       actual_cash: { type: 'money', zero: true, required: true },
+      // Loyverse's own expected cash, shown beside the app's (owner decision:
+      // the app's figure counts).
+      pos_expected: { type: 'money', zero: true },
       note: { type: 'text', max: 300 },
       replaces: { type: 'id' },
       reason: { type: 'text', max: 500 },
@@ -563,6 +571,9 @@ export const ACTIONS = Object.freeze({
       clock_skew_flag_min: { type: 'int', required: true, min: 1, max: 1440 },
       offline_max_age_days: { type: 'int', required: true, min: 1, max: 60 },
       offline_auto_validate: { type: 'bool' },
+      device_enabled: { type: 'bool' },
+      shop_open: { type: 'time', required: true },
+      shop_close: { type: 'time', required: true },
     },
   },
   // ---- Rota, holidays and leave ----
@@ -581,7 +592,6 @@ export const ACTIONS = Object.freeze({
       name_bn: { type: 'text', max: 80 },
       start: { type: 'time', required: true },
       end: { type: 'time', required: true },
-      self_confirm: { type: 'bool' },
       status: STATUS,
     },
   },
@@ -647,7 +657,20 @@ export const ACTIONS = Object.freeze({
     schema: {
       staff_id: { type: 'id', required: true },
       month: { type: 'month', required: true },
+      // The unpaid leave and absent days to cut, chosen when paying.
+      unpaid_leave_days: LEAVE_DAYS,
       unpaid_absent_days: { type: 'int', required: true, min: 0, max: 31 },
+      note: { type: 'text', max: 300 },
+    },
+  },
+  // Salary history: each change in parts, from a date.
+  'salary.history': { perm: 'salary.view', schema: { staff_id: { type: 'id', required: true } } },
+  'salary.change': {
+    write: true, perm: 'salary.edit', area: 'hr',
+    schema: {
+      staff_id: { type: 'id', required: true },
+      from: { type: 'date', required: true },
+      parts: { type: 'list', required: true, max: 8, of: { name: { type: 'text', max: 40 }, amount: { type: 'money', required: true } } },
       note: { type: 'text', max: 300 },
     },
   },
@@ -665,6 +688,8 @@ export const ACTIONS = Object.freeze({
       divisor: { type: 'enum', required: true, values: ['period_days', 'fixed_30'] },
       food_rule: { type: 'enum', required: true, values: ['every_day', 'skip_unpaid', 'worked_days'] },
       food_rates: { type: 'list', max: 20, of: { from: { type: 'date', required: true }, amount: { type: 'money', zero: true, required: true } } },
+      month_start_day: { type: 'int', min: 1, max: 28 },
+      overdue_days: { type: 'int', min: 0, max: 60 },
     },
   },
   // ---- Tasks ----
@@ -682,6 +707,8 @@ export const ACTIONS = Object.freeze({
     write: true, perm: 'tasks.manage', area: 'hr',
     schema: { id: { type: 'id', required: true }, staff_id: { type: 'id', required: true }, due_date: { type: 'date' } },
   },
+  // A linked task done without its record: a manager allows it, with a reason.
+  'tasks.allow': { write: true, perm: 'tasks.manage', area: 'hr', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 200 } } },
   'tasks.cancel': { write: true, perm: 'tasks.manage', area: 'hr', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 200 } } },
   'tasks.templates': { perm: 'tasks.manage' },
   'tasks.template.save': {

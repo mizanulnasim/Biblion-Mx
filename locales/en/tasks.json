@@ -20,7 +20,6 @@
   "tasks.skip_leave": "on leave",
   "tasks.comments": "{count, plural, one {# comment} other {# comments}}",
   "tasks.done": "Done",
-  "tasks.done_check": "Done, send for a check",
   "tasks.not_done": "Can't do it",
   "tasks.why_not": "Why not",
   "tasks.comment": "Comment",
@@ -53,8 +52,6 @@
   "tasks.link.requisitions": "Requisitions",
   "tasks.link.stocktake": "Book stock-take",
   "tasks.link.closing": "Close the day",
-  "tasks.needs_check": "A manager checks it when done",
-  "tasks.needs_check_help": "The manager can accept it or send it back with a note.",
   "tasks.mine": "My tasks",
   "tasks.none_open": "Nothing to do. Well done.",
   "tasks.recent": "Done this week",
@@ -77,5 +74,14 @@
   "tasks.end_date": "Until",
   "tasks.paused": "Paused",
   "tasks.ended": "Ended",
-  "tasks.status_help": "Paused or ended: no new tasks are made, and coming ones are skipped."
+  "tasks.status_help": "Paused or ended: no new tasks are made, and coming ones are skipped.",
+  "tasks.anyone_manager": "Any manager",
+  "tasks.anyone_staff": "Any staff member",
+  "tasks.no_earlier_day": "No working day before the leave: give it to someone",
+  "tasks.needs_record": "Done by saving: {what}",
+  "tasks.allow": "Allow without the record",
+  "tasks.allow_reason": "Why it can be done without the record",
+  "tasks.allowed": "It can now be done without the record.",
+  "tasks.allowed_note": "Allowed without the record: {note}",
+  "err.task_record": "This task needs its record first. Open it with the task's button and save it, or ask a manager to allow it without."
 }

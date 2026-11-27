@@ -68,7 +68,7 @@ function seed(server, state) {
   }
   for (const name of ['Preview Owner', 'Second Shareholder']) call(server, 'setup.shareholder.save', { name, status: 'active' }, token);
   // Staff: the three sign-ins plus one person without a sign-in (punches on
-  // the shop device, PIN 1111); the shop at the preview position; a week of
+  // the shop device, PIN 1111, turned on here); the shop at the preview position; a week of
   // past days entered as corrections.
   const userIds = new Map(call(server, 'users.list', {}, token).data.items.map((u) => [u.username, u.id]));
   const staff = (fields) => call(server, 'staff.save', { status: 'active', joined_on: day(200), work_start: '10:00', work_end: '18:00', days_off: [{ day: 5 }], ...fields }, token).data.record_id;
@@ -78,21 +78,22 @@ function seed(server, state) {
     staff({ name: 'Preview Staff', user_id: userIds.get('staff'), position: 'Café', pin: '3333', salary: 12000 }),
     staff({ name: 'Kamal', position: 'Books', pin: '1111', salary: 11000 }),
   ];
-  call(server, 'settings.attendance.save', { ...call(server, 'settings.attendance', {}, token).data, lat: PREVIEW_PLACE.lat, lng: PREVIEW_PLACE.lng }, token);
+  call(server, 'settings.attendance.save', { ...call(server, 'settings.attendance', {}, token).data, lat: PREVIEW_PLACE.lat, lng: PREVIEW_PLACE.lng, device_enabled: true }, token);
   // Rota: two shifts, a public holiday next week, and one person's approved
   // leave.
   const morning = call(server, 'rota.shift.save', { name: 'Morning', name_bn: 'সকাল', start: '08:00', end: '14:00', status: 'active' }, token).data.record_id;
-  call(server, 'rota.shift.save', { name: 'Evening', name_bn: 'সন্ধ্যা', start: '14:00', end: '21:00', self_confirm: true, status: 'active' }, token);
+  call(server, 'rota.shift.save', { name: 'Evening', name_bn: 'সন্ধ্যা', start: '14:00', end: '21:00', status: 'active' }, token);
   call(server, 'rota.set', { staff_id: people[3], date: day(-2), value: morning }, token);
   call(server, 'holidays.save', { date: day(-5), name: 'Sample holiday', name_bn: 'নমুনা ছুটি', status: 'active' }, token);
   call(server, 'leave.apply', { staff_id: people[3], kind: 'paid', from: day(-8), to: day(-9), reason: 'Preview sample' }, token);
-  // Tasks: repeating ones for staff and the manager, and one to be checked.
+  // Tasks: repeating ones for staff, a role and the manager, and a one-off.
   const task = (fields) => call(server, 'tasks.template.save', { start_date: day(0), status: 'active', ...fields }, token);
   task({ title: 'Wipe the café tables', staff_id: people[2], repeat: 'daily', due_time: '11:00' });
   task({ title: 'Count the café stock', staff_id: people[2], repeat: 'daily', due_time: '20:30', link: 'page:cafe_count' });
-  task({ title: 'Dust the shelves', staff_id: people[3], repeat: 'weekly', days: [0, 1, 2, 3, 4, 6].map((d) => ({ day: d })), needs_check: true });
+  task({ title: 'Dust the shelves', staff_id: people[3], repeat: 'weekly', days: [0, 1, 2, 3, 4, 6].map((d) => ({ day: d })) });
+  task({ title: 'Lock the back door', role: 'staff', repeat: 'daily', due_time: '22:45' });
   task({ title: 'Pay the electricity bill', staff_id: people[1], repeat: 'monthly', day_of_month: Number(day(0).slice(8)), link: 'money:expense' });
-  call(server, 'tasks.create', { title: 'Put up the new poetry display', details: 'Use the front table.', staff_id: people[2], due_date: day(0), needs_check: true }, token);
+  call(server, 'tasks.create', { title: 'Put up the new poetry display', details: 'Use the front table.', staff_id: people[2], due_date: day(0) }, token);
   // Notices and a review.
   const doc = (fields) => call(server, 'docs.save', { audience: 'everyone', status: 'active', staff_ids: [], ...fields }, token);
   doc({ kind: 'announcement', title: 'New café menu from Saturday', body: 'Cold coffee and lemon tea are added.\n\nPrices are on the board by the till.', needs_ack: true, show_until: day(-5) });

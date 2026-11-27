@@ -1,6 +1,8 @@
 // The daily shift: one per date. Net sales are split into cash, bKash, card
 // and dues by person; cash handed to a shareholder leaves the drawer; the
 // counted cash is checked against what the app expects in the drawer.
+// Loyverse's expected cash, when entered, is kept beside it with its gap;
+// only the app's figure decides short or over.
 // Stored as a money entry (kind daily_shift), so it is approved, corrected,
 // cancelled and logged like every other.
 
@@ -107,6 +109,8 @@ function save(ctx, input) {
       expected_cash: expected,
       actual_cash: input.actual_cash,
       short_over: shortOver,
+      pos_expected: input.pos_expected ?? null,
+      pos_gap: input.pos_expected === null || input.pos_expected === undefined ? null : round(input.actual_cash - input.pos_expected),
     },
   };
   return record(ctx, entry, input);

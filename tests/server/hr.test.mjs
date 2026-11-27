@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { shop } from './shop.mjs';
 import { punchText } from '../../shared/hr/attendance.js';
+import { BUSINESS_DEFAULTS } from '../../shared/schema/settings.js';
 
 const SHOP = { lat: 23.7808, lng: 90.4106 };
 const ago = (minutes) => new Date(Date.now() - minutes * 60000).toISOString();
@@ -18,8 +19,10 @@ function hr() {
   s.ids.staff_rec = add({ name: 'Sumi', user_id: userId('staff'), work_start: '10:00', work_end: '18:00', pin: '2468', salary: 12000, nid: '1990123456' });
   s.ids.manager_rec = add({ name: 'Rafi', user_id: userId('manager'), work_start: '10:00', work_end: '18:00' });
   s.ids.owner_rec = add({ name: 'Owner', user_id: userId('owner') });
+  // Tests punch at the real time of day: the shop is open all day here (the
+  // hours check has its own test).
   s.call(s.owner, 'settings.attendance.save', {
-    ...s.call(s.owner, 'settings.attendance').data, lat: SHOP.lat, lng: SHOP.lng,
+    ...s.call(s.owner, 'settings.attendance').data, lat: SHOP.lat, lng: SHOP.lng, shop_open: '00:00', shop_close: '23:59',
   });
   return s;
 }
@@ -58,7 +61,7 @@ test('a phone punch at the shop is ok; a double tap is one punch; out comes afte
   assert.equal(twin.record_id, first.record_id);
   assert.equal(punch(s, s.manager, { type: 'out' }).error.code, 'NOT_IN');
   const today = s.call(s.staff, 'attendance.today').data;
-  assert.equal(today.next, 'out');
+  assert.deepEqual(today.next, ['out', 'break']);
   assert.ok(['in', 'incomplete'].includes(today.day.state));
 });
 
@@ -77,7 +80,36 @@ test('in, out, then in again moments later is a new punch, not a double tap', ()
   punch(s, s.staff, { type: 'out', device_ts: ago(0.5) });
   const again = punch(s, s.staff, {});
   assert.equal(again.data.duplicate, false);
-  assert.equal(s.call(s.staff, 'attendance.today').data.next, 'out');
+  assert.deepEqual(s.call(s.staff, 'attendance.today').data.next, ['out', 'break']);
+});
+
+test('a break and back are recorded; out waits for back; a break is paid time', () => {
+  const s = hr();
+  // Within the last two minutes, so none counts as kept on a phone.
+  punch(s, s.staff, { device_ts: ago(1.9) });
+  assert.equal(punch(s, s.staff, { type: 'back', device_ts: ago(1.7) }).error.code, 'NOT_ON_BREAK');
+  assert.equal(punch(s, s.staff, { type: 'break', device_ts: ago(1.6) }).data.status, 'ok');
+  assert.deepEqual(s.call(s.staff, 'attendance.today').data.next, ['back']);
+  assert.equal(s.call(s.staff, 'attendance.today').data.day.state, 'break');
+  assert.equal(punch(s, s.staff, { type: 'out', device_ts: ago(1) }).error.code, 'ON_BREAK');
+  punch(s, s.staff, { type: 'back', device_ts: ago(0.9) });
+  punch(s, s.staff, { type: 'out', device_ts: ago(0.5) });
+  // In 1.9 to out 0.5 minutes ago: 1.4 minutes worked; break 0.7.
+  const day = s.call(s.staff, 'attendance.today').data.day;
+  assert.deepEqual([day.state, day.worked_min, day.break_min], ['out', 1, 1]);
+});
+
+test('a punch outside the shop\'s hours waits for a manager\'s check', () => {
+  const s = hr();
+  const settings = s.call(s.owner, 'settings.attendance').data;
+  assert.deepEqual([BUSINESS_DEFAULTS['attendance.shop_open'], BUSINESS_DEFAULTS['attendance.shop_close']], ['11:00', '23:00']);
+  assert.equal(s.call(s.owner, 'settings.attendance.save', { ...settings, shop_open: '12:00', shop_close: '11:00' }).data.error.fields.shop_close.code, 'val.time_after');
+  // Open for an hour in the other half of the day: now is outside.
+  const morning = new Date(Date.now() + 6 * 3600000).getUTCHours() < 12;
+  s.call(s.owner, 'settings.attendance.save', { ...settings, shop_open: morning ? '13:00' : '01:00', shop_close: morning ? '14:00' : '02:00' });
+  const r = punch(s, s.staff, {});
+  assert.equal(r.data.status, 'check');
+  assert.deepEqual(s.call(s.manager, 'attendance.checks').data.punches[0].flags, ['hours']);
 });
 
 test('days before a person joined are not counted', () => {
@@ -148,6 +180,9 @@ test('a correction waits for a manager, then becomes a punch that replaces the w
 
 test('a shop device signs punches with the person\'s PIN; wrong PINs lock the PIN for a while', () => {
   const s = hr();
+  // Off by default: a shareholder turns it on first.
+  assert.equal(s.call(s.manager, 'attendance.device.register', { name: 'Counter tablet' }).data.error.code, 'DEVICE');
+  s.call(s.owner, 'settings.attendance.save', { ...s.call(s.owner, 'settings.attendance').data, device_enabled: true });
   const reg = s.call(s.manager, 'attendance.device.register', { name: 'Counter tablet' }).data;
   const { device_id: deviceId, secret } = reg.data;
   assert.equal(JSON.stringify(s.state).split(secret).length - 1, 1, 'the secret is kept once, on the device row');
@@ -155,7 +190,7 @@ test('a shop device signs punches with the person\'s PIN; wrong PINs lock the PI
   const sig = crypto.createHmac('sha256', secret).update(`${deviceId}|${ts}`).digest('hex');
   const list = s.call(null, 'attendance.device.staff', { device_id: deviceId, ts, sig }).data;
   const sumi = list.staff.find((x) => x.name === 'Sumi');
-  assert.equal(sumi.next, 'in');
+  assert.deepEqual(sumi.next, ['in']);
   assert.equal(sumi.pin_hash, undefined);
   assert.equal(s.call(null, 'attendance.device.staff', { device_id: deviceId, ts, sig: 'ab'.repeat(32) }).error.code, 'DEVICE');
 

@@ -8,10 +8,12 @@ import { withLock } from '../platform.js';
 import { bumpArea } from './areas.js';
 import { autoRequisitions } from '../modules/requisitions.js';
 import { makeTasks } from '../modules/tasks.js';
+import { syncSalaries } from '../modules/payroll.js';
 
 const JOBS = [
   { id: 'req_auto', area: 'books', run: autoRequisitions },
   { id: 'tasks', area: 'hr', run: makeTasks },
+  { id: 'salaries', area: 'hr', run: syncSalaries },
 ];
 
 export function runJobs() {

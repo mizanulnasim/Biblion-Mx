@@ -20,7 +20,6 @@
   "tasks.skip_leave": "ছুটিতে",
   "tasks.comments": "{count, plural, other {#টি মন্তব্য}}",
   "tasks.done": "সম্পন্ন",
-  "tasks.done_check": "সম্পন্ন, যাচাইয়ে পাঠান",
   "tasks.not_done": "করা যাচ্ছে না",
   "tasks.why_not": "কেন নয়",
   "tasks.comment": "মন্তব্য",
@@ -53,8 +52,6 @@
   "tasks.link.requisitions": "চাহিদাপত্র",
   "tasks.link.stocktake": "বইয়ের স্টক গণনা",
   "tasks.link.closing": "দিন শেষ করুন",
-  "tasks.needs_check": "শেষ হলে ম্যানেজার যাচাই করবেন",
-  "tasks.needs_check_help": "ম্যানেজার গ্রহণ করতে পারেন বা মন্তব্যসহ ফেরত পাঠাতে পারেন।",
   "tasks.mine": "আমার কাজ",
   "tasks.none_open": "করার কিছু নেই। খুব ভালো।",
   "tasks.recent": "এই সপ্তাহে করা",
@@ -77,5 +74,14 @@
   "tasks.end_date": "শেষ",
   "tasks.paused": "থামানো",
   "tasks.ended": "শেষ",
-  "tasks.status_help": "থামানো বা শেষ: নতুন কাজ তৈরি হয় না, আর সামনের কাজগুলো বাদ যায়।"
+  "tasks.status_help": "থামানো বা শেষ: নতুন কাজ তৈরি হয় না, আর সামনের কাজগুলো বাদ যায়।",
+  "tasks.anyone_manager": "যেকোনো ম্যানেজার",
+  "tasks.anyone_staff": "যেকোনো কর্মী",
+  "tasks.no_earlier_day": "ছুটির আগে কোনো কাজের দিন নেই: অন্য কাউকে দিন",
+  "tasks.needs_record": "সেভ করলে শেষ হবে: {what}",
+  "tasks.allow": "রেকর্ড ছাড়া অনুমতি দিন",
+  "tasks.allow_reason": "কেন রেকর্ড ছাড়াই করা যাবে",
+  "tasks.allowed": "এখন রেকর্ড ছাড়াই কাজটি শেষ করা যাবে।",
+  "tasks.allowed_note": "রেকর্ড ছাড়া অনুমতি: {note}",
+  "err.task_record": "এই কাজের আগে এর রেকর্ড লাগবে। কাজের বোতাম দিয়ে খুলে সেভ করুন, অথবা রেকর্ড ছাড়া অনুমতির জন্য একজন ম্যানেজারকে বলুন।"
 }

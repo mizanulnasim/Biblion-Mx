@@ -15,8 +15,8 @@ import { device, getState, subscribe } from '../core/state.js';
 import { pinKey, signHex } from '../core/sign.js';
 import { timeOf } from '../core/format.js';
 import { errorMessageId } from '../../../shared/contract/errors.js';
-import { punchText } from '../../../shared/hr/attendance.js';
-import { TYPE } from './attendance-common.js';
+import { punchText, typesAfter } from '../../../shared/hr/attendance.js';
+import { PUNCH_BUTTON, TYPE } from './attendance-common.js';
 
 const REFRESH_MS = 5 * 60000;
 const SEND_MS = 60000;
@@ -31,14 +31,15 @@ async function loadStaff(kiosk) {
 }
 
 function pinDialog(person, onPunch) {
-  const other = person.next === 'in' ? 'out' : 'in';
+  // The usual punches, and "in" or "out" too: the list may be behind when
+  // the device was offline.
+  const types = [...person.next, ...(person.next.includes('in') ? ['out'] : ['in'])];
   const dialog = formDialog(person.name, html`<form class="form kiosk-pin" novalidate>
     <div class="field"><label for="f-pin">${t('hr.pin')}</label>
       <input id="f-pin" name="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="6" required autofocus></div>
     <div class="form-error" role="alert"></div>
     <div class="form-actions">
-      <button type="submit" class="btn btn-primary btn-large" value="${person.next}">${t(person.next === 'in' ? 'hr.punch_in' : 'hr.punch_out')}</button>
-      <button type="submit" class="btn" value="${other}">${t(other === 'in' ? 'hr.punch_in' : 'hr.punch_out')}</button>
+      ${types.map((type, i) => html`<button type="submit" class="btn ${i ? '' : 'btn-primary btn-large'}" value="${type}">${t(PUNCH_BUTTON[type])}</button>`)}
     </div></form>`);
   const form = dialog.querySelector('form');
   form.addEventListener('submit', async (e) => {
@@ -81,7 +82,7 @@ export function mountKiosk(root, { onSignIn }) {
       ${staff.length ? html`<ul class="kiosk-grid">${staff.map((p) => html`<li>
         <button type="button" class="kiosk-person" data-act="person" data-id="${p.id}">
           <span class="kiosk-name">${p.name}</span>
-          <span class="kiosk-next">${t(p.next === 'in' ? 'hr.punch_in' : 'hr.punch_out')}</span>
+          <span class="kiosk-next">${t(PUNCH_BUTTON[p.next[0]])}</span>
         </button></li>`)}</ul>` : emptyState(t('hr.kiosk_empty'))}
       ${failed.length ? html`<section class="panel"><h2 class="section-title">${t('hr.kiosk_failed', { count: failed.length })}</h2>
         <ul class="punches">${failed.map((i) => html`<li class="punch"><span><strong>${i.label}</strong> <span class="muted">${timeOf(i.payload.device_ts)}</span></span>
@@ -135,7 +136,7 @@ export function mountKiosk(root, { onSignIn }) {
       toast(t(errorMessageId(reply.error.code), reply.error.params), 'error');
       return reply.error.code !== 'PIN_WRONG';
     }
-    person.next = type === 'in' ? 'out' : 'in';
+    person.next = typesAfter(type);
     device.set('kiosk.staff', staff);
     if (reply.status === 'queued') toast(t('hr.kiosk_queued', { name: person.name, type: t(TYPE[type]) }));
     else if (reply.data.duplicate) toast(t('hr.punch_twice', { type: t(TYPE[reply.data.type]), time: timeOf(reply.data.at) }));

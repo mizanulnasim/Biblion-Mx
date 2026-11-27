@@ -155,3 +155,15 @@ test('lists page newest first with totals', () => {
   assert.equal(page2.items.length, 6);
   assert.equal(call('users.list', { limit: 30 }, { token: ownerToken }).error.code, 'VALIDATION');
 });
+
+test('a person changes their own password only when a shareholder allows it', async () => {
+  const { shop } = await import('./shop.mjs');
+  const s = shop();
+  assert.equal(s.call(s.staff, 'auth.password', { current: 'staff-pass', next: 'new-staff-pass' }).error.code, 'FORBIDDEN');
+  const staff = s.call(s.owner, 'users.list', {}).data.items.find((u) => u.username === 'staff');
+  assert.equal(staff.own_password, false);
+  s.call(s.owner, 'users.save', { ...staff, own_password: true, password: null });
+  assert.equal(s.call(s.owner, 'users.list', {}).data.items.find((u) => u.username === 'staff').own_password, true);
+  assert.equal(s.call(s.staff, 'auth.password', { current: 'staff-pass', next: 'new-staff-pass' }).data.status, 'saved');
+  assert.equal(s.call(s.owner, 'auth.password', { current: 'owner-pass', next: 'owner-pass-2' }).data.status, 'saved');
+});

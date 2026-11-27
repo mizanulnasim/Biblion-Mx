@@ -10,6 +10,7 @@ import { roleById } from '../../shared/schema/permissions.js';
 import { page } from '../kernel/paging.js';
 import { KDF_ITERATIONS, hashPassword, newSalt } from '../kernel/crypto.js';
 import { dhakaDate } from '../../shared/hr/attendance.js';
+import { salaryOn } from '../../shared/hr/pay.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
 
@@ -107,13 +108,28 @@ function save(ctx, input) {
   if (ctx.can('staff.family')) patch.family = input.family || '';
   if (ctx.can('salary.edit')) patch.salary = input.salary || 0;
   if (input.pin) Object.assign(patch, pinFields(input.pin));
+  let row;
   if (!current) {
     const base = { nid: '', birth_date: '', address: '', emergency: [], family: '', salary: 0, pin_hash: '', pin_salt: '', pin_iter: 0, pin_failed: 0, pin_locked_until: '' };
-    const row = db.insert('Staff', { ...base, ...patch });
-    return saved(row.id);
+    row = db.insert('Staff', { ...base, ...patch });
+  } else {
+    row = db.update('Staff', current, patch, input.version);
   }
-  const row = db.update('Staff', current, patch, input.version);
+  if (ctx.can('salary.edit')) recordSalary(db, row, input.salary || 0, ctx.user.id);
   return saved(row.id);
+}
+
+// A salary set on the staff screen (one amount, no parts named) goes into
+// the salary history: from joining when it is the first, else from today.
+function recordSalary(db, staff, amount, actor) {
+  const changes = db.all('Salary_Changes').filter((c) => c.staff_id === staff.id);
+  const now = dhakaDate(db.now.getTime());
+  if (!amount || (changes.length && salaryOn(changes, now) === amount)) return;
+  const from = changes.length ? now : joinedOn(staff);
+  const fields = { parts: [{ name: '', amount }], total: amount, note: '', entered_by: actor };
+  const same = changes.find((c) => c.from === from);
+  if (same) db.update('Salary_Changes', same, fields);
+  else db.insert('Salary_Changes', { staff_id: staff.id, from, ...fields });
 }
 
 // The person's own PIN, for punching on a shop device.

@@ -17,7 +17,7 @@ import { reasonTexts, stateChip } from './money-common.js';
 import { duplicateDialog } from './money-form.js';
 import { openEntry } from './money-entry.js';
 
-const AMOUNTS = ['net_sales', 'books_sales', 'cash', 'bkash', 'card', 'handed', 'actual_cash'];
+const AMOUNTS = ['net_sales', 'books_sales', 'cash', 'bkash', 'card', 'handed', 'actual_cash', 'pos_expected'];
 const num = (v) => {
   const n = Number(String(v ?? '').replace(/,/g, ''));
   return Number.isFinite(n) ? n : 0;
@@ -65,6 +65,7 @@ function formHtml(prep, v) {
       <div class="pair">${money_('handed', t('shift.handed'), { help: t('shift.handed_help') })}
         ${f({ name: 'handed_to', label: t('shift.handed_to'), type: 'select', placeholder: t('money.choose'), options: accountOptions(prep, (a) => a.kind !== 'drawer') })}</div>
       ${money_('actual_cash', t('shift.actual_cash'), { required: true, help: t('shift.actual_cash_help') })}
+      ${money_('pos_expected', t('shift.pos_expected'), { help: t('shift.pos_expected_help') })}
       <div class="drawer-line" aria-live="polite"></div>
     </fieldset>
     ${f({ name: 'note', label: t('money.field.note'), type: 'textarea' })}
@@ -101,7 +102,16 @@ function liveLines(form, prep, v) {
       ${counted ? html`<dt>${t('shift.counted')}</dt><dd>${money(num(v.actual_cash))}</dd>
         <dt>${t('shift.difference')}</dt><dd class="${shortOver ? 'warn-text' : 'ok-text'}">${shortOver === 0 ? t('shift.line_balanced')
           : t(shortOver < 0 ? 'shift.line_short' : 'shift.line_over', { amount: money(Math.abs(shortOver)) })}</dd>` : ''}
+      ${counted && v.pos_expected !== '' && v.pos_expected !== undefined ? posLines(num(v.pos_expected), round(num(v.actual_cash) - num(v.pos_expected))) : ''}
     </dl>${state}`);
+}
+
+// Loyverse's expected cash beside the app's, with its own gap (for
+// information: the app's figure counts).
+function posLines(expected, gap) {
+  return html`<dt>${t('shift.pos_expected_short')}</dt><dd>${money(expected)}</dd>
+    <dt>${t('shift.pos_gap')}</dt><dd class="muted">${gap === 0 ? t('shift.line_balanced')
+      : t(gap < 0 ? 'shift.line_short' : 'shift.line_over', { amount: money(Math.abs(gap)) })}</dd>`;
 }
 
 function summaryView(e) {
@@ -118,6 +128,7 @@ function summaryView(e) {
       <dt>${t('shift.expected')}</dt><dd>${money(d.expected_cash)}</dd>
       <dt>${t('shift.counted')}</dt><dd>${money(d.actual_cash)}</dd>
       <dt>${t('shift.difference')}</dt><dd>${d.short_over === 0 ? t('shift.line_balanced') : t(d.short_over < 0 ? 'shift.line_short' : 'shift.line_over', { amount: money(Math.abs(d.short_over)) })}</dd>
+      ${d.pos_expected === null || d.pos_expected === undefined ? '' : posLines(d.pos_expected, d.pos_gap)}
     </dl>
     <div class="form-actions"><button type="button" class="btn" data-act="open" data-id="${e.id}">${t('shift.open')}</button></div>
   </section>`;
@@ -127,6 +138,7 @@ function fromShift(e) {
   const d = e.details;
   const v = { replaces: e.id, net_sales: String(e.amount), note: e.note, dues: d.dues.map((x) => ({ party_id: x.party_id, amount: String(x.amount) })) };
   for (const k of ['books_sales', 'cash', 'bkash', 'card', 'handed', 'actual_cash']) v[k] = d[k] ? String(d[k]) : '';
+  v.pos_expected = d.pos_expected === null || d.pos_expected === undefined ? '' : String(d.pos_expected);
   for (const k of ['handed_to', 'bkash_account_id', 'card_account_id']) v[k] = d[k];
   return v;
 }
@@ -250,7 +262,7 @@ export const dailyPage = {
     function fromReport() {
       if (!query.from_doc) return {};
       const out = {};
-      for (const k of ['net_sales', 'cash', 'bkash', 'card', 'actual_cash', 'note']) if (query[k]) out[k] = query[k];
+      for (const k of ['net_sales', 'cash', 'bkash', 'card', 'actual_cash', 'pos_expected', 'note']) if (query[k]) out[k] = query[k];
       return out;
     }
 

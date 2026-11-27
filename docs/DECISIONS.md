@@ -365,3 +365,40 @@ The owner sent 20 real documents: invoices, cash memos, a publisher's invoice, b
   - Saving the shift files the report on it.
   - Money paid out of the drawer is still entered as expenses, and each due is entered per person.
 - **Still to come from these documents:** matching a bank or bKash statement (the bank statement), customer and membership cards, requisition lists (title and copies), and shopping lists.
+
+## Owner decisions after comparing with v1 (27 Nov 2026)
+The v1 package (requirements audit, build notes, guides) was compared with v2; where they differed, the owner decided:
+1. **Month:** the month's first day is a setting, the 11th by default (11th–10th). Month closing, payroll, payslips, profit shares and month reports all follow it.
+2. **Start date:** one guided "Getting started" setup for shareholders. It covers the start date, then each kind of opening figure in order, with a checklist:
+   - account balances; shareholders' cash held and amounts owed; other dues;
+   - vendor and publisher balances; staff advances; leave balances;
+   - opening book stock (approved by someone else, like a delivery);
+   - the first café count.
+3. **Shop punch device:** kept, but off by default; a shareholder turns it on in Settings → Attendance.
+4. **Punching away from the shop:** allowed with a reason, then checked by a manager (as built).
+5. **New punch rules:**
+   - breaks ("Take break" / "Back") are recorded and shown, and paid;
+   - punches outside shop hours (11:00–23:00, a setting) wait for a manager's check.
+6. **Task checks:** every finished task is checked by someone more senior. A shareholder's own tasks are final. The per-task tick is removed.
+7. **Task rules:**
+   - tasks can be given to a role;
+   - a task falling on a day off, leave or holiday moves to the nearest **earlier** working day (both dates kept, giver and doer told, flagged if there is none);
+   - forms inside tasks: a task can't be done until its record exists, unless a manager overrides with a reason;
+   - scheduled report printing as a repeating task.
+8. **Payroll:**
+   - the unpaid-leave cut is chosen on each payslip, like absent days;
+   - salary in parts (basic, allowances, food rate, overtime rule), each change effective from a date;
+   - advances repaid in instalments, the instalment suggested as a deduction;
+   - salary overdue 7 days after the payslip;
+   - food allowance grouped by week (from Saturday) for paying.
+9. **Shareholders:**
+   - dated share history (46/44/10 as starting shares, always 100%);
+   - an owner salary per shareholder;
+   - profit worked out at month closing and split by share;
+   - loans with a yearly interest rate per loan;
+   - amounts owed set against their balance.
+10. **Shift choices:** every choice is confirmed by a manager or shareholder; the "no manager needed" option is removed.
+11. **Leave and passwords:**
+    - leave in the first part month counts by days (the new default);
+    - passwords are set and reset by shareholders, and a person changes their own only if a shareholder allows it.
+12. **Short or over:** the daily shift shows Loyverse's expected cash beside the app's drawer figure and any gap between them; the short/over booked is from the app's figure.

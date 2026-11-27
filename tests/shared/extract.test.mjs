@@ -145,3 +145,38 @@ test('a Loyverse shift report gives the daily shift its figures', () => {
   assert.equal(guessKind(text), 'shift_report');
   assert.equal(readShiftReport('Total 500'), null);
 });
+
+// The layout Google's reader really gives (made-up details): two labels on
+// one line with both values below; invoice rows over several lines.
+
+test('bKash slips as the reader lays them out: paired labels, values on the next line', () => {
+  const cashOut = 'এজেন্ট ক্যাশ আউট\nSOME POINT\n01700000009\nপ্রেরক সময়\n013*****111 4:23 PM 08/11/26\nট্রানজেকশন আইডি সর্বমোট\nDQ12345ABC ৳3,080.50\nবিকাশ';
+  const r = readBkash(cashOut);
+  assert.deepEqual([r.type, r.trx_id, r.amount, r.date], ['cash_out', 'DQ12345ABC', 3080.5, '2026-11-08']);
+  const toBank = 'bKash to Bank\nVISA\nTime Transaction ID\n11:02pm 18/11/26 DQ98765XYZ\nAmount Reference\n৳10,800.00 123456789012\nবিকাশ';
+  const b = readBkash(toBank);
+  assert.deepEqual([b.type, b.trx_id, b.amount, b.reference], ['to_bank', 'DQ98765XYZ', 10800, '123456789012']);
+  assert.equal(findTrxId(toBank), 'DQ98765XYZ');
+});
+
+test('an invoice whose rows run over several lines, with a VAT column and ISBN lines', () => {
+  const text = 'Sales Invoice / Bill\nCustomer : Biblion\nDate : 13/10/2026 14:04\nInv No: S--001234\nSL Item Qty Rate Vat Total\n'
+    + '   River Tales\n1  Collection(নদীর              2   300.00 (0%)    600.00\n   গল্প)\n'
+    + '   Old Town(পুরনো\n2  শহর) page- 176          1   400.00 (0%)    400.00\n   978-984-0000-11-2\n'
+    + '   Ho Zo Bo (হ য ব)\n3 Page-56                1   175.00 (0%)    175.00\n   978-984-0000-12-9\n'
+    + '   Hundred Films(১০০\n4                         1   600.00 (0%)    600.00\n   ছবি) Page- 352\n'
+    + 'Total: 5 1,775.00\nTotal Discount:\n710.00\nPayable Amount: 1,065.00\nPaid Amount: ( 0.00\nDue Amount: 1,065.00';
+  const out = extract(text, 'book_delivery');
+  assert.deepEqual(out.items.map((i) => [i.name, i.qty, i.price]), [
+    ['River Tales Collection(নদীর গল্প)', 2, 300], ['Old Town(পুরনো শহর)', 1, 400], ['Ho Zo Bo (হ য ব)', 1, 175], ['Hundred Films(100 ছবি)', 1, 600],
+  ]);
+  assert.equal(out.items[1].isbn, '9789840000112');
+  assert.deepEqual([out.amount, out.discount, out.bill_no, out.paid], [1065, 710, 'S--001234', 'later']);
+  assert.equal(guessKind(text), 'book_delivery');
+});
+
+test('our bill to a customer: "After 25% Discount" is the total', () => {
+  const text = 'Biblion 22 July 2026\nCustomer: Some Customer M01700000004\nSL: Name: Qty: Amount:\n1 first book 1 400\n2 second book 2 600\n3 1000\nAfter 25% Discount*: 750';
+  const out = extract(text, 'vendor_bill');
+  assert.deepEqual([out.amount, out.items.length], [750, 2]);
+});

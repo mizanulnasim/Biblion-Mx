@@ -19,6 +19,7 @@ const STATE = {
   not_in: ['hr.state.not_in', 'muted'],
   absent: ['hr.state.absent', 'danger'],
   in: ['hr.state.in', 'ok'],
+  break: ['hr.state.break', 'warn'],
   out: ['hr.state.out', 'ok'],
   incomplete: ['hr.state.incomplete', 'warn'],
   leave: ['hr.state.leave', 'muted'],
@@ -26,9 +27,11 @@ const STATE = {
 };
 const PUNCH_STATUS = { ok: '', check: ['hr.punch.check', 'warn'], rejected: ['hr.punch.rejected', 'danger'], replaced: ['hr.punch.replaced', 'muted'] };
 const FIX_STATUS = { waiting: ['hr.fix.waiting', 'warn'], approved: ['hr.fix.approved', 'ok'], declined: ['hr.fix.declined', 'danger'], withdrawn: ['hr.fix.withdrawn', 'muted'] };
-const FLAG = { outside: 'hr.flag.outside', no_location: 'hr.flag.no_location', offline: 'hr.flag.offline', skew: 'hr.flag.skew' };
+const FLAG = { outside: 'hr.flag.outside', no_location: 'hr.flag.no_location', offline: 'hr.flag.offline', skew: 'hr.flag.skew', hours: 'hr.flag.hours' };
 const SOURCE = { phone: 'hr.source.phone', device: 'hr.source.device', fix: 'hr.source.fix' };
-export const TYPE = { in: 'hr.type.in', out: 'hr.type.out' };
+export const TYPE = { in: 'hr.type.in', break: 'hr.type.break', back: 'hr.type.back', out: 'hr.type.out' };
+// The button for each kind of punch.
+export const PUNCH_BUTTON = { in: 'hr.punch_in', break: 'hr.punch_break', back: 'hr.punch_back', out: 'hr.punch_out' };
 
 export function stateChip(state) {
   return chip(t(STATE[state][0]), STATE[state][1]);
@@ -71,6 +74,7 @@ export function dayFacts(d) {
   if (d.first_in) facts.push(t('hr.in_at', { time: timeOf(d.first_in) }));
   if (d.last_out) facts.push(t('hr.out_at', { time: timeOf(d.last_out) }));
   if (d.worked_min) facts.push(t('hr.worked', { time: duration(d.worked_min) }));
+  if (d.break_min) facts.push(t('hr.on_breaks', { time: duration(d.break_min) }));
   if (d.late_min) facts.push(t('hr.late', { time: duration(d.late_min) }));
   if (d.early_min) facts.push(t('hr.early', { time: duration(d.early_min) }));
   return facts.join(' · ');
@@ -145,7 +149,7 @@ function punchMessage(reply, type) {
 // A punch from this phone. When the server asks why the person is away
 // from the shop, it asks, then sends the same punch with the reason.
 async function sendPunch(payload, onDone) {
-  const reply = await write('attendance.punch', payload, { label: t(payload.type === 'in' ? 'hr.punch_in' : 'hr.punch_out') });
+  const reply = await write('attendance.punch', payload, { label: t(PUNCH_BUTTON[payload.type]) });
   if (reply.status === 'rejected' && reply.error.fields && reply.error.fields.reason) {
     const why = reply.error.fields.reason;
     const dialog = formDialog(t('hr.why_away'), formView({
@@ -181,8 +185,8 @@ export function punchCard(todayData) {
       ${stateChip(day.state)}
       <span class="muted">${dayFacts(day) || planText(day.plan)}</span>
     </div>
-    <button type="button" class="btn btn-primary btn-large" data-act="punch" data-type="${next}">
-      ${t(next === 'in' ? 'hr.punch_in' : 'hr.punch_out')}</button>
+    <div class="form-actions">${next.map((type, i) => html`<button type="button" class="btn ${i ? '' : 'btn-primary'} btn-large" data-act="punch" data-type="${type}">
+      ${t(PUNCH_BUTTON[type])}</button>`)}</div>
   </section>`;
 }
 

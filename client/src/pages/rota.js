@@ -74,7 +74,6 @@ function shiftsView(shifts) {
     <p class="help">${t('rota.shifts_help')}</p>
     ${shifts.length ? html`<ul class="punches">${shifts.map((s) => html`<li class="punch">
       <span><strong>${shiftLabel(s)}</strong></span>
-      ${s.self_confirm ? chip(t('rota.self_confirm_short'), 'ok') : ''}
       <button type="button" class="btn btn-small" data-act="shift" data-id="${s.id}">${t('common.edit')}</button></li>`)}</ul>` : emptyState(t('rota.no_shifts'))}
     <div class="form-actions"><button type="button" class="btn" data-act="shift">${t('rota.add_shift')}</button></div></section>`;
 }
@@ -133,7 +132,7 @@ function askChange(week, kind, date, onDone) {
     schema: ACTIONS['rota.request'].schema,
     mapValues: (v) => ({ kind, reason: v.reason, date: v.date, shift_id: v.shift_id || null, partner_id: v.partner_id || null, other_date: v.other_date || null }),
     done: (reply) => {
-      toast(t(reply.data && reply.data.final ? 'rota.done' : 'rota.sent'));
+      toast(t('rota.sent'));
       onDone();
     },
   });
@@ -161,7 +160,6 @@ function editShift(shift, onDone) {
       { name: 'name_bn', label: t('cafe.name_bn') },
       { name: 'start', label: t('hr.work_start'), type: 'time', required: true },
       { name: 'end', label: t('hr.work_end'), type: 'time', required: true },
-      { name: 'self_confirm', label: t('rota.self_confirm'), type: 'checkbox', help: t('rota.self_confirm_help') },
       { name: 'status', label: t('users.status'), type: 'select', required: true, options: [{ value: 'active', label: t('users.active') }, { value: 'inactive', label: t('users.inactive') }] },
     ],
   }));

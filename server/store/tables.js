@@ -232,12 +232,11 @@ export const TABLES = Object.freeze({
     columns: ['name', 'secret', 'status'],
     secret: ['secret'],
   },
-  // Named shifts for the rota. self_confirm: a person who chooses this
-  // shift for a coming day gets it without a manager.
+  // Named shifts for the rota.
   Shifts: {
     group: 'hr',
     prefix: 'SHF',
-    columns: ['name', 'name_bn', 'start', 'end', 'self_confirm:b', 'status'],
+    columns: ['name', 'name_bn', 'start', 'end', 'status'],
   },
   // The rota: one row per person and date where the day differs from (or
   // is set back to) their usual hours. mode: usual, off, or hours (start,
@@ -280,16 +279,27 @@ export const TABLES = Object.freeze({
     columns: ['staff_id', 'date', 'days:n', 'reason'],
   },
   // A month's payslip for one person, kept as issued: the figures don't
-  // change if the salary or attendance changes later. Status: issued, or
-  // cancelled (with a reason) so it can be issued again.
+  // change if the salary or attendance changes later. month: the
+  // accounting month (period_from to period_to); parts:j the salary's
+  // parts. leave_days / absent_days: unpaid leave and absent days in the
+  // month; unpaid_leave_days / unpaid_absent_days: those a shareholder
+  // chose to cut. Status: issued, or cancelled (with a reason) so it can be
+  // issued again.
   Payslips: {
     group: 'hr',
     prefix: 'PSL',
     columns: [
-      'month', 'staff_id', 'salary:n', 'month_days:n', 'divisor:n', 'employed_days:n', 'base:n',
-      'unpaid_leave_days:n', 'absent_days:n', 'unpaid_absent_days:n', 'unpaid_cut:n', 'net:n', 'note',
+      'month', 'period_from', 'period_to', 'staff_id', 'salary:n', 'parts:j', 'month_days:n', 'divisor:n', 'employed_days:n', 'base:n',
+      'leave_days:n', 'unpaid_leave_days:n', 'absent_days:n', 'unpaid_absent_days:n', 'unpaid_cut:n', 'net:n', 'note',
       'status', 'cancel_reason', 'issued_by', 'issued_at',
     ],
+  },
+  // A salary, in parts:j [{name, amount}] adding up to total, from a date.
+  // The staff record's salary is the one in force today.
+  Salary_Changes: {
+    group: 'hr',
+    prefix: 'SAL',
+    columns: ['staff_id', 'from', 'parts:j', 'total:n', 'note', 'entered_by'],
   },
   // What the shop owed each person, and what they owed back, when the app
   // started being used.
@@ -300,27 +310,31 @@ export const TABLES = Object.freeze({
   },
   // Repeating tasks. repeat: daily, weekly (days:j, 0 Sunday … 6 Saturday)
   // or monthly (day_of_month). link: a screen the task opens
-  // (shared/tasks/tasks.js). needs_check: a manager checks it when done.
-  // Status: active, paused, ended.
+  // (shared/tasks/tasks.js). Given to a person (staff_id) or a role (role:
+  // manager or staff). Status: active, paused, ended.
   Task_Templates: {
     group: 'hr',
     prefix: 'TTP',
     columns: [
-      'title', 'details', 'staff_id', 'repeat', 'days:j', 'day_of_month:n', 'due_time', 'link', 'needs_check:b',
+      'title', 'details', 'staff_id', 'role', 'repeat', 'days:j', 'day_of_month:n', 'due_time', 'link',
       'start_date', 'end_date', 'status',
     ],
   },
-  // Tasks, one-off or made from a template for one date. Status: open,
-  // to_check (done, waiting for a manager's check), done, not_done (with
-  // the person's reason), skipped (cancelled, or the person was on leave).
-  // comments:j [{by, name, at, text}]. moved_from: the date it was due
-  // before approved leave moved it.
+  // Tasks, one-off or made from a template for one date. Given to a person
+  // or a role (whoever of it does the task becomes its staff_id). Status:
+  // open, to_check (done, waiting for the check by someone more senior),
+  // done, not_done (with the person's reason), skipped (cancelled, or the
+  // person was on leave). comments:j [{by, name, at, text}]. moved_from:
+  // the date it was due before approved leave moved it; move_flag no_day:
+  // there was no earlier working day to move it to. record_id: the record a
+  // linked task was done with; override_reason: a manager let it be done
+  // without one.
   Tasks: {
     group: 'hr',
     prefix: 'TSK',
     columns: [
-      'template_id', 'title', 'details', 'staff_id', 'due_date', 'due_time', 'link', 'needs_check:b', 'status',
-      'note', 'done_at', 'done_by', 'checked_by', 'checked_at', 'check_note', 'skip_reason', 'moved_from', 'comments:j', 'created_by',
+      'template_id', 'title', 'details', 'staff_id', 'role', 'due_date', 'due_time', 'link', 'status', 'record_id', 'override_reason',
+      'note', 'done_at', 'done_by', 'checked_by', 'checked_at', 'check_note', 'skip_reason', 'moved_from', 'move_flag', 'comments:j', 'created_by',
     ],
   },
   // Someone leaving. kind: resignation or termination. notice_date: when

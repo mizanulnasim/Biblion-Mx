@@ -36,6 +36,9 @@ function settingsForm(data) {
       num('clock_skew_flag_min', 'hr.clock_skew', 'hr.clock_skew_help'),
       num('offline_max_age_days', 'hr.offline_max_age', 'hr.offline_max_age_help'),
       { name: 'offline_auto_validate', label: t('hr.offline_auto'), type: 'checkbox', help: t('hr.offline_auto_help') },
+      { name: 'shop_open', label: t('hr.shop_open'), type: 'time', required: true, help: t('hr.shop_hours_help') },
+      { name: 'shop_close', label: t('hr.shop_close'), type: 'time', required: true },
+      { name: 'device_enabled', label: t('hr.device_enabled'), type: 'checkbox', help: t('hr.device_enabled_help') },
     ],
     extra: html`<p><button type="button" class="btn" data-act="here">${t('hr.use_here')}</button></p>`,
   });
@@ -112,13 +115,16 @@ export const settingsAttendancePage = {
         ]);
         devices = list;
         render(el, html`<section class="panel">${settingsForm(settings)}</section>
-          ${can('attendance.manage') ? devicesView(devices) : ''}`);
+          ${can('attendance.manage') && settings.device_enabled ? devicesView(devices) : ''}`);
         bindForm(el.querySelector('form.form'), {
           schema: ACTIONS['settings.attendance.save'].schema,
           busyLabel: t('common.saving'),
           mapValues: (v) => ({ ...v, lat: v.lat === '' ? null : v.lat, lng: v.lng === '' ? null : v.lng }),
           onSubmit: (v) => write('settings.attendance.save', v),
-          onSaved: () => toast(t('setup.saved')),
+          onSaved: () => {
+            toast(t('setup.saved'));
+            load();
+          },
         });
       } catch (err) {
         render(el, errorBox(errorText(err)));

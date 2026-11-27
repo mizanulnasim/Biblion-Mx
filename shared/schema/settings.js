@@ -51,6 +51,12 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   // checked by a manager unless this is true.
   'attendance.offline_max_age_days': 7,
   'attendance.offline_auto_validate': false,
+  // The shop's punch device (a shared tablet with PINs): off until a
+  // shareholder turns it on (owner decision).
+  'attendance.device_enabled': false,
+  // The shop's hours: a punch outside them waits for a manager's check.
+  'attendance.shop_open': '11:00',
+  'attendance.shop_close': '23:00',
   // Public holidays: the shop 'closed' (nobody is expected) or open, with
   // the people on the rota working ('open_scheduled').
   'holidays.treatment': 'open_scheduled',
@@ -61,18 +67,23 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   'selection.advance_days': 7,
   'selection.min_rest_hours': 8,
   'exchange.min_notice_days': 1,
-  // Leave is earned after probation: `rate` days a month, by month of
-  // service or calendar month (part first month prorated or not), and
-  // counted in working days or calendar days.
+  // Leave is earned after probation: `rate` days a month, by calendar
+  // month with the first part month counted by its days (owner decision),
+  // or by full month of service; counted in working days or calendar days.
   'leave.probation_months': 3,
   'leave.rate': 1.5,
-  'leave.timing': 'service_month',
+  'leave.timing': 'calendar_month',
   'leave.partial': 'prorate_days',
   'leave.day_counting': 'working',
   'leave.allow_negative': false,
-  // Payroll: a day's pay is the salary ÷ the days in that month
-  // ('period_days') or ÷ 30 ('fixed_30').
+  // The accounting month starts on this day (owner decision: the 11th).
+  // Payroll, payslips and month reports follow it.
+  'accounting.month_start_day': 11,
+  // Payroll: a day's pay is the salary ÷ the days in that accounting month
+  // ('period_days') or ÷ 30 ('fixed_30'). A payslip not paid this many
+  // days after it is issued is overdue.
   'payroll.unpaid_divisor': 'period_days',
+  'payroll.overdue_days': 7,
   // Food allowance a day, from each date on; earned on every day employed
   // ('every_day'), every day but unpaid leave ('skip_unpaid'), or only the
   // days the person punched in ('worked_days').

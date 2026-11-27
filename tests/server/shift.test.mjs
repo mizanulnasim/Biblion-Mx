@@ -46,6 +46,16 @@ test('any short or over, however small, waits for a shareholder; the drawer then
   assert.equal(boot.accounts.find((a) => a.id === ids.cash).balance, 1999.5);
 });
 
+test('Loyverse\'s expected cash is kept beside the app\'s; only the app\'s figure decides', () => {
+  const { call, manager, owner, ids } = withAccounts();
+  // The app expects 2,000 and 2,000 is counted: balanced and final, though
+  // Loyverse expected 2,150.
+  const r = call(manager, 'shift.save', shiftOf(ids, { pos_expected: 2150 })).data;
+  assert.equal(r.data.approval, 'final');
+  const { details } = call(owner, 'money.get', { id: r.record_id }).data.entry;
+  assert.deepEqual([details.short_over, details.pos_expected, details.pos_gap], [0, 2150, -150]);
+});
+
 test('the split must add up to net sales, and each account named must exist', () => {
   const { call, manager, ids } = withAccounts();
   const r = call(manager, 'shift.save', shiftOf(ids, { card: 400, bkash_account_id: null })).data;

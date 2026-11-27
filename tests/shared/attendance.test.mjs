@@ -2,7 +2,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { daySummary, dhakaIso, distanceM, nextType, punchMoment } from '../../shared/hr/attendance.js';
+import { daySummary, dhakaIso, distanceM, nextTypes, outsideHours, punchMoment } from '../../shared/hr/attendance.js';
 import { dayPlan, rotaPlan } from '../../shared/hr/plan.js';
 
 const RULES = { late_grace: 5, early_grace: 0, incomplete_after: 120 };
@@ -47,10 +47,26 @@ test('no punches: not in yet, absent after the end or on a past day, off on a da
   assert.equal(day('2026-11-27', [], at('2026-11-28', '09:00')).state, 'off');
 });
 
-test('the next punch is out after an in', () => {
-  assert.equal(nextType([]), 'in');
-  assert.equal(nextType([{ type: 'out', at: 2 }, { type: 'in', at: 1 }]), 'in');
-  assert.equal(nextType([{ type: 'in', at: 1 }]), 'out');
+test('the next punch: in; then out or a break; after a break, back', () => {
+  assert.deepEqual(nextTypes([]), ['in']);
+  assert.deepEqual(nextTypes([{ type: 'out', at: 2 }, { type: 'in', at: 1 }]), ['in']);
+  assert.deepEqual(nextTypes([{ type: 'in', at: 1 }]), ['out', 'break']);
+  assert.deepEqual(nextTypes([{ type: 'in', at: 1 }, { type: 'break', at: 2 }]), ['back']);
+  assert.deepEqual(nextTypes([{ type: 'break', at: 2 }, { type: 'back', at: 3 }]), ['out', 'break']);
+});
+
+test('shop hours: a punch before opening or after closing is outside', () => {
+  assert.equal(outsideHours(Date.parse(dhakaIso('2026-11-24', '10:59')), '11:00', '23:00'), true);
+  assert.equal(outsideHours(Date.parse(dhakaIso('2026-11-24', '11:00')), '11:00', '23:00'), false);
+  assert.equal(outsideHours(Date.parse(dhakaIso('2026-11-24', '23:00')), '11:00', '23:00'), false);
+  assert.equal(outsideHours(Date.parse(dhakaIso('2026-11-24', '23:01')), '11:00', '23:00'), true);
+});
+
+test('a break is paid time and counted on its own; a break still open is "on a break"', () => {
+  const p = (type, hhmm) => ({ type, at: Date.parse(dhakaIso('2026-11-24', hhmm)), status: 'ok' });
+  const done = day('2026-11-24', [p('in', '10:00'), p('break', '13:00'), p('back', '13:30'), p('out', '18:00')], at('2026-11-24', '19:00'));
+  assert.deepEqual([done.state, done.worked_min, done.break_min], ['out', 480, 30]);
+  assert.equal(day('2026-11-24', [p('in', '10:00'), p('break', '13:00')], at('2026-11-24', '13:10')).state, 'break');
 });
 
 test('a day\'s plan: leave first, then a closed holiday, then the rota, then usual hours', () => {

@@ -8,20 +8,24 @@ import { errorText } from '../ui/form.js';
 import { t } from '../core/i18n.js';
 import { read } from '../core/api.js';
 import { onArea } from '../core/live.js';
-import { dateShort, money, monthLabel, today } from '../core/format.js';
+import { dateShort, money, monthLabel } from '../core/format.js';
 import { kindLabel } from './money-common.js';
 
-export const thisMonthKey = () => today().slice(0, 7);
 export const monthName = monthLabel;
+
+// An accounting month by its dates.
+export const periodText = (s) => t('pay.period', { from: dateShort(`${s.period_from}T06:00:00Z`), to: dateShort(`${s.period_to}T06:00:00Z`) });
 
 // The figures of a payslip (draft or issued), as label and amount lines.
 export function slipLines(s) {
   const cut = s.unpaid_leave_days + s.unpaid_absent_days;
+  const named = s.parts.filter((p) => p.name);
   return html`<dl class="slip">
     <dt>${t('pay.line.salary')}</dt><dd>${money(s.salary)}</dd>
+    ${named.map((p) => html`<dt class="muted">${p.name}</dt><dd class="muted">${money(p.amount)}</dd>`)}
     <dt>${t('pay.line.days')}</dt><dd>${t('pay.days_of', { days: s.employed_days, of: s.month_days })}</dd>
     <dt>${t('pay.line.base')}</dt><dd>${money(s.base)}</dd>
-    ${s.unpaid_leave_days ? html`<dt>${t('pay.line.unpaid_leave')}</dt><dd>${t('leave.days', { count: s.unpaid_leave_days })}</dd>` : ''}
+    ${s.leave_days ? html`<dt>${t('pay.line.unpaid_leave')}</dt><dd>${t('pay.leave_cut', { leave: s.leave_days, cut: s.unpaid_leave_days })}</dd>` : ''}
     ${s.absent_days ? html`<dt>${t('pay.line.absent')}</dt><dd>${t('pay.absent_cut', { absent: s.absent_days, cut: s.unpaid_absent_days || 0 })}</dd>` : ''}
     ${cut ? html`<dt>${t('pay.line.cut', { days: cut, divisor: s.divisor })}</dt><dd>− ${money(s.unpaid_cut)}</dd>` : ''}
     <dt class="slip-total">${t('pay.line.net')}</dt><dd class="slip-total">${money(s.net)}</dd>
@@ -29,12 +33,20 @@ export function slipLines(s) {
   ${s.note ? html`<p class="muted">${t('hr.note', { note: s.note })}</p>` : ''}`;
 }
 
+// Food allowance earned by week (Saturday to Friday), newest first.
+function foodWeeksView(weeks) {
+  const earning = weeks.filter((w) => w.earned);
+  if (!earning.length) return '';
+  return html`<h3 class="subhead">${t('pay.food_weeks')}</h3>
+    <dl class="slip">${earning.slice().reverse().map((w) => html`<dt>${t('pay.period', { from: dateShort(`${w.from}T06:00:00Z`), to: dateShort(`${w.to}T06:00:00Z`) })}</dt><dd>${money(w.earned)}</dd>`)}</dl>`;
+}
+
 function documentView(data) {
   const { staff, slip, entries } = data;
   return html`<article class="doc">
     <header class="doc-head">
       <img class="doc-logo" src="assets/biblion-logo.png" alt="Biblion">
-      <div><h2 class="doc-title">${t('pay.payslip')}</h2><p class="muted">${monthName(slip.month)}</p></div>
+      <div><h2 class="doc-title">${t('pay.payslip')}</h2><p class="muted">${monthName(slip.month)} · ${periodText(slip)}</p></div>
     </header>
     <p><strong>${staff.name}</strong>${staff.position ? ` · ${staff.position}` : ''}<br>
       <span class="muted">${t('pay.joined', { date: dateShort(`${staff.joined_on}T06:00:00Z`) })}</span></p>
@@ -76,6 +88,7 @@ export const myPayPage = {
             <p class="leave-left"><strong>${t('pay.owed_to_you', { amount: money(a.owed) })}</strong></p>
             ${a.advance ? html`<p>${t('pay.advance_to_return', { amount: money(a.advance) })}</p>` : ''}
             <p class="muted">${t('pay.account_parts', { payslips: money(a.payslips), food: money(a.food_earned), salary: money(a.salary_paid), food_paid: money(a.food_paid), deductions: money(a.deductions) })}</p>
+            ${foodWeeksView(a.food_weeks)}
           </section>
           <section class="panel"><h2 class="section-title">${t('pay.my_payslips')}</h2>
             ${data.payslips.length ? html`<ul class="punches">${data.payslips.map((s) => html`<li class="punch">

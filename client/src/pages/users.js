@@ -29,6 +29,7 @@ function userForm(user) {
       name: 'status', label: t('users.status'), type: 'select', required: true,
       options: [{ value: 'active', label: t('users.active') }, { value: 'inactive', label: t('users.inactive') }],
     },
+    { name: 'own_password', label: t('users.own_password'), type: 'checkbox', help: t('users.own_password_help') },
     {
       name: 'password', label: user ? t('users.new_password') : t('signin.password'), type: 'password',
       help: user ? t('users.new_password_help') : t('setup.password_help'), autocomplete: 'new-password', required: !user,

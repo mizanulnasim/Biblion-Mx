@@ -10,6 +10,9 @@ const EARTH_RADIUS_M = 6371000;
 // the phone (made offline).
 export const OFFLINE_AFTER_MS = 2 * 60000;
 
+// The kinds of punch: in, a break and back from it (recorded and paid), out.
+export const PUNCH_TYPES = Object.freeze(['in', 'break', 'back', 'out']);
+
 // Statuses a punch can have: ok, check (waits for a manager), rejected, and
 // replaced (by an approved correction). Only ok and check count.
 export const COUNTED = Object.freeze(['ok', 'check']);
@@ -79,13 +82,20 @@ export function daySummary({ date, plan, punches, nowMs, rules }) {
     date, state: '', plan,
     first_in: ins.length ? ins[0].at : null,
     last_out: outs.length ? outs[outs.length - 1].at : null,
-    worked_min: 0, late_min: 0, early_min: 0,
+    worked_min: 0, break_min: 0, late_min: 0, early_min: 0,
     waiting: sorted.some((p) => p.status === 'check'),
   };
-  // Worked time: each "in" to the next "out".
+  // Worked time: each "in" to the next "out", breaks included (they are
+  // paid); break time: each "break" to the next "back" (or "out").
   let openAt = null;
+  let breakAt = null;
   for (const p of sorted) {
     if (p.type === 'in' && openAt === null) openAt = p.at;
+    if (p.type === 'break' && openAt !== null && breakAt === null) breakAt = p.at;
+    if ((p.type === 'back' || p.type === 'out') && breakAt !== null) {
+      out.break_min += Math.round((p.at - breakAt) / 60000);
+      breakAt = null;
+    }
     if (p.type === 'out' && openAt !== null) {
       out.worked_min += Math.round((p.at - openAt) / 60000);
       openAt = null;
@@ -103,7 +113,7 @@ export function daySummary({ date, plan, punches, nowMs, rules }) {
   }
   if (openAt !== null) {
     const overdue = end === null ? past : (past || nowMin > end + rules.incomplete_after);
-    out.state = overdue ? 'incomplete' : 'in';
+    out.state = overdue ? 'incomplete' : breakAt !== null ? 'break' : 'in';
     return out;
   }
   out.state = 'out';
@@ -114,9 +124,23 @@ export function daySummary({ date, plan, punches, nowMs, rules }) {
   return out;
 }
 
-// What the person's next punch is: "out" after an "in" today, else "in".
-export function nextType(todayPunches) {
+// The punches that may come after one of `type` (none yet: ''), the usual
+// one first: in; then out or a break; after a break, back.
+export function typesAfter(type) {
+  if (type === 'in' || type === 'back') return ['out', 'break'];
+  if (type === 'break') return ['back'];
+  return ['in'];
+}
+
+// The punches the person may make next, from today's.
+export function nextTypes(todayPunches) {
   const sorted = todayPunches.slice().sort((a, b) => a.at - b.at);
-  const last = sorted[sorted.length - 1];
-  return last && last.type === 'in' ? 'out' : 'in';
+  return typesAfter(sorted.length ? sorted[sorted.length - 1].type : '');
+}
+
+// Whether a moment falls outside the shop's hours ("HH:MM" to "HH:MM",
+// Bangladesh time).
+export function outsideHours(ms, open, close) {
+  const m = dhakaMinutes(ms);
+  return m < timeMinutes(open) || m > timeMinutes(close);
 }

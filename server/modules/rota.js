@@ -82,7 +82,7 @@ function week(ctx, input) {
   return {
     from, dates, me: mine ? mine.id : '',
     holidays: dates.filter((d) => p.holidays.has(d)).map((d) => ({ date: d, name: p.holidays.get(d).name, name_bn: p.holidays.get(d).name_bn })),
-    shifts: db.all('Shifts').filter((s) => s.status === 'active').map((s) => ({ id: s.id, version: s.version, name: s.name, name_bn: s.name_bn, start: s.start, end: s.end, self_confirm: s.self_confirm })),
+    shifts: db.all('Shifts').filter((s) => s.status === 'active').map((s) => ({ id: s.id, version: s.version, name: s.name, name_bn: s.name_bn, start: s.start, end: s.end })),
     // Colleagues to swap with: everyone working, by name only.
     colleagues: mine ? db.all('Staff').filter((s) => s.status === 'active' && s.id !== mine.id).map((s) => ({ id: s.id, name: s.name })) : [],
     rows: people.map((s) => ({ staff: { id: s.id, name: s.name, work_start: s.work_start, work_end: s.work_end }, days: dates.map((d) => ({ date: d, ...p.plan(s, d) })) })),
@@ -108,7 +108,7 @@ function setDay(ctx, { staff_id: staffId, date, value }) {
 function saveShift(ctx, input) {
   const { db } = ctx;
   if (input.end <= input.start) throw fieldError('end', 'val.time_after');
-  const fields = { name: input.name, name_bn: input.name_bn || '', start: input.start, end: input.end, self_confirm: Boolean(input.self_confirm), status: input.status };
+  const fields = { name: input.name, name_bn: input.name_bn || '', start: input.start, end: input.end, status: input.status };
   if (!input.id) return saved(db.insert('Shifts', fields).id);
   const row = db.get('Shifts', input.id);
   if (!row) throw new AppError('NOT_FOUND');
@@ -163,11 +163,8 @@ function ask(ctx, input) {
     const short = (before.kind === 'work' && before.end && restHours(before.end, shift.start) < rest)
       || (after.kind === 'work' && after.start && restHours(shift.end, after.start) < rest);
     if (short) throw new AppError('REST', { hours: rest });
+    // Every choice waits for a manager or a shareholder (owner decision).
     const row = db.insert('Rota_Requests', { ...base, shift_id: shift.id, status: 'waiting' });
-    if (shift.self_confirm) {
-      apply(ctx, row);
-      return saved(row.id, { final: true });
-    }
     return saved(row.id, { final: false });
   }
 

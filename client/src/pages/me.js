@@ -6,7 +6,7 @@ import { bindForm, formView } from '../ui/form.js';
 import { toast } from '../ui/toast.js';
 import { getLang, t } from '../core/i18n.js';
 import { write } from '../core/api.js';
-import { device, getState, setState } from '../core/state.js';
+import { can, device, getState, setState } from '../core/state.js';
 import { applyLook } from '../core/look.js';
 import { ACTIONS } from '../../../shared/contract/actions.js';
 
@@ -46,7 +46,8 @@ export const mePage = {
     const draw = () => {
       render(el, html`
         <section class="panel"><h2 class="section-title">${t('me.display')}</h2><div data-slot="display">${displayForm(getState().meta.settings)}</div></section>
-        <section class="panel"><h2 class="section-title">${t('me.password')}</h2><div data-slot="password">${passwordForm()}</div></section>`);
+        <section class="panel"><h2 class="section-title">${t('me.password')}</h2>
+          ${can('me.password') ? html`<div data-slot="password">${passwordForm()}</div>` : html`<p>${t('me.password_ask')}</p>`}</section>`);
 
       bindForm(el.querySelector('[data-slot="display"] form'), {
         schema: ACTIONS['me.settings'].schema,
@@ -67,7 +68,9 @@ export const mePage = {
         },
       });
 
+      // Only for people allowed to change their own password.
       const pw = el.querySelector('[data-slot="password"] form');
+      if (!pw) return;
       bindForm(pw, {
         schema: ACTIONS['auth.password'].schema,
         busyLabel: t('common.saving'),

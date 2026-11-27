@@ -21,9 +21,20 @@ function payroll() {
   const add = (fields) => s.call(s.owner, 'staff.save', { status: 'active', work_start: '10:00', work_end: '18:00', days_off: [{ day: 5 }], ...fields }).data.record_id;
   s.ids.sumi = add({ name: 'Sumi', user_id: userId('staff'), joined_on: plus(today(), -200), salary: 12000 });
   s.ids.rafi = add({ name: 'Rafi', user_id: userId('manager'), joined_on: plus(today(), -200), salary: 20000 });
-  // No food allowance unless a test sets one.
-  s.call(s.owner, 'settings.payroll.save', { divisor: 'period_days', food_rule: 'every_day', food_rates: [{ from: '2000-01-01', amount: 0 }] });
+  // No food allowance unless a test sets one; calendar months unless a
+  // test sets the 11th (the default).
+  s.call(s.owner, 'settings.payroll.save', { divisor: 'period_days', food_rule: 'every_day', food_rates: [{ from: '2000-01-01', amount: 0 }], month_start_day: 1 });
   return s;
+}
+
+// Sets a stored value, as if the row were written earlier.
+function ageRow(s, table, id, column, value) {
+  for (const book of Object.values(s.state.books)) {
+    const sheet = book.sheets[table];
+    if (!sheet) continue;
+    const head = sheet.cells[0];
+    for (const r of sheet.cells.slice(1)) if (r[head.indexOf('id')] === id) r[head.indexOf(column)] = value;
+  }
 }
 
 const pay = (s, fields) => s.call(s.owner, 'money.save', { date: today(), account_id: s.ids.cash, party_id: s.ids.sumi, ...fields }).data;
@@ -109,4 +120,57 @@ test('a shareholder\'s advance is recovered by a salary deduction', () => {
   assert.equal(save({ kind: 'shareholder_deduction', amount: 400 }).status, 'saved');
   const karim = s.call(s.owner, 'money.boot').data.shareholders.find((x) => x.id === s.ids.karim);
   assert.equal(karim.advance, 600);
+});
+
+test('the accounting month starts on the 11th by default; a payslip follows its dates', () => {
+  const s = shop();
+  const id = s.call(s.owner, 'staff.save', { name: 'Kamal', status: 'active', joined_on: '2026-01-01', salary: 9000, days_off: [] }).data.record_id;
+  const month = s.call(s.owner, 'payroll.month', { month: '2026-10' }).data;
+  assert.deepEqual([month.period_from, month.period_to], ['2026-10-11', '2026-11-10']);
+  assert.equal(month.rows.find((r) => r.staff.id === id).slip.month_days, 31);
+});
+
+test('salary history in parts, from a date: the payslip counts the days of each; issued months are kept', () => {
+  const s = payroll();
+  const month = lastMonth();
+  const days = daysIn(month);
+  // From the 11th of last month: 10 days at 12,000, the rest at 15,000.
+  const change = s.call(s.owner, 'salary.change', { staff_id: s.ids.sumi, from: `${month}-11`, parts: [{ name: 'Basic', amount: 10000 }, { name: 'House rent', amount: 5000 }], note: 'Yearly raise' }).data;
+  assert.equal(change.data.total, 15000);
+  assert.equal(s.call(s.manager, 'salary.change', { staff_id: s.ids.sumi, from: today(), parts: [{ amount: 1 }] }).error.code, 'FORBIDDEN');
+  const history = s.call(s.owner, 'salary.history', { staff_id: s.ids.sumi }).data;
+  assert.deepEqual(history.changes.map((c) => c.total), [15000, 12000]);
+  assert.equal(s.call(s.owner, 'staff.list', {}).data.items.find((x) => x.name === 'Sumi').salary, 15000);
+  const slip = row(s, month, 'Sumi').slip;
+  assert.equal(slip.base, Math.round((12000 * 10 + 15000 * (days - 10)) / days));
+  assert.deepEqual(slip.parts.map((p) => p.name), ['Basic', 'House rent']);
+  s.call(s.owner, 'payroll.issue', { staff_id: s.ids.sumi, month, unpaid_absent_days: 0 });
+  const late = s.call(s.owner, 'salary.change', { staff_id: s.ids.sumi, from: `${month}-20`, parts: [{ amount: 16000 }] }).data;
+  assert.equal(late.error.fields.from.code, 'val.payslip_issued');
+});
+
+test('unpaid leave cut is chosen when paying; an unpaid month is overdue after the set days', () => {
+  const s = payroll();
+  const month = lastMonth();
+  s.call(s.manager, 'leave.apply', { staff_id: s.ids.sumi, kind: 'unpaid', from: `${month}-10`, to: `${month}-10`, reason: 'Personal' });
+  assert.equal(s.call(s.owner, 'payroll.issue', { staff_id: s.ids.sumi, month, unpaid_leave_days: 2, unpaid_absent_days: 0 }).data.error.fields.unpaid_leave_days.code, 'val.max');
+  const issued = s.call(s.owner, 'payroll.issue', { staff_id: s.ids.sumi, month, unpaid_leave_days: 0, unpaid_absent_days: 0, note: 'Leave agreed as paid' }).data;
+  assert.equal(issued.data.net, 12000);
+  const sumi = row(s, month, 'Sumi');
+  assert.deepEqual([sumi.slip.leave_days, sumi.slip.unpaid_leave_days, sumi.overdue], [1, 0, false]);
+  // Issued 8 days ago and not paid: overdue after the default 7 days.
+  ageRow(s, 'Payslips', issued.record_id, 'issued_at', new Date(Date.now() - 8 * DAY).toISOString());
+  assert.equal(row(s, month, 'Sumi').overdue, true);
+  assert.equal(s.call(s.owner, 'people.waiting').data.salary >= 1, true);
+  pay(s, { kind: 'salary_paid', amount: 12000, period: month });
+  assert.equal(row(s, month, 'Sumi').overdue, false);
+});
+
+test('an advance repaid in instalments: the instalment is suggested as the month\'s deduction', () => {
+  const s = payroll();
+  pay(s, { kind: 'staff_advance', amount: 3000, instalment: 1000 });
+  const account = () => row(s, lastMonth(), 'Sumi').account;
+  assert.equal(account().instalment_due, 1000);
+  pay(s, { kind: 'staff_deduction', amount: 1000 });
+  assert.deepEqual([account().advance, account().instalment_due], [2000, 0]);
 });

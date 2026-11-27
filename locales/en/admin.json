@@ -45,5 +45,8 @@
   "me.current_password": "Current password",
   "me.new_password": "New password",
   "me.change_password": "Change password",
-  "me.password_changed": "Password changed."
+  "me.password_changed": "Password changed.",
+  "users.own_password": "May change their own password",
+  "users.own_password_help": "Shareholders always may. Otherwise a shareholder sets and resets this person's password.",
+  "me.password_ask": "Your password is set by a shareholder. Ask one to change it."
 }

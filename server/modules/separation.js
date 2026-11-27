@@ -15,6 +15,8 @@ import { AppError } from '../../shared/contract/errors.js';
 import { saved } from '../../shared/contract/reply.js';
 import { dhakaDate } from '../../shared/hr/attendance.js';
 import { LETTER_KINDS, fillLetter, letterDate, taka, unknownPlaceholders } from '../../shared/hr/letters.js';
+import { periodKey, periodOf } from '../../shared/hr/pay.js';
+import { addDays } from '../../shared/hr/plan.js';
 import { saveSetting, setting } from '../kernel/settings.js';
 import { balanceOf } from './leave.js';
 import { payAccount } from './payroll.js';
@@ -30,22 +32,18 @@ function openFor(db, staffId) {
   return db.all('Separations').find((x) => x.staff_id === staffId && OPEN.includes(x.status)) || null;
 }
 
-// Payslip months from the one after the latest issued (or the last day's
-// month, if none was ever issued) to the last day's month.
+// Payslip months (accounting months) from the one after the latest issued
+// (or the last day's month, if none was ever issued) to the last day's.
 function missingPayslips(db, staff, lastDay) {
   if (!staff.salary) return [];
+  const startDay = setting(db, 'accounting.month_start_day');
   const issued = db.all('Payslips').filter((p) => p.staff_id === staff.id && p.status === 'issued').map((p) => p.month).sort();
-  const lastMonth = lastDay.slice(0, 7);
+  const lastMonth = periodKey(lastDay, startDay);
+  const first = periodKey(joinedOn(staff), startDay);
+  const next = (month) => periodKey(addDays(periodOf(month, startDay).to, 1), startDay);
   const out = [];
-  let m = issued.length ? issued[issued.length - 1] : null;
-  const next = (month) => {
-    const d = new Date(`${month}-01T00:00:00Z`);
-    d.setUTCMonth(d.getUTCMonth() + 1);
-    return d.toISOString().slice(0, 7);
-  };
-  m = m ? next(m) : lastMonth;
-  for (; m <= lastMonth; m = next(m)) out.push(m);
-  return out.filter((month) => month >= joinedOn(staff).slice(0, 7));
+  for (let m = issued.length ? next(issued[issued.length - 1]) : lastMonth; m <= lastMonth; m = next(m)) out.push(m);
+  return out.filter((month) => month >= first);
 }
 
 // The settlement as it would be now. leaveDays: the days of unused leave to
@@ -56,7 +54,8 @@ function settlementFor(db, sep, leaveDays) {
   const unused = Math.max(0, balanceOf(db, staff).balance);
   const encash = setting(db, 'separation.leave_encash');
   const days = encash === 'never' ? 0 : encash === 'always' ? unused : Math.min(unused, leaveDays ?? unused);
-  const monthDays = new Date(Date.UTC(Number(sep.last_day.slice(0, 4)), Number(sep.last_day.slice(5, 7)), 0)).getUTCDate();
+  const startDay = setting(db, 'accounting.month_start_day');
+  const monthDays = periodOf(periodKey(sep.last_day, startDay), startDay).days;
   const rate = (staff.salary || 0) / (setting(db, 'payroll.unpaid_divisor') === 'fixed_30' ? 30 : monthDays);
   const expected = setting(db, 'separation.notice_days');
   const given = daysBetween(sep.notice_date, sep.last_day);
