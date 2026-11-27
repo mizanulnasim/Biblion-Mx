@@ -83,7 +83,10 @@ function saveContact(ctx, input) {
 function saveShareholder(ctx, input) {
   const { db } = ctx;
   if (sameName(db.all('Shareholders'), input)) throw fieldError('name', 'val.taken');
-  const row = upsert(db, 'Shareholders', input, { name: input.name, phone: input.phone || '', salary: input.salary || 0, status: input.status });
+  const row = upsert(db, 'Shareholders', input, {
+    name: input.name, phone: input.phone || '', salary: input.salary || 0, status: input.status,
+    opening_held: input.opening_held || 0, opening_owed: input.opening_owed || 0, opening_owes: input.opening_owes || 0,
+  });
   return saved(row.id, pick(row));
 }
 

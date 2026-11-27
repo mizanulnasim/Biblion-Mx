@@ -70,6 +70,9 @@ const SECTIONS = [
       { name: 'name', label: t('users.name'), required: true },
       { name: 'phone', label: t('setup.phone'), inputmode: 'tel' },
       { name: 'salary', label: t('sh.salary'), inputmode: 'decimal', help: t('sh.salary_help') },
+      { name: 'opening_held', label: t('sh.opening_held'), inputmode: 'decimal', help: t('sh.opening_held_help') },
+      { name: 'opening_owed', label: t('sh.opening_owed'), inputmode: 'decimal', help: t('sh.opening_owed_help') },
+      { name: 'opening_owes', label: t('sh.opening_owes'), inputmode: 'decimal', help: t('sh.opening_owes_help') },
       { name: 'status', label: t('users.status'), type: 'select', required: true, options: STATUS_OPTIONS() },
     ],
     defaults: { status: 'active' },
@@ -105,7 +108,7 @@ function openRecord(section, record, onSaved) {
     busyLabel: t('common.saving'),
     mapValues: (v) => {
       const out = { ...v, id: record ? record.id : null, version: record ? record.version : null };
-      for (const key of ['opening', 'opening_due', 'salary']) if (key in out && out[key] === '') out[key] = null;
+      for (const key of ['opening', 'opening_due', 'salary', 'opening_held', 'opening_owed', 'opening_owes']) if (key in out && out[key] === '') out[key] = null;
       return out;
     },
     onSubmit: async (payload) => {

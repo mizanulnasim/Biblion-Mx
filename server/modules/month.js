@@ -246,7 +246,8 @@ function saveLoan(ctx, input) {
   return saved(row.id);
 }
 
-// Each shareholder's account: what the business owes them and what they owe it.
+// Each shareholder's account: what the business owes them and what they owe
+// it, from their opening figures (Getting started) on.
 function statements(db) {
   const closed = db.all('Month_Closings').filter((c) => c.status === 'closed');
   const entries = db.all('Transactions').filter(counts);
@@ -261,12 +262,13 @@ function statements(db) {
     const advance = r2(mine.reduce((t, e) => t + payEffect(e).advance, 0));
     const loansTaken = r2(db.all('Loans').filter((l) => l.shareholder_id === s.id && l.direction === 'taken').reduce((t, l) => t + loanBalance(db, l, today(db)), 0));
     const loansGiven = r2(db.all('Loans').filter((l) => l.shareholder_id === s.id && l.direction === 'given').reduce((t, l) => t + loanBalance(db, l, today(db)), 0));
-    const owedToThem = r2(salary + profit + interestEarned - paid('owner_salary') - paid('profit_share') - paid('owner_withdrawal'));
-    const owesBusiness = r2(advance + loansTaken + interestCharged);
+    const owedToThem = r2((s.opening_owed || 0) + salary + profit + interestEarned - paid('owner_salary') - paid('profit_share') - paid('owner_withdrawal'));
+    const owesBusiness = r2((s.opening_held || 0) + (s.opening_owes || 0) + advance + loansTaken + interestCharged);
     return {
       id: s.id, name: s.name, salary, profit, interest_earned: interestEarned, salary_paid: paid('owner_salary'), profit_paid: paid('profit_share'),
       withdrawn: paid('owner_withdrawal'), owed_to_them: owedToThem, advance, loans_taken: loansTaken, interest_charged: interestCharged,
       owes_business: owesBusiness, loans_given: loansGiven, settle: r2(owedToThem - owesBusiness),
+      opening_owed: s.opening_owed || 0, opening_held: s.opening_held || 0, opening_owes: s.opening_owes || 0,
     };
   });
 }

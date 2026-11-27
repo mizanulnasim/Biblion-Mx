@@ -5,8 +5,9 @@
 //   paid on delivery:  the cost of copies delivered, less copies returned
 //   paid as they sell: the cost of copies sold
 // plus the opening due, plus refunds and advances written off, less payments.
-// A copy's cost is the average cost of its deliveries; before any delivery,
-// its printed price less the publisher's commission.
+// A copy's cost is the average cost of its deliveries and opening stock;
+// before any, its printed price less the publisher's commission. Opening
+// stock adds nothing to what a publisher is owed: that is the opening due.
 
 import { AppError } from '../../shared/contract/errors.js';
 import { saved } from '../../shared/contract/reply.js';
@@ -19,11 +20,11 @@ export function supplierCostRule(publisher) {
   return (printed) => round(printed * (1 - (publisher ? publisher.commission || 0 : 0) / 100));
 }
 
-// Average cost per book, from active deliveries.
+// Average cost per book, from active deliveries and opening stock.
 export function bookCosts(db) {
   const sums = new Map();
   for (const m of db.all('Stock_Movements')) {
-    if (m.status !== 'active' || m.kind !== 'receive') continue;
+    if (m.status !== 'active' || (m.kind !== 'receive' && m.kind !== 'opening')) continue;
     const s = sums.get(m.book_id) || { qty: 0, cost: 0 };
     s.qty += m.qty;
     s.cost += m.qty * m.unit_cost;

@@ -15,7 +15,7 @@ import { ACTIONS } from '../../../shared/contract/actions.js';
 
 const MOVE_KINDS = {
   receive: 'books.move.receive', sale: 'books.move.sale', damaged: 'books.move.damaged',
-  lost: 'books.move.lost', found: 'books.move.found', returned: 'books.move.returned', count: 'books.move.count',
+  lost: 'books.move.lost', found: 'books.move.found', returned: 'books.move.returned', count: 'books.move.count', opening: 'books.move.opening',
 };
 
 function bookFields(publishers) {

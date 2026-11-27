@@ -15,6 +15,7 @@ import { INTAKE_KINDS, MAX_UPLOAD_BYTES, UPLOAD_TYPES } from '../intake/kinds.js
 import { LETTER_KINDS } from '../hr/letters.js';
 import { PUNCH_TYPES } from '../hr/attendance.js';
 import { PRIORITIES, REPEATS, TASK_ROLES } from '../tasks/tasks.js';
+import { MANUAL_STEPS } from '../schema/start.js';
 
 // Bumped whenever a request or reply changes shape. A client built for another
 // contract is told to update itself (v1 bug S10).
@@ -147,7 +148,10 @@ export const ACTIONS = Object.freeze({
   },
   'setup.shareholder.save': {
     write: true, perm: 'acc.setup', area: 'money',
-    schema: { ...SETUP_BASE, phone: { type: 'text', max: 20 }, salary: { type: 'money', zero: true } },
+    schema: {
+      ...SETUP_BASE, phone: { type: 'text', max: 20 }, salary: { type: 'money', zero: true },
+      opening_held: { type: 'money', zero: true }, opening_owed: { type: 'money', zero: true }, opening_owes: { type: 'money', zero: true },
+    },
   },
   // ---- Month closing and shareholders ----
   'month.view': { perm: 'closing.month', schema: { month: { type: 'month' } } },
@@ -367,13 +371,23 @@ export const ACTIONS = Object.freeze({
 
   // Full stock-take: start, count (in several sittings), apply.
   'books.stocktake': { perm: 'books.adjust' },
-  'books.stocktake.start': { write: true, perm: 'books.adjust', area: 'books', schema: { publisher_id: { type: 'id' } } },
+  'books.stocktake.start': { write: true, perm: 'books.adjust', area: 'books', schema: { publisher_id: { type: 'id' }, opening: { type: 'bool' } } },
   'books.stocktake.save': {
     write: true, perm: 'books.adjust', area: 'books',
     schema: { id: { type: 'id', required: true }, counts: { type: 'list', max: 5000, of: { book_id: { type: 'id', required: true }, counted: { type: 'int', min: 0, max: 100000 } } } },
   },
   'books.stocktake.apply': { write: true, perm: 'books.adjust', area: 'books', schema: { id: { type: 'id', required: true } } },
   'books.stocktake.cancel': { write: true, perm: 'books.adjust', area: 'books', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 300 } } },
+  // The opening stock, sent for approval: approved by a shareholder who
+  // didn't count or send it, or sent back with a reason.
+  'books.opening.decide': {
+    write: true, perm: 'acc.approve', area: 'books',
+    schema: { id: { type: 'id', required: true }, decision: { type: 'enum', required: true, values: ['approve', 'send_back'] }, reason: { type: 'text', max: 300 } },
+  },
+  // Getting started: the start date and the opening-figures checklist.
+  'start.view': { perm: 'acc.setup' },
+  'start.date.save': { write: true, perm: 'acc.setup', area: 'money', schema: { start_date: { type: 'date', required: true } } },
+  'start.step.save': { write: true, perm: 'acc.setup', area: 'money', schema: { step: { type: 'enum', required: true, values: MANUAL_STEPS }, done: { type: 'bool', required: true } } },
 
   // Uploads: a document comes in, is read, is told what it is, and its
   // entries are checked and confirmed in one go (or it is filed on an

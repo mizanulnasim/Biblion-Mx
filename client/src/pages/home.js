@@ -52,6 +52,8 @@ function attendanceView(att) {
     ${att.reviews ? html`<a class="notice notice-warn" href="#/reviews">${icon('badge')}<span>${t('home.reviews_waiting', { count: att.reviews })}</span></a>` : ''}
     ${att.salary ? html`<a class="notice notice-warn" href="#/payroll">${icon('money')}<span>${t('home.salary_overdue', { count: att.salary })}</span></a>` : ''}
     ${att.details ? html`<a class="notice notice-warn" href="#/staff/changes">${icon('badge')}<span>${t('home.details_waiting', { count: att.details })}</span></a>` : ''}
+    ${att.opening_stock ? html`<a class="notice notice-warn" href="#/books/stocktake">${icon('book')}<span>${t('home.opening_stock')}</span></a>` : ''}
+    ${att.start ? html`<a class="notice" href="#/start">${icon('check')}<span>${t('home.start_left', { count: att.start })}</span></a>` : ''}
     ${att.docs ? html`
       ${att.docs.pinned.map((d) => html`<a class="notice ${d.read ? '' : 'notice-warn'}" href="#/notices">${icon('log')}<span><strong>${d.title}</strong></span></a>`)}
       ${att.docs.unread ? html`<a class="notice" href="#/notices">${icon('log')}<span>${t('home.unread', { count: att.docs.unread })}</span></a>` : ''}

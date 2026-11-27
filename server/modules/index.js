@@ -33,6 +33,7 @@ import { WAITING_HANDLERS } from './waiting.js';
 import { RECRUITMENT_HANDLERS } from './recruitment.js';
 import { USER_HANDLERS } from './users.js';
 import { MONTH_HANDLERS } from './month.js';
+import { START_HANDLERS } from './start.js';
 
 export const HANDLERS = Object.freeze({
   ...SETUP_HANDLERS,
@@ -40,6 +41,7 @@ export const HANDLERS = Object.freeze({
   ...META_HANDLERS,
   ...USER_HANDLERS,
   ...MONTH_HANDLERS,
+  ...START_HANDLERS,
   ...AUDIT_HANDLERS,
   ...SETTINGS_HANDLERS,
   ...SETUP_MONEY_HANDLERS,

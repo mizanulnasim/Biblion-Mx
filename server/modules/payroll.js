@@ -30,6 +30,7 @@ import { saveSetting, setting } from '../kernel/settings.js';
 import { attendanceMonth } from './attendance.js';
 import { planner } from './rota.js';
 import { joinedOn, staffOfUser } from './staff.js';
+import { saveStartDate } from './start.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
 // The weeks of food allowance shown on a pay account.
@@ -353,13 +354,14 @@ function savePayrollSettings(ctx, input) {
   const rates = input.food_rates.filter((r) => r.from);
   const dates = rates.map((r) => r.from);
   if (new Set(dates).size !== dates.length) throw fieldError('food_rates', 'val.taken');
+  // Checked first: it may be refused.
+  if (input.start_date !== null) saveStartDate(ctx.db, input.start_date);
   saveSetting(ctx.db, 'payroll.unpaid_divisor', input.divisor);
   saveSetting(ctx.db, 'food.unpaid_rule', input.food_rule);
   saveSetting(ctx.db, 'food.rates', rates.sort((a, b) => (a.from < b.from ? -1 : 1)));
   // Left out (null): kept as they are.
   if (input.month_start_day !== null) saveSetting(ctx.db, 'accounting.month_start_day', input.month_start_day);
   if (input.overdue_days !== null) saveSetting(ctx.db, 'payroll.overdue_days', input.overdue_days);
-  if (input.start_date !== null) saveSetting(ctx.db, 'accounting.start_date', input.start_date);
   return saved(null, payrollSettings(ctx.db));
 }
 

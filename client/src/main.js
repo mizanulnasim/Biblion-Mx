@@ -40,6 +40,7 @@ import { approvalsPage } from './pages/approvals.js';
 import { dailyPage } from './pages/daily.js';
 import { closingPage } from './pages/closing.js';
 import { monthClosingPage, shareholdersPage } from './pages/month.js';
+import { startPage } from './pages/start.js';
 import { booksPage } from './pages/books.js';
 import { deliveriesPage, deliveryPage } from './pages/delivery.js';
 import { bookSalesPage } from './pages/book-sales.js';
@@ -117,7 +118,7 @@ async function startSession({ token, meta }) {
   shell = mountShell(root, { items: NAV, groups: NAV_GROUPS, onSignOut: signOut });
   startRouter({
     // Pages a person has no permission for are not routes for them at all.
-    routes: [homePage, dailyPage, closingPage, monthClosingPage, shareholdersPage, booksPage, deliveryPage, deliveriesPage, bookSalesPage, suppliersPage, requisitionsPage, requisitionPage, orderFormPage, ordersPage, stocktakePage, settingsBooksPage, uploadPage, uploadsPage, uploadDocPage, settingsIntakePage, cafeCountPage, cafeItemsPage, cafeOrdersPage, cafeOrderPage, settingsCafePage, staffPage, staffChangesPage, myAttendancePage, attendancePage, attendancePersonPage, settingsAttendancePage, rotaPage, leavePage, settingsLeavePage, payrollPage, payslipPage, myPayPage, settingsPayrollPage, tasksPage, repeatingTasksPage, leavingPage, leavingOnePage, myLeavingPage, letterPage, staffLettersPage, settingsLettersPage, settingsShopPage, noticesPage, manageNoticesPage, reviewsPage, settingsReviewsPage, recruitmentPage, settingsOnboardingPage, moneyPage, moneyFormPage, setupMoneyPage, approvalsPage, usersPage, activityPage, savedPage, mePage].filter((p) => !p.perm || can(p.perm)).concat(notFound),
+    routes: [homePage, startPage, dailyPage, closingPage, monthClosingPage, shareholdersPage, booksPage, deliveryPage, deliveriesPage, bookSalesPage, suppliersPage, requisitionsPage, requisitionPage, orderFormPage, ordersPage, stocktakePage, settingsBooksPage, uploadPage, uploadsPage, uploadDocPage, settingsIntakePage, cafeCountPage, cafeItemsPage, cafeOrdersPage, cafeOrderPage, settingsCafePage, staffPage, staffChangesPage, myAttendancePage, attendancePage, attendancePersonPage, settingsAttendancePage, rotaPage, leavePage, settingsLeavePage, payrollPage, payslipPage, myPayPage, settingsPayrollPage, tasksPage, repeatingTasksPage, leavingPage, leavingOnePage, myLeavingPage, letterPage, staffLettersPage, settingsLettersPage, settingsShopPage, noticesPage, manageNoticesPage, reviewsPage, settingsReviewsPage, recruitmentPage, settingsOnboardingPage, moneyPage, moneyFormPage, setupMoneyPage, approvalsPage, usersPage, activityPage, savedPage, mePage].filter((p) => !p.perm || can(p.perm)).concat(notFound),
     outlet: shell.outlet,
     onChange: (page, path) => shell.setPage(page, path),
     confirmLeave: () => confirmDialog({ title: t('guard.title'), body: t('guard.body'), ok: t('guard.leave'), tone: 'danger' }),

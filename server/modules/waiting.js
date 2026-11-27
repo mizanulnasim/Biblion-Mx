@@ -1,7 +1,8 @@
 // What waits for the signed-in person, for Home: attendance checks, rota
 // requests (to agree to or decide), leave to decide, tasks to check, their
 // reviews, announcements and procedures to read, salaries overdue, and
-// changes to people's own contact details.
+// changes to people's own contact details; for shareholders, Getting
+// started steps left and the opening stock to approve.
 
 import { waitingChecks } from './attendance.js';
 import { docsWaiting } from './docs.js';
@@ -11,6 +12,8 @@ import { rotaWaiting } from './rota.js';
 import { tasksToCheck } from './tasks.js';
 import { salaryOverdue } from './payroll.js';
 import { detailsWaiting } from './staff.js';
+import { startLeft } from './start.js';
+import { openingWaiting } from './stocktake.js';
 
 function waiting(ctx) {
   const checks = ctx.can('attendance.manage') ? waitingChecks(ctx) : null;
@@ -23,6 +26,8 @@ function waiting(ctx) {
     docs: docsWaiting(ctx),
     salary: salaryOverdue(ctx),
     details: detailsWaiting(ctx).length,
+    start: startLeft(ctx),
+    opening_stock: openingWaiting(ctx),
   };
 }
 

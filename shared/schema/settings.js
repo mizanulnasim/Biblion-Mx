@@ -85,6 +85,8 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   // The day the app's records start (opening figures are as of then);
   // empty: the day the app was set up.
   'accounting.start_date': '',
+  // Getting started: the steps a shareholder has marked done.
+  'start.done': [],
   // Payroll: a day's pay is the salary ÷ the days in that accounting month
   // ('period_days') or ÷ 30 ('fixed_30'). A month's salary not paid this
   // many days after the month ends is overdue, issued or not.

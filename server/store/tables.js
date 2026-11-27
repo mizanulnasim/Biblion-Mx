@@ -52,11 +52,13 @@ export const TABLES = Object.freeze({
     prefix: 'DUC',
     columns: ['name', 'phone', 'opening_due:n', 'status'],
   },
-  // salary: the owner salary a month.
+  // salary: the owner salary a month. Opening figures as of the start date:
+  // the shop's cash they held, what the business owed them, and what they
+  // owed the business.
   Shareholders: {
     group: 'accounts',
     prefix: 'SHR',
-    columns: ['name', 'phone', 'salary:n', 'status'],
+    columns: ['name', 'phone', 'salary:n', 'status', 'opening_held:n', 'opening_owed:n', 'opening_owes:n'],
   },
   // Shareholders' shares from a date: shares:j [{shareholder_id, percent}],
   // adding up to 100.
@@ -152,11 +154,16 @@ export const TABLES = Object.freeze({
       'status', 'requisition_id', 'arrived_at', 'told_at', 'told_by', 'collected_at', 'cancel_reason', 'taken_by',
     ],
   },
-  // A full stock-take. counts: {book_id: copies counted}.
+  // A full stock-take. counts: {book_id: copies counted}. The opening stock
+  // is one too (opening): sent for approval ('waiting'), then approved by
+  // someone else, or sent back with a reason.
   Stock_Takes: {
     group: 'books',
     prefix: 'STK',
-    columns: ['number', 'date', 'publisher_id', 'status', 'counts:j', 'started_by', 'applied_by', 'applied_at', 'result:j', 'cancel_reason'],
+    columns: [
+      'number', 'date', 'publisher_id', 'status', 'counts:j', 'started_by', 'applied_by', 'applied_at', 'result:j', 'cancel_reason',
+      'opening:b', 'sent_by', 'sent_back_reason',
+    ],
   },
   // Every file kept on Drive. checksum (SHA-256) refuses the same file twice;
   // record_ids are the records it is filed on.
