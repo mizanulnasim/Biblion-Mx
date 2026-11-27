@@ -2,6 +2,7 @@
 // personal settings.
 
 import { saved } from '../../shared/contract/reply.js';
+import { AppError } from '../../shared/contract/errors.js';
 import { CONTRACT } from '../../shared/contract/actions.js';
 import { effectivePermissions, roleById } from '../../shared/schema/permissions.js';
 import { PERSONAL_DEFAULTS } from '../../shared/schema/settings.js';
@@ -45,7 +46,15 @@ function saveSettings(ctx, input) {
   return saved(user.id, metaFor(user, ctx.db));
 }
 
+// Only shareholders get the daily warnings email.
+function saveNotify(ctx, { email, daily }) {
+  if (ctx.level < 3) throw new AppError('FORBIDDEN');
+  const user = ctx.db.update('Users', ctx.user, { settings: { ...(ctx.user.settings || {}), notify_email: email || '', notify_daily: daily } });
+  return saved(user.id, metaFor(user, ctx.db));
+}
+
 export const META_HANDLERS = {
   'meta.get': (ctx) => metaFor(ctx.user, ctx.db),
   'me.settings': saveSettings,
+  'me.notify': saveNotify,
 };

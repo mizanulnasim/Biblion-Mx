@@ -102,7 +102,7 @@ function makeSpreadsheet(id, book) {
 // preview set it; there is no real text recognition on this computer).
 // state.fetch: replies for UrlFetchApp by URL start, or none (no network).
 export function emptyState() {
-  return { props: {}, books: {}, files: {}, ocr: {}, fetch: {} };
+  return { props: {}, books: {}, files: {}, ocr: {}, fetch: {}, mails: [] };
 }
 
 function blob(bytes, mime, name) {
@@ -176,6 +176,8 @@ export function gasGlobals(state) {
       }),
     },
     LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) },
+    // Emails are kept, not sent.
+    MailApp: { sendEmail: (mail) => { (state.mails ||= []).push(mail); } },
     SpreadsheetApp: {
       openById(id) {
         if (!state.books[id]) throw new Error(`No spreadsheet ${id}`);

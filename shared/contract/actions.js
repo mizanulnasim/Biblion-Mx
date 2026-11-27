@@ -108,6 +108,8 @@ export const ACTIONS = Object.freeze({
     },
   },
   'sync.version': {},
+  // A shareholder's daily warnings email: their address and whether to send it.
+  'me.notify': { write: true, area: 'core', schema: { email: { type: 'email' }, daily: { type: 'bool', required: true } } },
   // A message on Home, dismissed by the person it is for.
   'messages.dismiss': { write: true, area: 'core', schema: { id: { type: 'id', required: true } } },
   'users.list': { perm: 'users.manage', cache: true, schema: PAGED },
@@ -644,6 +646,7 @@ export const ACTIONS = Object.freeze({
       shop_open: { type: 'time', required: true },
       shop_close: { type: 'time', required: true },
       flex: { type: 'int', min: 0, max: 240 },
+      email_after: { type: 'int', min: 0, max: 360 },
     },
   },
   // ---- Rota, holidays and leave ----

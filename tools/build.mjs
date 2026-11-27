@@ -102,7 +102,9 @@ export function build({ apiUrl = '/api', outDir = path.join(ROOT, 'dist') } = {}
     fs.writeFileSync(path.join(web, 'sw.js'), `self.BUILD = ${JSON.stringify({ id, shell, hashed })};\n${read('client/sw.js')}`);
 
     const server = bundle('server/main.js', 'gas');
-    fs.writeFileSync(path.join(gas, 'Code.js'), server.code);
+    // The messages, for the emails the server writes (server/kernel/i18n.js).
+    const serverLocales = Object.fromEntries(LANGS.map((lang) => [lang, loadLocale(lang)]));
+    fs.writeFileSync(path.join(gas, 'Code.js'), `var BIBLION_LOCALES = ${JSON.stringify(serverLocales)};\n${server.code}`);
     fs.copyFileSync(path.join(ROOT, 'server/appsscript.json'), path.join(gas, 'appsscript.json'));
 
     return { id, web, gas, client: client.modules, server: server.modules };

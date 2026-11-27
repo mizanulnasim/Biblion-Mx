@@ -126,6 +126,6 @@ Lists show "Figures from …" when they come from the phone's copy.
    ```
 2. Push `dist/gas` to an Apps Script project with `clasp`. Deploy it as a web app that runs as you, with anyone allowed to access it (the app has its own sign-in). The project uses the Drive advanced service (v3) and asks to read and write your Drive and Docs (for keeping uploads and reading their text), and to reach other services (only for the optional Gemini reading).
 3. In the script's Project Settings, add a Script Property `SETUP_CODE` with a one-time code of your choice.
-4. In the script's Triggers page, add a time-driven trigger that runs `jobHourly` every hour. It makes automatic requisition drafts, and later other scheduled work.
+4. In the script's Triggers page, add a time-driven trigger that runs `jobHourly` every hour. It makes repeating tasks and automatic requisition drafts, keeps salaries in step, and sends the shareholders' daily warnings email (from the account the script runs as; Google asks once for permission to send email).
 5. Publish `dist/web` on GitHub Pages.
 6. Open the app and create the first shareholder account with the code. The code is deleted once it has been used.

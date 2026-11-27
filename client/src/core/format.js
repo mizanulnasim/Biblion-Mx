@@ -2,6 +2,7 @@
 // saving). Lists show "Sat 21 Nov"; documents show "21 Nov 2026".
 
 import { localDigits, t } from './i18n.js';
+import { groupDigits } from '../../../shared/lib/messages.js';
 
 const DHAKA_OFFSET_MS = 6 * 3600000;
 const WEEKDAYS = ['date.wd.sun', 'date.wd.mon', 'date.wd.tue', 'date.wd.wed', 'date.wd.thu', 'date.wd.fri', 'date.wd.sat'];
@@ -54,14 +55,6 @@ export function partOfDay(ms) {
   const hour = new Date(ms + DHAKA_OFFSET_MS).getUTCHours();
   if (hour < 12) return 'morning';
   return hour < 17 ? 'afternoon' : 'evening';
-}
-
-// Groups digits the Bangladesh way: 1,00,000 (lakh) and 1,00,00,000 (crore).
-function groupDigits(whole) {
-  const s = String(whole);
-  if (s.length <= 3) return s;
-  const head = s.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ',');
-  return `${head},${s.slice(-3)}`;
 }
 
 function grouped(abs) {

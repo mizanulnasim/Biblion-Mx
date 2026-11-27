@@ -2,7 +2,7 @@
 // goes through these functions, so the local preview can run the same bundle
 // against tools/gas-shim.
 
-/* global PropertiesService, LockService, SpreadsheetApp, Utilities, ContentService */
+/* global PropertiesService, LockService, SpreadsheetApp, Utilities, ContentService, MailApp */
 
 const props = () => PropertiesService.getScriptProperties();
 
@@ -51,6 +51,12 @@ export function hmacSha256(valueBytes, keyBytes) {
 
 export function sha256Bytes(text) {
   return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, text, Utilities.Charset.UTF_8);
+}
+
+// An email from the Google account the app runs on (free, within Gmail's
+// daily limit).
+export function sendMail(to, subject, body) {
+  MailApp.sendEmail({ to, subject, body });
 }
 
 export function jsonOutput(value) {

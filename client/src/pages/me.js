@@ -29,6 +29,19 @@ function displayForm(settings) {
   });
 }
 
+// A shareholder's daily warnings email (sent after the shop closes, only on
+// days with something to say).
+function notifyForm(settings) {
+  return formView({
+    submit: t('common.save'),
+    values: { email: settings.notify_email, daily: settings.notify_daily },
+    fields: [
+      { name: 'email', label: t('me.notify_email'), inputmode: 'email', help: t('me.notify_email_help') },
+      { name: 'daily', label: t('me.notify_daily'), type: 'checkbox' },
+    ],
+  });
+}
+
 function passwordForm() {
   return formView({
     submit: t('me.change_password'),
@@ -83,6 +96,7 @@ export const mePage = {
     const draw = () => {
       render(el, html`
         <section class="panel"><h2 class="section-title">${t('me.display')}</h2><div data-slot="display">${displayForm(getState().meta.settings)}</div></section>
+        ${getState().meta.user.level >= 3 ? html`<section class="panel"><h2 class="section-title">${t('me.notify')}</h2><div data-slot="notify">${notifyForm(getState().meta.settings)}</div></section>` : ''}
         ${can('self.staff') ? html`<div data-slot="details"></div>` : ''}
         <section class="panel"><h2 class="section-title">${t('me.password')}</h2>
           ${can('me.password') ? html`<div data-slot="password">${passwordForm()}</div>` : html`<p>${t('me.password_ask')}</p>`}</section>`);
@@ -105,6 +119,21 @@ export const mePage = {
           toast(t('me.saved'));
         },
       });
+
+      const notify = el.querySelector('[data-slot="notify"] form');
+      if (notify) {
+        bindForm(notify, {
+          schema: ACTIONS['me.notify'].schema,
+          busyLabel: t('common.saving'),
+          mapValues: (v) => ({ email: v.email || null, daily: Boolean(v.daily) }),
+          onSubmit: (values) => write('me.notify', values),
+          onSaved: (reply) => {
+            setState({ meta: reply.data });
+            device.set('meta', reply.data);
+            toast(t('me.saved'));
+          },
+        });
+      }
 
       if (can('self.staff')) mountDetails(el.querySelector('[data-slot="details"]'));
 

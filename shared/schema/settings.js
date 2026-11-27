@@ -85,6 +85,9 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   // The day the app's records start (opening figures are as of then);
   // empty: the day the app was set up.
   'accounting.start_date': '',
+  // The shareholders' daily warnings email goes this many minutes after the
+  // shop closes (attendance.shop_close).
+  'notify.after_close_min': 60,
   // Getting started: the steps a shareholder has marked done.
   'start.done': [],
   // Payroll: a day's pay is the salary ÷ the days in that accounting month
@@ -147,4 +150,7 @@ export const PERSONAL_DEFAULTS = Object.freeze({
   lang: 'en',
   theme: 'system',
   accent: BRAND_ACCENT,
+  // A shareholder's daily warnings email: where to, and whether to send it.
+  notify_email: '',
+  notify_daily: true,
 });

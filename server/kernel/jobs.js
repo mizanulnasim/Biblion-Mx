@@ -9,11 +9,13 @@ import { bumpArea } from './areas.js';
 import { autoRequisitions } from '../modules/requisitions.js';
 import { makeTasks } from '../modules/tasks.js';
 import { syncSalaries } from '../modules/payroll.js';
+import { dailyEmail } from '../modules/daily-email.js';
 
 const JOBS = [
   { id: 'req_auto', area: 'books', run: autoRequisitions },
   { id: 'tasks', area: 'hr', run: makeTasks },
   { id: 'salaries', area: 'hr', run: syncSalaries },
+  { id: 'daily_email', area: 'core', run: dailyEmail },
 ];
 
 export function runJobs() {

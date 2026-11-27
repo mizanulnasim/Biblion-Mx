@@ -14,7 +14,7 @@ import { currentPlace } from '../core/place.js';
 import { dateShortTime } from '../core/format.js';
 import { ACTIONS } from '../../../shared/contract/actions.js';
 
-const NUMBERS = ['radius_m', 'max_accuracy_m', 'late_grace', 'early_grace', 'incomplete_after', 'duplicate_window_sec', 'clock_skew_flag_min', 'offline_max_age_days', 'flex'];
+const NUMBERS = ['radius_m', 'max_accuracy_m', 'late_grace', 'early_grace', 'incomplete_after', 'duplicate_window_sec', 'clock_skew_flag_min', 'offline_max_age_days', 'flex', 'email_after'];
 
 function settingsForm(data) {
   const values = { ...data };
@@ -39,6 +39,7 @@ function settingsForm(data) {
       { name: 'offline_auto_validate', label: t('hr.offline_auto'), type: 'checkbox', help: t('hr.offline_auto_help') },
       { name: 'shop_open', label: t('hr.shop_open'), type: 'time', required: true, help: t('hr.shop_hours_help') },
       { name: 'shop_close', label: t('hr.shop_close'), type: 'time', required: true },
+      num('email_after', 'hr.email_after', 'hr.email_after_help'),
       { name: 'device_enabled', label: t('hr.device_enabled'), type: 'checkbox', help: t('hr.device_enabled_help') },
     ],
     extra: html`<p><button type="button" class="btn" data-act="here">${t('hr.use_here')}</button></p>`,

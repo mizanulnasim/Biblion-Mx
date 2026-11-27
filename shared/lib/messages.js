@@ -13,6 +13,14 @@ export function digitsFor(lang, text) {
   return lang === 'bn' ? s.replace(/[0-9]/g, (d) => BN_DIGITS[d]) : s;
 }
 
+// Groups digits the Bangladesh way: 1,00,000 (lakh) and 1,00,00,000 (crore).
+export function groupDigits(whole) {
+  const s = String(whole);
+  if (s.length <= 3) return s;
+  const head = s.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+  return `${head},${s.slice(-3)}`;
+}
+
 // Finds the end of a {...} block starting at `start` (the index of '{').
 function closing(text, start) {
   let depth = 0;

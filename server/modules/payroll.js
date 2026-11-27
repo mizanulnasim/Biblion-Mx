@@ -275,6 +275,13 @@ function overdueFor(db, staff, p) {
   }).filter((x) => x.left > 0);
 }
 
+// Every month's salary overdue, person by person (for the daily email).
+export function salaryOverdueList(db) {
+  const p = planner(db);
+  return db.all('Staff').filter((s) => s.status === 'active' || s.left_on)
+    .flatMap((s) => overdueFor(db, s, p).map((x) => ({ name: s.name, month: x.month, left: x.left, due_by: x.due_by })));
+}
+
 // For Home: how many months' salaries are overdue, across everyone.
 export function salaryOverdue(ctx) {
   const { db } = ctx;
