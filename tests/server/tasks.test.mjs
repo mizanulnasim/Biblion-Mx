@@ -138,3 +138,23 @@ test('not done with a reason; day closing warns about open tasks', () => {
   assert.equal(list.find((t) => t.id === a).note, 'Descaler ran out');
   assert.equal(s.call(s.staff, 'tasks.list', {}).error.code, 'FORBIDDEN');
 });
+
+test('a task for a position or a team: one anyone of it may do, or a copy for each person', () => {
+  const s = team();
+  const both = (fields) => s.call(s.owner, 'staff.list', {}).data.items.filter((x) => ['Sumi', 'Rafi'].includes(x.name)).forEach((x) => {
+    s.call(s.owner, 'staff.save', { ...x, days_off: x.days_off.map((day) => ({ day })), pin: null, ...fields });
+  });
+  both({ position: 'Café' });
+  const shared = s.call(s.manager, 'tasks.create', { title: 'Clean the espresso machine', position: 'Café', priority: 'high', due_date: today() }).data.record_id;
+  assert.equal(mine(s, s.staff).find((x) => x.id === shared).priority, 'high');
+  assert.ok(mine(s, s.manager).some((x) => x.id === shared));
+  const teamId = s.call(s.owner, 'tasks.team.save', { name: 'Closing team', members: [{ id: s.ids.sumi }, { id: s.ids.rafi }], status: 'active' }).data.record_id;
+  const each = s.call(s.manager, 'tasks.create', { title: 'Read the new menu', team_id: teamId, each: true, due_date: today() }).data;
+  assert.equal(each.data.count, 2);
+  assert.equal(mine(s, s.staff).filter((x) => x.title === 'Read the new menu').length, 1);
+  assert.equal(s.call(s.manager, 'tasks.create', { title: 'x', position: 'Nobody', each: true, due_date: today() }).data.error.fields.staff_id.code, 'val.nobody');
+  // A repeating task with a copy each is made per person.
+  s.call(s.manager, 'tasks.template.save', { title: 'Count the till', team_id: teamId, each: true, repeat: 'daily', start_date: today(), status: 'active' });
+  assert.equal(mine(s, s.staff).filter((x) => x.title === 'Count the till').length, 2);
+  assert.equal(mine(s, s.manager).filter((x) => x.title === 'Count the till').length, 2);
+});

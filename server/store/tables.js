@@ -339,14 +339,16 @@ export const TABLES = Object.freeze({
   },
   // Repeating tasks. repeat: daily, weekly (days:j, 0 Sunday … 6 Saturday)
   // or monthly (day_of_month). link: a screen the task opens
-  // (shared/tasks/tasks.js). Given to a person (staff_id) or a role (role:
-  // manager or staff). Status: active, paused, ended.
+  // (shared/tasks/tasks.js: repeat, every, days, day_of_month, dates). Given
+  // to a person (staff_id), a role (manager or staff), a position or a team;
+  // each: one task for every person of it, else one anyone of it may do.
+  // priority: low, normal, high, urgent. Status: active, paused, ended.
   Task_Templates: {
     group: 'hr',
     prefix: 'TTP',
     columns: [
-      'title', 'details', 'staff_id', 'role', 'repeat', 'days:j', 'day_of_month:n', 'due_time', 'link',
-      'start_date', 'end_date', 'status',
+      'title', 'details', 'staff_id', 'role', 'position', 'team_id', 'each:b', 'priority', 'repeat', 'every:n', 'days:j', 'day_of_month:n',
+      'dates:j', 'due_time', 'link', 'start_date', 'end_date', 'status',
     ],
   },
   // Tasks, one-off or made from a template for one date. Given to a person
@@ -362,9 +364,16 @@ export const TABLES = Object.freeze({
     group: 'hr',
     prefix: 'TSK',
     columns: [
-      'template_id', 'title', 'details', 'staff_id', 'role', 'due_date', 'due_time', 'link', 'status', 'record_id', 'override_reason',
+      'template_id', 'each_of', 'title', 'details', 'staff_id', 'role', 'position', 'team_id', 'priority', 'due_date', 'due_time', 'link', 'status', 'record_id', 'override_reason',
       'note', 'done_at', 'done_by', 'checked_by', 'checked_at', 'check_note', 'skip_reason', 'moved_from', 'move_flag', 'comments:j', 'created_by',
     ],
+  },
+  // A named group of people tasks can be given to. member_ids:j staff ids.
+  // Status: active, inactive.
+  Teams: {
+    group: 'hr',
+    prefix: 'TEM',
+    columns: ['name', 'member_ids:j', 'status'],
   },
   // Someone leaving. kind: resignation or termination. notice_date: when
   // notice was given; last_day: the last day worked. Status: requested (a

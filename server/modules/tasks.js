@@ -1,6 +1,7 @@
 // Tasks: one-off tasks and repeating tasks made each day by the hourly job
-// (only on days someone is meant to work), given to a person or to a role
-// (anyone of it may do the task). People do their own tasks without a
+// (only on days someone is meant to work), given to a person, or to a role,
+// a position or a team: one task anyone of it may do, or (each) a task for
+// every person of it. People do their own tasks without a
 // permission: mark them done (or not done, with a reason) and comment, also
 // offline. Every task done is checked by someone more senior, who can send
 // it back; a shareholder's own task is final. A task linked to a screen
@@ -40,12 +41,26 @@ function roleOfStaff(db, staff) {
   return staff.user_id ? roleKey(db.get('Users', staff.user_id)) : '';
 }
 
+// Whether a person is one of those a task (or template) is given to.
+function isFor(db, t, staff) {
+  if (t.staff_id) return t.staff_id === staff.id;
+  if (t.role) return roleOfStaff(db, staff) === t.role;
+  if (t.position) return (staff.position || '').toLowerCase() === t.position.toLowerCase();
+  const team = t.team_id ? db.get('Teams', t.team_id) : null;
+  return Boolean(team && team.status === 'active' && team.member_ids.includes(staff.id));
+}
+
+// Who a task is for, as words: a team's name (a role or position is named
+// on the screen).
+const teamName = (db, t) => (t.team_id ? (db.get('Teams', t.team_id) || {}).name || '' : '');
+
 function taskView(db, t, n) {
   const now = today(db);
   const late = t.status === 'open' && (t.due_date < now || (t.due_date === now && t.due_time && t.due_time < hhmmNow(db)));
   return {
     id: t.id, template_id: t.template_id, title: t.title, details: t.details, staff_id: t.staff_id, staff_name: n.get(t.staff_id) || '',
-    role: t.role, due_date: t.due_date, due_time: t.due_time, link: t.link, status: t.status, overdue: late,
+    role: t.role, position: t.position, team: teamName(db, t), priority: t.priority || 'normal',
+    due_date: t.due_date, due_time: t.due_time, link: t.link, status: t.status, overdue: late,
     record_id: t.record_id, override_reason: t.override_reason, move_flag: t.move_flag,
     note: t.note, done_at: t.done_at, check_note: t.check_note, skip_reason: t.skip_reason, moved_from: t.moved_from,
     comments: t.comments || [], version: t.version,
@@ -54,31 +69,42 @@ function taskView(db, t, n) {
 
 function newTask(db, fields) {
   return db.insert('Tasks', {
-    template_id: '', details: '', staff_id: '', role: '', due_time: '', link: '', status: 'open', record_id: '', override_reason: '',
+    template_id: '', details: '', staff_id: '', role: '', position: '', team_id: '', priority: 'normal', due_time: '', link: '', status: 'open', record_id: '', override_reason: '',
     note: '', done_at: '', done_by: '', checked_by: '', checked_at: '', check_note: '', skip_reason: '', moved_from: '', move_flag: '',
     comments: [], ...fields,
   });
 }
 
+// The fields saying who a task is for. For `each`, a person's own copy.
+const whoFields = (t, staffId = '') => (staffId ? { staff_id: staffId, role: '', position: '', team_id: '' }
+  : { staff_id: t.staff_id || '', role: t.role || '', position: t.position || '', team_id: t.team_id || '' });
+
 // Makes the tasks of active templates for today and the days ahead, once
 // each: a person's on the days they are meant to work (and not after their
-// last day); a role's on the days anyone of it is. Returns how many it made.
+// last day); a shared one on the days anyone it is for does; with `each`,
+// one for every one of them who works that day. Returns how many it made.
 export function makeTasks(db) {
   const p = planner(db);
   const dates = datesBetween(today(db), addDays(today(db), setting(db, 'tasks.days_ahead')));
-  const have = new Set(db.all('Tasks').filter((t) => t.template_id).map((t) => `${t.template_id}|${t.due_date}`));
+  const have = new Set(db.all('Tasks').filter((t) => t.template_id).map((t) => `${t.template_id}|${t.due_date}|${t.each_of || ''}`));
   const active = db.all('Staff').filter((s) => s.status === 'active');
   const works = (staff, date) => p.plan(staff, date).kind === 'work' && !(staff.left_on && date > staff.left_on);
   let made = 0;
+  const make = (tpl, date, staffId) => {
+    newTask(db, {
+      template_id: tpl.id, each_of: staffId, title: tpl.title, details: tpl.details, ...whoFields(tpl, staffId), priority: tpl.priority || 'normal',
+      due_date: date, due_time: tpl.due_time, link: tpl.link, created_by: 'SYSTEM',
+    });
+    made++;
+  };
   for (const tpl of db.all('Task_Templates').filter((x) => x.status === 'active')) {
-    const people = tpl.role ? active.filter((s) => roleOfStaff(db, s) === tpl.role) : active.filter((s) => s.id === tpl.staff_id);
+    const people = active.filter((s) => isFor(db, tpl, s));
     for (const date of dates) {
-      if (have.has(`${tpl.id}|${date}`) || !occursOn(tpl, date) || !people.some((s) => works(s, date))) continue;
-      newTask(db, {
-        template_id: tpl.id, title: tpl.title, details: tpl.details, staff_id: tpl.role ? '' : tpl.staff_id, role: tpl.role || '',
-        due_date: date, due_time: tpl.due_time, link: tpl.link, created_by: 'SYSTEM',
-      });
-      made++;
+      if (!occursOn(tpl, date)) continue;
+      const working = people.filter((s) => works(s, date));
+      if (tpl.each && !tpl.staff_id) {
+        for (const s of working) if (!have.has(`${tpl.id}|${date}|${s.id}`)) make(tpl, date, s.id);
+      } else if (working.length && !have.has(`${tpl.id}|${date}|`)) make(tpl, date, '');
     }
   }
   return made;
@@ -103,12 +129,12 @@ export function moveTasksForLeave(db, leave) {
   }
 }
 
-// A task the signed-in person may do: theirs, or open and given to their role.
+// A task the signed-in person may do: theirs, or open and given to them
+// with others (their role, position or team).
 function ownTask(ctx, id) {
   const t = ctx.db.get('Tasks', id);
   const me = staffOfUser(ctx.db, ctx.user.id);
-  const mineToDo = t && me && (t.staff_id === me.id || (!t.staff_id && t.role && t.role === roleKey(ctx.user)));
-  if (!mineToDo) throw new AppError('NOT_FOUND');
+  if (!t || !me || !isFor(ctx.db, t, me)) throw new AppError('NOT_FOUND');
   return { t, me };
 }
 
@@ -118,12 +144,11 @@ function mine(ctx) {
   const { db } = ctx;
   const me = staffOfUser(db, ctx.user.id);
   if (!me) throw new AppError('NO_STAFF');
-  const role = roleKey(ctx.user);
   const now = today(db);
   const ahead = addDays(now, setting(db, 'tasks.days_ahead'));
   const week = addDays(now, -7);
   const n = names(db);
-  const items = db.all('Tasks').filter((t) => (t.staff_id === me.id || (!t.staff_id && t.role === role))
+  const items = db.all('Tasks').filter((t) => isFor(db, t, me)
     && ((t.status === 'open' && t.due_date <= ahead) || (t.status !== 'open' && t.due_date >= week)))
     .sort((a, b) => (a.due_date + a.due_time < b.due_date + b.due_time ? -1 : 1));
   return { today: now, items: items.map((t) => taskView(db, t, n)), to_check: ctx.can('tasks.verify') ? toCheck(ctx).length : 0 };
@@ -146,7 +171,7 @@ function list(ctx, input) {
     date,
     items: items.map((t) => taskView(db, t, n)),
     to_check: ctx.can('tasks.verify') ? toCheck(ctx).map((t) => taskView(db, t, n)) : [],
-    staff: db.all('Staff').filter((s) => s.status === 'active').map((s) => ({ id: s.id, name: s.name })),
+    ...pickLists(db),
   };
 }
 
@@ -160,11 +185,16 @@ function activeStaff(db, id) {
   return staff;
 }
 
-// A person or a role, exactly one.
+// A person, a role, a position or a team: exactly one.
 function assignee(db, input) {
-  if (Boolean(input.staff_id) === Boolean(input.role)) throw fieldError('staff_id', 'val.required');
+  const given = ['staff_id', 'role', 'position', 'team_id'].filter((k) => input[k]);
+  if (given.length !== 1) throw fieldError('staff_id', 'val.required');
   if (input.staff_id) activeStaff(db, input.staff_id);
-  return { staff_id: input.staff_id || '', role: input.role || '' };
+  if (input.team_id) {
+    const team = db.get('Teams', input.team_id);
+    if (!team || team.status !== 'active') throw fieldError('team_id', 'val.not_found');
+  }
+  return whoFields(input);
 }
 
 // The working day for a person's task due on `date`: that day, or the
@@ -181,6 +211,13 @@ function workingDayFor(db, staff, date, p = planner(db)) {
 function create(ctx, input) {
   const { db } = ctx;
   const who = assignee(db, input);
+  // A copy each: one task for every person it is for.
+  if (input.each && !who.staff_id) {
+    const people = db.all('Staff').filter((s) => s.status === 'active' && isFor(db, who, s));
+    if (!people.length) throw fieldError('staff_id', 'val.nobody');
+    const ids = people.map((s) => create(ctx, { ...input, ...whoFields(who, s.id), each: false }).record_id);
+    return saved(ids[0], { count: ids.length });
+  }
   checkLink(input.link);
   if (input.due_date < today(db)) throw fieldError('due_date', 'val.not_past');
   let due = { due_date: input.due_date, moved_from: '', move_flag: '' };
@@ -190,7 +227,7 @@ function create(ctx, input) {
     else if (day !== input.due_date) due = { due_date: day, moved_from: input.due_date, move_flag: '' };
   }
   const row = newTask(db, {
-    title: input.title, details: input.details || '', ...who, ...due, due_time: input.due_time || '', link: input.link || '', created_by: ctx.user.id,
+    title: input.title, details: input.details || '', ...who, ...due, priority: input.priority || 'normal', due_time: input.due_time || '', link: input.link || '', created_by: ctx.user.id,
   });
   return saved(row.id, { due_date: row.due_date, moved_from: row.moved_from, move_flag: row.move_flag });
 }
@@ -231,8 +268,7 @@ function comment(ctx, { id, text }) {
   const t = db.get('Tasks', id);
   if (!t) throw new AppError('NOT_FOUND');
   const me = staffOfUser(db, ctx.user.id);
-  const theirs = me && (t.staff_id === me.id || (!t.staff_id && t.role === roleKey(ctx.user)));
-  if (!theirs && !ctx.can('tasks.view_all')) throw new AppError('NOT_FOUND');
+  if (!(me && isFor(db, t, me)) && !ctx.can('tasks.view_all')) throw new AppError('NOT_FOUND');
   const comments = [...(t.comments || []), { by: ctx.user.id, name: ctx.user.display_name, at: db.nowIso, text }];
   db.update('Tasks', t, { comments });
   return saved(t.id);
@@ -266,9 +302,13 @@ function allow(ctx, { id, reason }) {
     const staff = db.get('Staff', t.staff_id);
     if (staff.user_id === ctx.user.id) throw new AppError('OWN_ENTRY');
     if (!mayDecideFor(ctx, staff, 'tasks.manage')) throw new AppError('FORBIDDEN');
-  } else {
+  } else if (t.role) {
     const level = (key) => (key ? roleById(`ROL-${key.toUpperCase()}`).level : 0);
     if (level(roleKey(ctx.user)) <= level(t.role)) throw new AppError('FORBIDDEN');
+  } else {
+    // A position's or team's task: not by one of those it is for.
+    const me = staffOfUser(db, ctx.user.id);
+    if (!ctx.can('tasks.manage') || (me && isFor(db, t, me))) throw new AppError('FORBIDDEN');
   }
   db.setReason(reason);
   db.update('Tasks', t, { override_reason: reason });
@@ -281,7 +321,7 @@ function reassign(ctx, { id, staff_id: staffId, due_date: dueDate }) {
   if (!t) throw new AppError('NOT_FOUND');
   if (t.status !== 'open') throw new AppError('CONFLICT', { by: '' });
   activeStaff(db, staffId);
-  db.update('Tasks', t, { staff_id: staffId, role: '', due_date: dueDate || t.due_date, move_flag: '' });
+  db.update('Tasks', t, { ...whoFields(t, staffId), due_date: dueDate || t.due_date, move_flag: '' });
   return saved(t.id);
 }
 
@@ -303,10 +343,11 @@ function templates(ctx) {
   return {
     items: db.all('Task_Templates').sort((a, b) => a.title.localeCompare(b.title)).map((t) => ({
       id: t.id, version: t.version, title: t.title, details: t.details, staff_id: t.staff_id, staff_name: n.get(t.staff_id) || '', role: t.role,
-      repeat: t.repeat, days: t.days || [], day_of_month: t.day_of_month, due_time: t.due_time, link: t.link,
+      position: t.position, team_id: t.team_id, team: teamName(db, t), each: t.each, priority: t.priority || 'normal',
+      repeat: t.repeat, every: t.every, days: t.days || [], day_of_month: t.day_of_month, dates: t.dates || [], due_time: t.due_time, link: t.link,
       start_date: t.start_date, end_date: t.end_date, status: t.status,
     })),
-    staff: db.all('Staff').filter((s) => s.status === 'active').map((s) => ({ id: s.id, name: s.name })),
+    ...pickLists(db),
   };
 }
 
@@ -315,12 +356,19 @@ function saveTemplate(ctx, input) {
   const who = assignee(db, input);
   checkLink(input.link);
   const days = [...new Set(input.days.map((d) => d.day))].sort();
-  if (input.repeat === 'weekly' && !days.length) throw fieldError('days', 'val.required');
-  if (input.repeat === 'monthly' && !input.day_of_month) throw fieldError('day_of_month', 'val.required');
+  const dates = [...new Set((input.dates || []).map((d) => d.date))].sort();
+  const weekly = input.repeat === 'weekly' || input.repeat === 'fortnightly';
+  const monthly = input.repeat === 'monthly' || input.repeat === 'every_n_months';
+  const every = input.repeat === 'every_n_days' || input.repeat === 'every_n_months';
+  if (weekly && !days.length) throw fieldError('days', 'val.required');
+  if (monthly && !input.day_of_month) throw fieldError('day_of_month', 'val.required');
+  if (every && !input.every) throw fieldError('every', 'val.required');
+  if (input.repeat === 'dates' && !dates.length) throw fieldError('dates', 'val.required');
   if (input.end_date && input.end_date < input.start_date) throw fieldError('end_date', 'val.date_order');
   const fields = {
-    title: input.title, details: input.details || '', ...who, repeat: input.repeat, days: input.repeat === 'weekly' ? days : [],
-    day_of_month: input.repeat === 'monthly' ? input.day_of_month : null, due_time: input.due_time || '', link: input.link || '',
+    title: input.title, details: input.details || '', ...who, each: Boolean(input.each) && !who.staff_id, priority: input.priority || 'normal',
+    repeat: input.repeat, every: every ? input.every : null, days: weekly ? days : [], day_of_month: monthly ? input.day_of_month : null,
+    dates: input.repeat === 'dates' ? dates : [], due_time: input.due_time || '', link: input.link || '',
     start_date: input.start_date, end_date: input.end_date || '', status: input.status,
   };
   let id = input.id;
@@ -333,11 +381,33 @@ function saveTemplate(ctx, input) {
     // or ended template's future tasks are skipped.
     for (const t of db.all('Tasks').filter((x) => x.template_id === id && x.status === 'open' && x.due_date >= today(db))) {
       if (input.status !== 'active') db.update('Tasks', t, { status: 'skipped', skip_reason: input.status });
-      else if (t.staff_id !== who.staff_id || t.role !== who.role) db.update('Tasks', t, who);
+      else if (!t.each_of && ['staff_id', 'role', 'position', 'team_id'].some((k) => t[k] !== who[k])) db.update('Tasks', t, who);
     }
   }
   makeTasks(db);
   return saved(id);
+}
+
+// What the forms pick from: people, positions in use, and teams.
+function pickLists(db) {
+  const active = db.all('Staff').filter((s) => s.status === 'active');
+  return {
+    staff: active.map((s) => ({ id: s.id, name: s.name })),
+    positions: [...new Set(active.map((s) => s.position).filter(Boolean))].sort(),
+    teams: db.all('Teams').map((t) => ({ id: t.id, version: t.version, name: t.name, members: t.member_ids, status: t.status })),
+  };
+}
+
+function saveTeam(ctx, input) {
+  const { db } = ctx;
+  const members = [...new Set(input.members.map((m) => m.id))];
+  for (const id of members) activeStaff(db, id);
+  const fields = { name: input.name, member_ids: members, status: input.status };
+  if (!input.id) return saved(db.insert('Teams', fields).id);
+  const row = db.get('Teams', input.id);
+  if (!row) throw new AppError('NOT_FOUND');
+  db.update('Teams', row, fields, input.version);
+  return saved(row.id);
 }
 
 // For Home and day closing.
@@ -363,4 +433,5 @@ export const TASK_HANDLERS = {
   'tasks.cancel': cancel,
   'tasks.templates': templates,
   'tasks.template.save': saveTemplate,
+  'tasks.team.save': saveTeam,
 };

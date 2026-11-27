@@ -35,7 +35,12 @@ function whenText(task) {
   return task.due_time ? t('tasks.due_at', { day, time: task.due_time }) : day;
 }
 
-const whoText = (task) => task.staff_name || t(ROLE_ANYONE[task.role]);
+const whoText = (task) => {
+  if (task.staff_name) return task.staff_name;
+  if (task.role) return t(ROLE_ANYONE[task.role]);
+  return t('tasks.anyone_in', { group: task.position || task.team });
+};
+const PRIORITY = { low: ['tasks.priority.low', 'muted'], normal: null, high: ['tasks.priority.high', 'warn'], urgent: ['tasks.priority.urgent', 'danger'] };
 
 // One task. mine: the person's own (they can do it); manage: managers'
 // buttons to move, cancel or allow it without its record; check: buttons to
@@ -47,6 +52,7 @@ export function taskItem(task, { mine = false, manage = false, who = false, chec
   return html`<li class="check-item task ${task.overdue ? 'is-overdue' : ''}">
     <span><strong>${who || (mine && !task.staff_id) ? `${whoText(task)} · ` : ''}${task.title}</strong>
       ${status ? chip(t(status[0]), status[1]) : ''}
+      ${PRIORITY[task.priority] ? chip(t(PRIORITY[task.priority][0]), PRIORITY[task.priority][1]) : ''}
       ${task.overdue ? chip(t('tasks.overdue'), 'danger') : ''}
       ${task.move_flag === 'no_day' && open ? chip(t('tasks.no_earlier_day'), 'warn') : ''}
       <span class="muted">${whenText(task)}${task.moved_from ? ` · ${t('tasks.moved_from', { date: shortDate(task.moved_from) })}` : ''}</span></span>
@@ -113,24 +119,41 @@ export function taskActions(findTask, onDone) {
 }
 
 // "Given to": a person, or anyone of a role. Sent as staff_id or role.
-const whoOptions = (staff) => [...staff.map((s) => ({ value: `staff:${s.id}`, label: s.name })), ...TASK_ROLES.map((r) => ({ value: `role:${r}`, label: t(ROLE_ANYONE[r]) }))];
-const whoValue = (x) => (x.role ? `role:${x.role}` : x.staff_id ? `staff:${x.staff_id}` : '');
+// lists: {staff, positions, teams} from the server.
+const whoOptions = (lists) => [
+  ...lists.staff.map((s) => ({ value: `staff:${s.id}`, label: s.name })),
+  ...TASK_ROLES.map((r) => ({ value: `role:${r}`, label: t(ROLE_ANYONE[r]) })),
+  ...lists.positions.map((p) => ({ value: `position:${p}`, label: t('tasks.anyone_in', { group: p }) })),
+  ...lists.teams.filter((x) => x.status === 'active').map((x) => ({ value: `team:${x.id}`, label: t('tasks.anyone_in', { group: x.name }) })),
+];
+const whoValue = (x) => {
+  if (x.staff_id) return `staff:${x.staff_id}`;
+  if (x.role) return `role:${x.role}`;
+  return x.position ? `position:${x.position}` : `team:${x.team_id}`;
+};
+const PRIORITY_LABEL = { low: 'tasks.priority.low', normal: 'tasks.priority.normal', high: 'tasks.priority.high', urgent: 'tasks.priority.urgent' };
+const priorityField = () => ({ name: 'priority', label: t('tasks.priority'), type: 'select', options: Object.keys(PRIORITY_LABEL).map((p) => ({ value: p, label: t(PRIORITY_LABEL[p]) })) });
 const WHO = { who: { type: 'text', required: true } };
 function fromWho(who) {
-  const [kind, value] = who.split(':');
-  return { staff_id: kind === 'staff' ? value : null, role: kind === 'role' ? value : null };
+  const at = who.indexOf(':');
+  const kind = who.slice(0, at);
+  const value = who.slice(at + 1);
+  const pick = (k) => (kind === k ? value : null);
+  return { staff_id: pick('staff'), role: pick('role'), position: pick('position'), team_id: pick('team') };
 }
 
 const linkOptions = () => [{ value: '', label: t('tasks.link.none') }, ...Object.keys(TASK_LINKS).map((k) => ({ value: k, label: t(TASK_LINKS[k].label) }))];
 
-function giveTask(staff, onDone) {
+function giveTask(lists, onDone) {
   const dialog = formDialog(t('tasks.give'), formView({
     submit: t('tasks.give'),
-    values: { due_date: today() },
+    values: { due_date: today(), priority: 'normal' },
     fields: [
       { name: 'title', label: t('tasks.title'), required: true },
       { name: 'details', label: t('tasks.details'), type: 'textarea' },
-      { name: 'who', label: t('tasks.who'), type: 'select', required: true, placeholder: t('money.choose'), options: whoOptions(staff) },
+      { name: 'who', label: t('tasks.who'), type: 'select', required: true, placeholder: t('money.choose'), options: whoOptions(lists) },
+      { name: 'each', label: t('tasks.each'), type: 'checkbox', help: t('tasks.each_help') },
+      priorityField(),
       { name: 'due_date', label: t('tasks.due_date'), type: 'date', required: true },
       { name: 'due_time', label: t('tasks.due_time'), type: 'time' },
       { name: 'link', label: t('tasks.link'), type: 'select', options: linkOptions(), help: t('tasks.link_help') },
@@ -212,7 +235,7 @@ export const tasksPage = {
     const offClick = on(el, 'click', {
       ...taskActions(find, load),
       verify: (e, btn) => decideRequest('tasks.verify', btn, load),
-      give: () => giveTask(all.staff, load),
+      give: () => giveTask(all, load),
       allow: (e, btn) => textDialog({
         title: t('tasks.allow'), label: t('tasks.allow_reason'), action: 'tasks.allow', payload: { id: btn.dataset.id }, field: 'reason',
         onDone: load, done: t('tasks.allowed'),
@@ -241,15 +264,29 @@ export const tasksPage = {
 };
 
 function repeatText(tpl) {
-  if (tpl.repeat === 'daily') return t('tasks.repeat.daily');
-  if (tpl.repeat === 'weekly') return t('tasks.repeat.weekly_on', { days: tpl.days.map((d) => t(WEEKDAYS[d])).join(', ') });
-  return t('tasks.repeat.monthly_on', { day: tpl.day_of_month });
+  const days = tpl.days.map((d) => t(WEEKDAYS[d])).join(', ');
+  switch (tpl.repeat) {
+    case 'daily': return t('tasks.repeat.daily');
+    case 'every_n_days': return t('tasks.repeat.every_n_days_on', { n: tpl.every });
+    case 'weekly': return t('tasks.repeat.weekly_on', { days });
+    case 'fortnightly': return t('tasks.repeat.fortnightly_on', { days });
+    case 'monthly': return t('tasks.repeat.monthly_on', { day: tpl.day_of_month });
+    case 'every_n_months': return t('tasks.repeat.every_n_months_on', { n: tpl.every, day: tpl.day_of_month });
+    case 'monthly_last': return t('tasks.repeat.monthly_last');
+    default: return t('tasks.repeat.dates_on', { count: tpl.dates.length });
+  }
 }
+const REPEAT_OPTIONS = ['daily', 'every_n_days', 'weekly', 'fortnightly', 'monthly', 'every_n_months', 'monthly_last', 'dates'];
+const REPEAT_LABEL = {
+  daily: 'tasks.repeat.daily', every_n_days: 'tasks.repeat.every_n_days', weekly: 'tasks.repeat.weekly', fortnightly: 'tasks.repeat.fortnightly',
+  monthly: 'tasks.repeat.monthly', every_n_months: 'tasks.repeat.every_n_months', monthly_last: 'tasks.repeat.monthly_last', dates: 'tasks.repeat.dates',
+};
 
 const TEMPLATE_STATUS = { active: ['users.active', 'ok'], paused: ['tasks.paused', 'warn'], ended: ['tasks.ended', 'muted'] };
 
-function editTemplate(tpl, staff, onDone) {
-  const values = tpl ? { ...tpl, who: whoValue(tpl), day_of_month: tpl.day_of_month ? String(tpl.day_of_month) : '' } : { repeat: 'daily', start_date: today(), status: 'active' };
+function editTemplate(tpl, lists, onDone) {
+  const values = tpl ? { ...tpl, who: whoValue(tpl), day_of_month: tpl.day_of_month ? String(tpl.day_of_month) : '', every: tpl.every ? String(tpl.every) : '', dates: tpl.dates.join(', ') }
+    : { repeat: 'daily', start_date: today(), status: 'active', priority: 'normal' };
   if (tpl) for (const d of tpl.days) values[`day_${d}`] = true;
   const dialog = formDialog(tpl ? tpl.title : t('tasks.add_repeating'), formView({
     submit: t('common.save'),
@@ -257,8 +294,12 @@ function editTemplate(tpl, staff, onDone) {
     fields: [
       { name: 'title', label: t('tasks.title'), required: true },
       { name: 'details', label: t('tasks.details'), type: 'textarea' },
-      { name: 'who', label: t('tasks.who'), type: 'select', required: true, placeholder: t('money.choose'), options: whoOptions(staff) },
-      { name: 'repeat', label: t('tasks.repeat'), type: 'select', required: true, options: [{ value: 'daily', label: t('tasks.repeat.daily') }, { value: 'weekly', label: t('tasks.repeat.weekly') }, { value: 'monthly', label: t('tasks.repeat.monthly') }] },
+      { name: 'who', label: t('tasks.who'), type: 'select', required: true, placeholder: t('money.choose'), options: whoOptions(lists) },
+      { name: 'each', label: t('tasks.each'), type: 'checkbox', help: t('tasks.each_help') },
+      priorityField(),
+      { name: 'repeat', label: t('tasks.repeat'), type: 'select', required: true, options: REPEAT_OPTIONS.map((r) => ({ value: r, label: t(REPEAT_LABEL[r]) })) },
+      { name: 'every', label: t('tasks.every'), inputmode: 'numeric' },
+      { name: 'dates', label: t('tasks.dates'), help: t('tasks.dates_help') },
       ...WEEKDAYS.map((wd, day) => ({ name: `day_${day}`, label: t(wd), type: 'checkbox' })),
       { name: 'day_of_month', label: t('tasks.day_of_month'), inputmode: 'numeric', help: t('tasks.day_of_month_help') },
       { name: 'due_time', label: t('tasks.due_time'), type: 'time' },
@@ -272,8 +313,11 @@ function editTemplate(tpl, staff, onDone) {
   // Only the fields of the chosen repeat are shown.
   const showRepeat = () => {
     const repeat = form.elements.repeat.value;
-    for (let d = 0; d < 7; d++) form.elements[`day_${d}`].closest('.field').hidden = repeat !== 'weekly';
-    form.elements.day_of_month.closest('.field').hidden = repeat !== 'monthly';
+    const show = (name, on) => { form.elements[name].closest('.field').hidden = !on; };
+    for (let d = 0; d < 7; d++) show(`day_${d}`, repeat === 'weekly' || repeat === 'fortnightly');
+    show('day_of_month', repeat === 'monthly' || repeat === 'every_n_months');
+    show('every', repeat === 'every_n_days' || repeat === 'every_n_months');
+    show('dates', repeat === 'dates');
   };
   form.elements.repeat.addEventListener('change', showRepeat);
   showRepeat();
@@ -281,12 +325,50 @@ function editTemplate(tpl, staff, onDone) {
     schema: { ...ACTIONS['tasks.template.save'].schema, ...WHO },
     busyLabel: t('common.saving'),
     mapValues: (v) => ({
-      id: tpl ? tpl.id : null, version: tpl ? tpl.version : null, title: v.title, details: v.details, ...fromWho(v.who), who: v.who, repeat: v.repeat,
+      id: tpl ? tpl.id : null, version: tpl ? tpl.version : null, title: v.title, details: v.details, ...fromWho(v.who), who: v.who, each: v.each,
+      priority: v.priority, repeat: v.repeat, every: v.every || null,
       days: WEEKDAYS.map((wd, day) => day).filter((day) => v[`day_${day}`]).map((day) => ({ day })),
+      dates: (v.dates || '').split(/[,\s]+/).filter(Boolean).map((date) => ({ date })),
       day_of_month: v.day_of_month || null, due_time: v.due_time || null, link: v.link || null,
       start_date: v.start_date, end_date: v.end_date || null, status: v.status,
     }),
     onSubmit: ({ who, ...v }) => write('tasks.template.save', v),
+    onSaved: () => {
+      dialog.close();
+      toast(t('setup.saved'));
+      onDone();
+    },
+  });
+}
+
+// Teams: named groups of people tasks can be given to.
+function teamsView(data) {
+  const names = new Map(data.staff.map((s) => [s.id, s.name]));
+  return html`<section class="panel"><h2 class="section-title">${t('tasks.teams')}</h2>
+    ${data.teams.length ? html`<ul class="punches">${data.teams.map((x) => html`<li class="punch">
+      <span><strong>${x.name}</strong> <span class="muted">${x.members.map((id) => names.get(id) || '').filter(Boolean).join(', ')}</span></span>
+      ${x.status === 'active' ? '' : chip(t('users.inactive'), 'muted')}
+      <button type="button" class="btn btn-small" data-act="team" data-id="${x.id}">${t('common.edit')}</button></li>`)}</ul>` : emptyState(t('tasks.no_teams'))}
+    <div class="form-actions"><button type="button" class="btn" data-act="team">${t('tasks.add_team')}</button></div></section>`;
+}
+
+function editTeam(team, staff, onDone) {
+  const values = team ? { name: team.name, status: team.status } : { status: 'active' };
+  if (team) for (const id of team.members) values[`m_${id}`] = true;
+  const dialog = formDialog(team ? team.name : t('tasks.add_team'), formView({
+    submit: t('common.save'),
+    values,
+    fields: [
+      { name: 'name', label: t('users.name'), required: true },
+      ...staff.map((s) => ({ name: `m_${s.id}`, label: s.name, type: 'checkbox' })),
+      { name: 'status', label: t('users.status'), type: 'select', required: true, options: [{ value: 'active', label: t('users.active') }, { value: 'inactive', label: t('users.inactive') }] },
+    ],
+  }));
+  bindForm(dialog.querySelector('form.form'), {
+    schema: ACTIONS['tasks.team.save'].schema,
+    busyLabel: t('common.saving'),
+    mapValues: (v) => ({ id: team ? team.id : null, version: team ? team.version : null, name: v.name, status: v.status, members: staff.filter((s) => v[`m_${s.id}`]).map((s) => ({ id: s.id })) }),
+    onSubmit: (v) => write('tasks.team.save', v),
     onSaved: () => {
       dialog.close();
       toast(t('setup.saved'));
@@ -308,14 +390,16 @@ export const repeatingTasksPage = {
           <section class="panel">${data.items.length ? html`<ul class="punches">${data.items.map((x) => html`<li class="punch">
             <span><strong>${x.title}</strong> <span class="muted">${whoText(x)} · ${repeatText(x)}${x.due_time ? ` · ${x.due_time}` : ''}</span></span>
             ${chip(t(TEMPLATE_STATUS[x.status][0]), TEMPLATE_STATUS[x.status][1])}
-            <button type="button" class="btn btn-small" data-act="edit" data-id="${x.id}">${t('common.edit')}</button></li>`)}</ul>` : emptyState(t('tasks.no_repeating'))}</section>`);
+            <button type="button" class="btn btn-small" data-act="edit" data-id="${x.id}">${t('common.edit')}</button></li>`)}</ul>` : emptyState(t('tasks.no_repeating'))}</section>
+          ${teamsView(data)}`);
       } catch (err) {
         render(el, errorBox(errorText(err)));
       }
     }
     const offClick = on(el, 'click', {
-      add: () => editTemplate(null, data.staff, load),
-      edit: (e, btn) => editTemplate(data.items.find((x) => x.id === btn.dataset.id), data.staff, load),
+      add: () => editTemplate(null, data, load),
+      edit: (e, btn) => editTemplate(data.items.find((x) => x.id === btn.dataset.id), data, load),
+      team: (e, btn) => editTeam(btn.dataset.id ? data.teams.find((x) => x.id === btn.dataset.id) : null, data.staff, load),
     });
     render(el, html`<div aria-busy="true"></div>`);
     load();

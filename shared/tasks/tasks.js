@@ -1,15 +1,40 @@
 // Tasks: when a repeating task falls, and the screens a task can open.
 
-// repeat: daily, weekly (on `days`, 0 Sunday … 6 Saturday) or monthly (on
-// `day_of_month`; a day the month doesn't have means its last day).
+const DAY_MS = 86400000;
+const daysApart = (a, b) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / DAY_MS);
+
+// How a task repeats (counted from its start date):
+//   daily; every_n_days (`every` days); weekly or fortnightly (on `days`, 0
+//   Sunday … 6 Saturday; fortnightly in the start date's week and every
+//   other week after); monthly (on `day_of_month`; a day the month doesn't
+//   have means its last day) or every_n_months (the same, every `every`
+//   months); monthly_last (the last day of each month); dates (on `dates`).
+export const REPEATS = Object.freeze(['daily', 'every_n_days', 'weekly', 'fortnightly', 'monthly', 'every_n_months', 'monthly_last', 'dates']);
+
 export function occursOn(template, date) {
   if (date < template.start_date || (template.end_date && date > template.end_date)) return false;
-  if (template.repeat === 'daily') return true;
   const d = new Date(`${date}T00:00:00Z`);
-  if (template.repeat === 'weekly') return (template.days || []).includes(d.getUTCDay());
   const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
-  return d.getUTCDate() === Math.min(template.day_of_month, last);
+  const start = new Date(`${template.start_date}T00:00:00Z`);
+  switch (template.repeat) {
+    case 'daily': return true;
+    case 'every_n_days': return daysApart(template.start_date, date) % template.every === 0;
+    case 'weekly': return (template.days || []).includes(d.getUTCDay());
+    case 'fortnightly': {
+      const weekOf = (x) => Math.floor((Date.parse(`${x}T00:00:00Z`) / DAY_MS + 4) / 7);
+      return (template.days || []).includes(d.getUTCDay()) && (weekOf(date) - weekOf(template.start_date)) % 2 === 0;
+    }
+    case 'monthly': return d.getUTCDate() === Math.min(template.day_of_month, last);
+    case 'every_n_months': {
+      const months = (d.getUTCFullYear() - start.getUTCFullYear()) * 12 + d.getUTCMonth() - start.getUTCMonth();
+      return months % template.every === 0 && d.getUTCDate() === Math.min(template.day_of_month, last);
+    }
+    case 'monthly_last': return d.getUTCDate() === last;
+    default: return (template.dates || []).includes(date);
+  }
 }
+
+export const PRIORITIES = Object.freeze(['low', 'normal', 'high', 'urgent']);
 
 // What a task can open, and the record it needs before it can be done (a
 // row of `table`, dated from the day the task was made, that `counts`). A

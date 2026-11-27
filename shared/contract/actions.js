@@ -14,7 +14,7 @@ import { KINDS, SCREEN_KINDS } from '../money/kinds.js';
 import { INTAKE_KINDS, MAX_UPLOAD_BYTES, UPLOAD_TYPES } from '../intake/kinds.js';
 import { LETTER_KINDS } from '../hr/letters.js';
 import { PUNCH_TYPES } from '../hr/attendance.js';
-import { TASK_ROLES } from '../tasks/tasks.js';
+import { PRIORITIES, REPEATS, TASK_ROLES } from '../tasks/tasks.js';
 
 // Bumped whenever a request or reply changes shape. A client built for another
 // contract is told to update itself (v1 bug S10).
@@ -46,9 +46,14 @@ const LETTER_TEXT = { type: 'text', required: true, max: 4000 };
 const TASK_FIELDS = {
   title: { type: 'text', required: true, max: 120 },
   details: { type: 'text', max: 1000 },
-  // A person or a role, one of the two.
+  // Exactly one: a person, a role, a position or a team; each: a task for
+  // every person of the role, position or team.
   staff_id: { type: 'id' },
   role: { type: 'enum', values: TASK_ROLES },
+  position: { type: 'text', max: 60 },
+  team_id: { type: 'id' },
+  each: { type: 'bool' },
+  priority: { type: 'enum', values: PRIORITIES },
   due_time: { type: 'time' },
   link: { type: 'text', max: 40 },
 };
@@ -754,15 +759,21 @@ export const ACTIONS = Object.freeze({
   'tasks.allow': { write: true, perm: 'tasks.manage', area: 'hr', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 200 } } },
   'tasks.cancel': { write: true, perm: 'tasks.manage', area: 'hr', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 200 } } },
   'tasks.templates': { perm: 'tasks.manage' },
+  'tasks.team.save': {
+    write: true, perm: 'tasks.manage', area: 'hr',
+    schema: { id: { type: 'id' }, version: { type: 'int', min: 1 }, name: NAME, members: { type: 'list', max: 50, of: { id: { type: 'id', required: true } } }, status: STATUS },
+  },
   'tasks.template.save': {
     write: true, perm: 'tasks.manage', area: 'hr',
     schema: {
       id: { type: 'id' },
       version: { type: 'int', min: 1 },
       ...TASK_FIELDS,
-      repeat: { type: 'enum', required: true, values: ['daily', 'weekly', 'monthly'] },
+      repeat: { type: 'enum', required: true, values: REPEATS },
+      every: { type: 'int', min: 1, max: 365 },
       days: { type: 'list', max: 7, of: { day: { type: 'int', required: true, min: 0, max: 6 } } },
       day_of_month: { type: 'int', min: 1, max: 31 },
+      dates: { type: 'list', max: 60, of: { date: { type: 'date', required: true } } },
       start_date: { type: 'date', required: true },
       end_date: { type: 'date' },
       status: { type: 'enum', required: true, values: ['active', 'paused', 'ended'] },
