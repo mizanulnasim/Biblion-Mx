@@ -236,3 +236,29 @@ These are working choices made while building. Each is easy to change.
   - A manager can record leave for someone directly.
   - Only shareholders adjust a balance, always with a reason, and never their own.
 - **Not yet:** moving tasks when leave is approved (comes with tasks), cashing in unused leave when someone leaves (comes with staff leaving), reminders, and making an inactive shift active again (add it again instead).
+
+## Milestone 10: HR, part 3 — payroll (assumptions to confirm)
+- **A payslip per person and month,** worked out from:
+  - the salary on the staff record;
+  - the days employed (from joining to the new "Left on" date);
+  - approved unpaid leave;
+  - the absent days a shareholder chooses to cut when issuing it. Absences are decided case by case, never cut automatically.
+
+  A day's pay is the salary ÷ the days in that month, or ÷ 30 (a setting).
+- **Drafts and issued payslips:** until a shareholder issues it, a payslip is a draft that follows attendance and leave. Once issued its figures stay as they were. To change it, cancel it with a reason and issue it again. Nobody issues their own.
+- **Each person's pay account:**
+  - What the shop owes them: starting balance + issued payslips + food allowance earned − salary paid − food allowance paid − deductions.
+  - Their advance: starting advance + advances − deductions.
+  - Worked out when shown, like the leave balance.
+- **Staff pay on the money screen:** Salary paid (for a month), Food allowance paid, Bonus paid, Advance given and Salary deduction.
+  - For shareholders only by default (`acc.staffpay`), and never sent as a request.
+  - A deduction recovers an advance, so it can't be more than the advance still owed.
+  - Bonus is paid as it is given and isn't on the payslip.
+- **Shareholders' "Advance given" and "Salary deduction"** work the same way against a shareholder's advance.
+- **Food allowance:**
+  - A rate a day, from each date on. A new rate never changes earlier days.
+  - Earned every day employed (default), every day except unpaid leave, or only the days the person punched in.
+  - v1's "week starts" setting isn't used; the allowance is shown as one running amount.
+- **Payroll page** (shareholders): the month's payslips, what was paid for the month and what is left, everyone's pay account, and buttons that open the money screen with the person, kind, amount and month filled in.
+- **Payslips:** staff see their own under My pay. A payslip prints (or saves as PDF) on the letterhead.
+- **Not yet:** overtime pay (`payroll.overtime_paid` stays off), settling pay when someone leaves (comes with staff leaving), and payslips by email.

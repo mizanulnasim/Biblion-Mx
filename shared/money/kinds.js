@@ -6,7 +6,8 @@
 //               (saved and counted now, waiting for a shareholder)
 //   rule        which approval switch in Settings → Approvals applies
 //   party       who or what it is about: category, contact (a person with
-//               a due), shareholder, vendor, publisher, or nothing
+//               a due), shareholder, vendor, publisher, staff, or nothing
+//   period      the month it is for (salary paid)
 //   cash        how it moves money: in, out, none, transfer, or
 //               either (loan repayment, by its direction)
 //   limit       false when the amount limit doesn't apply (a day's sales)
@@ -14,7 +15,10 @@
 // not on the money screen; it is stored and approved like any money entry.
 // Vendor and publisher kinds keep their own payables ledger: a payment only
 // pays off what is owed and is never an expense (book cost is counted as
-// copies sell, a vendor's when goods are bought). Staff pay comes with HR.
+// copies sell, a vendor's when goods are bought).
+// Staff and shareholder pay keep a pay account per person (what the shop
+// owes them, and any advance they owe back); see payEffect below. Staff pay
+// can never be sent as a request.
 
 export const KINDS = Object.freeze({
   expense: { group: 'money', label: 'money.kind.expense', help: 'money.help.expense', perm: 'acc.expense', requestable: true, rule: 'expense', party: 'category', cash: 'out' },
@@ -35,6 +39,13 @@ export const KINDS = Object.freeze({
   publisher_payment: { group: 'publishers', label: 'money.kind.publisher_payment', help: 'money.help.publisher_payment', perm: 'acc.publisher.pay', requestable: true, rule: 'publisher', party: 'publisher', cash: 'out', covers: true },
   publisher_refund: { group: 'publishers', label: 'money.kind.publisher_refund', help: 'money.help.publisher_refund', perm: 'acc.publisher.pay', requestable: true, rule: 'publisher', party: 'publisher', cash: 'in' },
   publisher_writeoff: { group: 'publishers', label: 'money.kind.publisher_writeoff', help: 'money.help.publisher_writeoff', perm: 'acc.publisher.pay', requestable: true, rule: 'publisher', party: 'publisher', cash: 'none' },
+  salary_paid: { group: 'staff', label: 'money.kind.salary_paid', help: 'money.help.salary_paid', perm: 'acc.staffpay', requestable: false, rule: 'other', party: 'staff', cash: 'out', period: true },
+  food_paid: { group: 'staff', label: 'money.kind.food_paid', help: 'money.help.food_paid', perm: 'acc.staffpay', requestable: false, rule: 'other', party: 'staff', cash: 'out' },
+  bonus_paid: { group: 'staff', label: 'money.kind.bonus_paid', help: 'money.help.bonus_paid', perm: 'acc.staffpay', requestable: false, rule: 'other', party: 'staff', cash: 'out' },
+  staff_advance: { group: 'staff', label: 'money.kind.staff_advance', help: 'money.help.staff_advance', perm: 'acc.staffpay', requestable: false, rule: 'other', party: 'staff', cash: 'out' },
+  staff_deduction: { group: 'staff', label: 'money.kind.staff_deduction', help: 'money.help.staff_deduction', perm: 'acc.staffpay', requestable: false, rule: 'other', party: 'staff', cash: 'none' },
+  shareholder_advance: { group: 'shareholders', label: 'money.kind.shareholder_advance', help: 'money.help.shareholder_advance', perm: 'acc.shareholders', requestable: false, rule: 'other', party: 'shareholder', cash: 'out' },
+  shareholder_deduction: { group: 'shareholders', label: 'money.kind.shareholder_deduction', help: 'money.help.shareholder_deduction', perm: 'acc.shareholders', requestable: false, rule: 'other', party: 'shareholder', cash: 'none' },
   daily_shift: { group: 'daily', label: 'money.kind.daily_shift', help: 'money.help.daily_shift', perm: 'acc.daily', requestable: false, rule: 'daily', party: null, cash: 'shift', limit: false },
 });
 
@@ -42,6 +53,7 @@ export const KIND_GROUPS = Object.freeze([
   { id: 'money', label: 'money.group.money' },
   { id: 'vendors', label: 'money.group.vendors' },
   { id: 'publishers', label: 'money.group.publishers' },
+  { id: 'staff', label: 'money.group.staff' },
   { id: 'shareholders', label: 'money.group.shareholders' },
 ]);
 
@@ -112,4 +124,22 @@ export function loanEffect(entry) {
   if (entry.kind === 'loan_from_shareholder') return -entry.amount;
   if (entry.kind === 'loan_repayment') return entry.direction === 'in' ? -entry.amount : entry.amount;
   return 0;
+}
+
+// A person's pay account (staff or shareholder): `owed` is what the shop
+// owes them (salary on payslips and food allowance earned are added
+// elsewhere); `advance` is what they owe back. A deduction recovers an
+// advance from their pay, so it lowers both.
+const PAY = {
+  salary_paid: { owed: -1, advance: 0 },
+  food_paid: { owed: -1, advance: 0 },
+  staff_advance: { owed: 0, advance: 1 },
+  staff_deduction: { owed: -1, advance: -1 },
+  shareholder_advance: { owed: 0, advance: 1 },
+  shareholder_deduction: { owed: 0, advance: -1 },
+};
+
+export function payEffect(entry) {
+  const p = PAY[entry.kind];
+  return p ? { owed: p.owed * entry.amount, advance: p.advance * entry.amount } : { owed: 0, advance: 0 };
 }

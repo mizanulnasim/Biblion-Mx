@@ -70,6 +70,14 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   'leave.partial': 'prorate_days',
   'leave.day_counting': 'working',
   'leave.allow_negative': false,
+  // Payroll: a day's pay is the salary ÷ the days in that month
+  // ('period_days') or ÷ 30 ('fixed_30').
+  'payroll.unpaid_divisor': 'period_days',
+  // Food allowance a day, from each date on; earned on every day employed
+  // ('every_day'), every day but unpaid leave ('skip_unpaid'), or only the
+  // days the person punched in ('worked_days').
+  'food.rates': [{ from: '2000-01-01', amount: 100 }],
+  'food.unpaid_rule': 'every_day',
 });
 
 const BRAND_ACCENT = '#4f46e5';

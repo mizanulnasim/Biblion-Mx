@@ -41,8 +41,12 @@
 //                     and day-off moves; public holidays
 //   leave.approve     decide leave and record leave for someone
 //   leave.adjust      change someone's leave balance, with a reason
-// Everyone works with their own punches, corrections, rota requests and
-// leave without a permission.
+//   payroll.view      everyone's payslips and pay accounts
+//   payroll.manage    issue and cancel payslips, set starting pay balances
+//   acc.staffpay      staff pay kinds on the money screen (salary, food
+//                     allowance, bonus, advance, deduction)
+// Everyone works with their own punches, corrections, rota requests, leave
+// and payslips without a permission.
 const PERMISSIONS = Object.freeze([
   'users.manage', 'audit.view', 'settings.manage',
   'acc.entry', 'acc.expense', 'acc.income', 'acc.dues', 'acc.loans', 'acc.transfer', 'acc.shareholders',
@@ -53,6 +57,7 @@ const PERMISSIONS = Object.freeze([
   'cafe.view', 'cafe.count', 'cafe.order', 'cafe.approve', 'cafe.receive', 'cafe.setup',
   'staff.view', 'staff.edit', 'staff.identity', 'staff.emergency', 'staff.family', 'salary.view', 'salary.edit',
   'attendance.view', 'attendance.manage', 'schedule.view', 'schedule.manage', 'leave.approve', 'leave.adjust',
+  'payroll.view', 'payroll.manage', 'acc.staffpay',
 ]);
 
 // Staff never enter money, so the Staff role has no money permission.

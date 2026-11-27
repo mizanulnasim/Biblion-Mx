@@ -30,6 +30,7 @@ function fieldsFor(staff, users) {
       options: users.filter((u) => !u.linked || (staff && staff.user_id === u.id)).map((u) => ({ value: u.id, label: u.name })),
     },
     { name: 'joined_on', label: t('hr.joined_on'), type: 'date' },
+    { name: 'left_on', label: t('hr.left_on'), type: 'date', help: t('hr.left_on_help') },
     { name: 'work_start', label: t('hr.work_start'), type: 'time', help: t('hr.work_help') },
     { name: 'work_end', label: t('hr.work_end'), type: 'time' },
     ...WEEKDAYS.map((wd, day) => ({ name: `off_${day}`, label: t('hr.day_off', { day: t(wd) }), type: 'checkbox' })),
@@ -85,7 +86,7 @@ function openStaff(staff, users, onSaved) {
       for (let i = 0; i < EMERGENCY_ROWS; i++) {
         if (`em_name_${i}` in v) out.emergency.push({ name: v[`em_name_${i}`], relation: v[`em_relation_${i}`], phone: v[`em_phone_${i}`] });
       }
-      for (const k of ['user_id', 'joined_on', 'work_start', 'work_end', 'pin', 'birth_date', 'salary']) if (out[k] === '') out[k] = null;
+      for (const k of ['user_id', 'joined_on', 'left_on', 'work_start', 'work_end', 'pin', 'birth_date', 'salary']) if (out[k] === '') out[k] = null;
       return out;
     },
     onSubmit: (v) => write('staff.save', v),

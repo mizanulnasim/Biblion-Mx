@@ -74,7 +74,7 @@ function seed(server, state) {
   const staff = (fields) => call(server, 'staff.save', { status: 'active', joined_on: day(200), work_start: '10:00', work_end: '18:00', days_off: [{ day: 5 }], ...fields }, token).data.record_id;
   const people = [
     staff({ name: 'Preview Owner', user_id: userIds.get('owner'), position: 'Shareholder', work_start: null, work_end: null }),
-    staff({ name: 'Preview Manager', user_id: userIds.get('manager'), position: 'Manager', pin: '2222' }),
+    staff({ name: 'Preview Manager', user_id: userIds.get('manager'), position: 'Manager', pin: '2222', salary: 18000 }),
     staff({ name: 'Preview Staff', user_id: userIds.get('staff'), position: 'Café', pin: '3333', salary: 12000 }),
     staff({ name: 'Kamal', position: 'Books', pin: '1111', salary: 11000 }),
   ];

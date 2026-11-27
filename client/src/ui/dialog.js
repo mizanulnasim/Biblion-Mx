@@ -57,5 +57,9 @@ export function formDialog(title, formContent) {
   dialog.querySelector('[data-role="close"]').addEventListener('click', () => {
     if (dialog.dispatchEvent(new Event('cancel', { cancelable: true }))) dialog.close();
   });
+  // A link to another page closes the dialog as it goes.
+  dialog.addEventListener('click', (e) => {
+    if (e.target.closest('a[href^="#"]')) dialog.close();
+  });
   return dialog;
 }

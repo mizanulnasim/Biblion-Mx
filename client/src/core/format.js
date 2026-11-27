@@ -74,6 +74,11 @@ export function money(amount) {
   return t(negative ? 'money.amount_negative' : 'money.amount', { amount: localDigits(text) });
 }
 
+// "Nov 2026" from "2026-11".
+export function monthLabel(month) {
+  return t('date.month_year', { mon: t(MONTHS[Number(month.slice(5, 7)) - 1]), year: localDigits(month.slice(0, 4)) });
+}
+
 // Today's date in Bangladesh, as YYYY-MM-DD.
 export function today() {
   return new Date(Date.now() + DHAKA_OFFSET_MS).toISOString().slice(0, 10);

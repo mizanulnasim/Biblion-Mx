@@ -73,6 +73,8 @@ export const TABLES = Object.freeze({
       'covers_up_to',
       // The document filed on the entry (Files).
       'file_id',
+      // The month a salary payment is for (YYYY-MM).
+      'period',
     ],
   },
   // Vendors and publishers. commission: the publisher's discount to the
@@ -195,7 +197,7 @@ export const TABLES = Object.freeze({
     group: 'hr',
     prefix: 'STF',
     columns: [
-      'name', 'name_bn', 'phone', 'position', 'user_id', 'joined_on', 'status',
+      'name', 'name_bn', 'phone', 'position', 'user_id', 'joined_on', 'left_on', 'status',
       'work_start', 'work_end', 'days_off:j',
       'nid', 'birth_date', 'address', 'emergency:j', 'family', 'salary:n',
       'pin_hash', 'pin_salt', 'pin_iter:n', 'pin_failed:n', 'pin_locked_until',
@@ -276,6 +278,25 @@ export const TABLES = Object.freeze({
     group: 'hr',
     prefix: 'LAD',
     columns: ['staff_id', 'date', 'days:n', 'reason'],
+  },
+  // A month's payslip for one person, kept as issued: the figures don't
+  // change if the salary or attendance changes later. Status: issued, or
+  // cancelled (with a reason) so it can be issued again.
+  Payslips: {
+    group: 'hr',
+    prefix: 'PSL',
+    columns: [
+      'month', 'staff_id', 'salary:n', 'month_days:n', 'divisor:n', 'employed_days:n', 'base:n',
+      'unpaid_leave_days:n', 'absent_days:n', 'unpaid_absent_days:n', 'unpaid_cut:n', 'net:n', 'note',
+      'status', 'cancel_reason', 'issued_by', 'issued_at',
+    ],
+  },
+  // What the shop owed each person, and what they owed back, when the app
+  // started being used.
+  Pay_Openings: {
+    group: 'hr',
+    prefix: 'POP',
+    columns: ['staff_id', 'owed:n', 'advance:n'],
   },
   // One row per closed date; reopening keeps the row with its reason.
   Day_Closings: {

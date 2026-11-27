@@ -23,6 +23,9 @@ import { mountKiosk } from './pages/kiosk.js';
 import { rotaPage } from './pages/rota.js';
 import { leavePage } from './pages/leave.js';
 import { settingsLeavePage } from './pages/settings-leave.js';
+import { payrollPage } from './pages/payroll.js';
+import { myPayPage, payslipPage } from './pages/payslip.js';
+import { settingsPayrollPage } from './pages/settings-payroll.js';
 import { moneyPage } from './pages/money.js';
 import { moneyFormPage } from './pages/money-form.js';
 import { setupMoneyPage } from './pages/setup-money.js';
@@ -106,7 +109,7 @@ async function startSession({ token, meta }) {
   shell = mountShell(root, { items: NAV, groups: NAV_GROUPS, onSignOut: signOut });
   startRouter({
     // Pages a person has no permission for are not routes for them at all.
-    routes: [homePage, dailyPage, closingPage, booksPage, deliveryPage, deliveriesPage, bookSalesPage, suppliersPage, requisitionsPage, requisitionPage, orderFormPage, ordersPage, stocktakePage, settingsBooksPage, uploadPage, uploadsPage, uploadDocPage, settingsIntakePage, cafeCountPage, cafeItemsPage, cafeOrdersPage, cafeOrderPage, settingsCafePage, staffPage, myAttendancePage, attendancePage, attendancePersonPage, settingsAttendancePage, rotaPage, leavePage, settingsLeavePage, moneyPage, moneyFormPage, setupMoneyPage, approvalsPage, usersPage, activityPage, savedPage, mePage].filter((p) => !p.perm || can(p.perm)).concat(notFound),
+    routes: [homePage, dailyPage, closingPage, booksPage, deliveryPage, deliveriesPage, bookSalesPage, suppliersPage, requisitionsPage, requisitionPage, orderFormPage, ordersPage, stocktakePage, settingsBooksPage, uploadPage, uploadsPage, uploadDocPage, settingsIntakePage, cafeCountPage, cafeItemsPage, cafeOrdersPage, cafeOrderPage, settingsCafePage, staffPage, myAttendancePage, attendancePage, attendancePersonPage, settingsAttendancePage, rotaPage, leavePage, settingsLeavePage, payrollPage, payslipPage, myPayPage, settingsPayrollPage, moneyPage, moneyFormPage, setupMoneyPage, approvalsPage, usersPage, activityPage, savedPage, mePage].filter((p) => !p.perm || can(p.perm)).concat(notFound),
     outlet: shell.outlet,
     onChange: (page, path) => shell.setPage(page, path),
     confirmLeave: () => confirmDialog({ title: t('guard.title'), body: t('guard.body'), ok: t('guard.leave'), tone: 'danger' }),

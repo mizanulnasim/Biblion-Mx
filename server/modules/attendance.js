@@ -150,7 +150,8 @@ function fixView(db, f) {
   };
 }
 
-function month(db, staff, input) {
+// One person's month of days with totals (also used by payroll).
+export function attendanceMonth(db, staff, input) {
   const today = dhakaDate(db.now.getTime());
   const m = input.month || today.slice(0, 7);
   const days = daysFor(db, staff, monthDates(m, today).filter((d) => d >= joinedOn(staff)));
@@ -337,11 +338,11 @@ function devicePunch(ctx, input) {
 export const ATTENDANCE_HANDLERS = {
   'attendance.punch': (ctx, input) => recordPunch(ctx, ownStaff(ctx), input, 'phone', ''),
   'attendance.today': today,
-  'attendance.mine': (ctx, input) => month(ctx.db, ownStaff(ctx), input),
+  'attendance.mine': (ctx, input) => attendanceMonth(ctx.db, ownStaff(ctx), input),
   'attendance.staff': (ctx, input) => {
     const staff = ctx.db.get('Staff', input.staff_id);
     if (!staff) throw new AppError('NOT_FOUND');
-    return month(ctx.db, staff, input);
+    return attendanceMonth(ctx.db, staff, input);
   },
   'attendance.board': board,
   'attendance.checks': waitingChecks,

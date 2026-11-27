@@ -56,7 +56,7 @@ function staffView(ctx, s, users) {
   const user = s.user_id ? users.get(s.user_id) : null;
   const out = {
     id: s.id, version: s.version, name: s.name, name_bn: s.name_bn, phone: s.phone, position: s.position,
-    user_id: s.user_id, user_name: user ? user.display_name : '', joined_on: s.joined_on, status: s.status,
+    user_id: s.user_id, user_name: user ? user.display_name : '', joined_on: s.joined_on, left_on: s.left_on, status: s.status,
     work_start: s.work_start, work_end: s.work_end, days_off: s.days_off || [], pin_set: Boolean(s.pin_hash),
   };
   for (const [perm, cols] of Object.entries(PRIVATE)) {
@@ -94,9 +94,11 @@ function save(ctx, input) {
     throw fieldError(input.work_start ? 'work_end' : 'work_start', 'val.required');
   }
   if (input.work_start && input.work_end <= input.work_start) throw fieldError('work_end', 'val.time_after');
+  if (input.status === 'left' && !input.left_on) throw fieldError('left_on', 'val.required');
+  if (input.left_on && input.joined_on && input.left_on < input.joined_on) throw fieldError('left_on', 'val.date_order');
   const patch = {
     name: input.name, name_bn: input.name_bn || '', phone: (input.phone || '').replace(/[^\d+]/g, ''), position: input.position || '',
-    user_id: input.user_id || '', joined_on: input.joined_on || '', status: input.status,
+    user_id: input.user_id || '', joined_on: input.joined_on || '', left_on: input.left_on || '', status: input.status,
     work_start: input.work_start || '', work_end: input.work_end || '', days_off: [...new Set(input.days_off.map((d) => d.day))].sort(),
   };
   // Private parts change only with their permission; salary needs salary.edit.

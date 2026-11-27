@@ -22,7 +22,7 @@ import { details, kindLabel, reasonTexts } from './money-common.js';
 // What a fix turns the entry into, by kind.
 const FIX_LABELS = { transfer: 'dup.fix.transfer', vendor_purchase_paid: 'dup.fix.vendor', publisher_payment: 'dup.fix.publisher' };
 
-const FIELDS = ['kind', 'date', 'amount', 'account_id', 'to_account_id', 'category_id', 'party_id', 'direction', 'covers_up_to', 'note', 'ref'];
+const FIELDS = ['kind', 'date', 'amount', 'account_id', 'to_account_id', 'category_id', 'party_id', 'direction', 'covers_up_to', 'period', 'note', 'ref'];
 
 function accountLabel(kind) {
   const cash = KINDS[kind].cash;
@@ -64,8 +64,19 @@ export function fieldsFor(kind, boot) {
   if (k.party === 'shareholder') {
     fields.push({
       name: 'party_id', label: t('money.field.shareholder'), type: 'select', required: true, placeholder: t('money.choose'),
-      options: boot.shareholders.map((s) => ({ value: s.id, label: s.name })),
+      options: boot.shareholders.map((s) => ({ value: s.id, label: s.advance ? t('money.advance_out', { name: s.name, advance: money(s.advance) }) : s.name })),
     });
+  }
+  if (k.party === 'staff') {
+    // What the shop owes each person and what they owe back, to pay the right amount.
+    fields.push({
+      name: 'party_id', label: t('money.field.staff'), type: 'select', required: true, placeholder: t('money.choose'),
+      options: boot.staff.map((s) => ({ value: s.id, label: t('money.staff_account', { name: s.name, owed: money(s.owed), advance: money(s.advance) }) })),
+      help: boot.staff.length ? '' : t('money.no_staff'),
+    });
+  }
+  if (k.period) {
+    fields.push({ name: 'period', label: t('money.field.period'), type: 'month', required: true, help: t('money.period_help') });
   }
   if (k.party === 'vendor' || k.party === 'publisher') {
     fields.push({

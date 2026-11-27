@@ -140,6 +140,7 @@ export const ACTIONS = Object.freeze({
       note: { type: 'text', max: 300 },
       ref: { type: 'text', max: 60 },
       covers_up_to: { type: 'date' },
+      period: { type: 'month' },
       replaces: { type: 'id' },
       pair_id: { type: 'id' },
       reason: { type: 'text', max: 500 },
@@ -465,6 +466,7 @@ export const ACTIONS = Object.freeze({
       position: { type: 'text', max: 60 },
       user_id: { type: 'id' },
       joined_on: { type: 'date' },
+      left_on: { type: 'date' },
       status: { type: 'enum', required: true, values: ['active', 'left'] },
       work_start: { type: 'time' },
       work_end: { type: 'time' },
@@ -624,6 +626,33 @@ export const ACTIONS = Object.freeze({
       advance_days: { type: 'int', required: true, min: 1, max: 60 },
       min_rest_hours: { type: 'int', required: true, min: 0, max: 24 },
       min_notice_days: { type: 'int', required: true, min: 0, max: 30 },
+    },
+  },
+  // ---- Payroll ----
+  'payroll.month': { perm: 'payroll.view', schema: { month: { type: 'month' } } },
+  'payroll.issue': {
+    write: true, perm: 'payroll.manage', area: 'hr',
+    schema: {
+      staff_id: { type: 'id', required: true },
+      month: { type: 'month', required: true },
+      unpaid_absent_days: { type: 'int', required: true, min: 0, max: 31 },
+      note: { type: 'text', max: 300 },
+    },
+  },
+  'payroll.cancel': { write: true, perm: 'payroll.manage', area: 'hr', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 200 } } },
+  'payroll.payslip': { cache: true, schema: { id: { type: 'id', required: true } } },
+  'payroll.mine': { cache: true },
+  'payroll.opening.save': {
+    write: true, perm: 'payroll.manage', area: 'hr',
+    schema: { staff_id: { type: 'id', required: true }, owed: { type: 'money', zero: true }, advance: { type: 'money', zero: true } },
+  },
+  'settings.payroll': { perm: 'settings.manage' },
+  'settings.payroll.save': {
+    write: true, perm: 'settings.manage', area: 'hr',
+    schema: {
+      divisor: { type: 'enum', required: true, values: ['period_days', 'fixed_30'] },
+      food_rule: { type: 'enum', required: true, values: ['every_day', 'skip_unpaid', 'worked_days'] },
+      food_rates: { type: 'list', max: 20, of: { from: { type: 'date', required: true }, amount: { type: 'money', zero: true, required: true } } },
     },
   },
 });

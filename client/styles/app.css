@@ -449,3 +449,22 @@ fieldset.panel legend { padding: 0 var(--space-2); margin-left: calc(-1 * var(--
 .rota-day:hover { border-color: var(--accent); }
 .rota-day:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
 .leave-left { margin: 0 0 var(--space-1); font-size: 1.2rem; }
+
+/* Payslips: label and amount lines, and the printable document. */
+.slip { display: grid; grid-template-columns: 1fr auto; gap: var(--space-2) var(--space-4); margin: var(--space-3) 0; }
+.slip dt { margin: 0; }
+.slip dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.slip-total { padding-top: var(--space-2); border-top: 1px solid var(--border); font-weight: 700; }
+.doc { max-width: 640px; padding: var(--space-5); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.doc-head { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-4); }
+.doc-logo { height: 56px; filter: var(--logo-filter); }
+.doc-title { margin: 0; }
+.doc-foot { margin-top: var(--space-5); }
+
+@media print {
+  .topbar, .sidenav, .bottombar, .scrim, .no-print, .toasts { display: none !important; }
+  .app, .outlet { display: block; margin: 0; padding: 0; }
+  body, .app, .outlet { background: none; }
+  .doc { max-width: none; border: 0; padding: 0; }
+  .doc-logo { filter: none; }
+}

@@ -3,13 +3,15 @@
 
 import { AppError } from '../../shared/contract/errors.js';
 import { saved } from '../../shared/contract/reply.js';
-import { KINDS, cashEffect, dueEffect, kindAccess, loanEffect } from '../../shared/money/kinds.js';
+import { KINDS, cashEffect, dueEffect, kindAccess, loanEffect, payEffect } from '../../shared/money/kinds.js';
 import { decide } from '../../shared/rules/approval.js';
 import { findDuplicates } from '../../shared/rules/duplicates.js';
 import { page } from '../kernel/paging.js';
 import { approvalSettings } from '../kernel/settings.js';
 import { isDayClosed } from './closing.js';
 import { supplierBalances } from './suppliers.js';
+import { payAccount } from './payroll.js';
+import { planner } from './rota.js';
 
 const fieldError = (fields) => new AppError('VALIDATION', {}, fields);
 
@@ -27,7 +29,7 @@ const counts = (e) => e.status === 'active';
 
 export function lookups(db) {
   const map = new Map();
-  for (const table of ['Money_Accounts', 'Expense_Categories', 'Due_Contacts', 'Shareholders', 'Suppliers']) {
+  for (const table of ['Money_Accounts', 'Expense_Categories', 'Due_Contacts', 'Shareholders', 'Suppliers', 'Staff']) {
     for (const row of db.all(table)) map.set(row.id, row);
   }
   for (const user of db.all('Users')) map.set(user.id, user);
@@ -43,13 +45,20 @@ function balances(db) {
   const dues = {};
   for (const c of db.all('Due_Contacts')) dues[c.id] = c.opening_due || 0;
   const loans = {};
-  for (const s of db.all('Shareholders')) loans[s.id] = 0;
+  const advances = {};
+  for (const s of db.all('Shareholders')) {
+    loans[s.id] = 0;
+    advances[s.id] = 0;
+  }
   for (const e of entries) {
     const contacts = e.kind === 'daily_shift' ? new Set(e.details.dues.map((d) => d.party_id)) : [e.party_id];
     for (const id of contacts) if (id in dues) dues[id] += dueEffect(e, id);
-    if (e.party_id in loans) loans[e.party_id] += loanEffect(e);
+    if (e.party_id in loans) {
+      loans[e.party_id] += loanEffect(e);
+      advances[e.party_id] += payEffect(e).advance;
+    }
   }
-  return { accounts, dues, loans };
+  return { accounts, dues, loans, advances };
 }
 
 export function view(entry, names) {
@@ -71,6 +80,7 @@ export function view(entry, names) {
     note: entry.note,
     ref: entry.ref,
     covers_up_to: entry.covers_up_to,
+    period: entry.period,
     file_id: entry.file_id,
     details: entry.details,
     status: entry.status,
@@ -137,11 +147,24 @@ function boot(ctx) {
     })),
     categories: active(db.all('Expense_Categories')).map((c) => ({ id: c.id, name: c.name, area: c.area, needs_shareholder: c.needs_shareholder })),
     contacts: active(db.all('Due_Contacts')).map((c) => ({ id: c.id, name: c.name, phone: c.phone, due: sums.dues[c.id] })),
-    shareholders: active(db.all('Shareholders')).map((s) => ({ id: s.id, name: s.name, loan: ctx.can('acc.view_all') ? sums.loans[s.id] : null })),
+    shareholders: active(db.all('Shareholders')).map((s) => ({
+      id: s.id, name: s.name, loan: ctx.can('acc.view_all') ? sums.loans[s.id] : null, advance: ctx.can('acc.view_all') ? sums.advances[s.id] : null,
+    })),
+    // Staff (and people who left, for their last pay), with their pay
+    // account for those who pay staff.
+    staff: ctx.can('acc.staffpay') ? staffChoices(db) : [],
     suppliers: active(db.all('Suppliers')).map((s) => ({
       id: s.id, kind: s.kind, name: s.name, pays_on: s.pays_on, owed: ctx.can('acc.view_all') ? owed.get(s.id) || 0 : null,
     })),
   };
+}
+
+function staffChoices(db) {
+  const p = planner(db);
+  return db.all('Staff').filter((s) => s.status === 'active' || s.left_on).sort((a, b) => a.name.localeCompare(b.name)).map((s) => {
+    const account = payAccount(db, s, p);
+    return { id: s.id, name: s.name, status: s.status, owed: account.owed, advance: account.advance };
+  });
 }
 
 const STATE_FILTERS = {
@@ -193,6 +216,13 @@ function get(ctx, { id }) {
 
 // ---- Save ----------------------------------------------------------------
 
+// The advance a person still owes back, leaving out an entry being corrected.
+function advanceOf(db, table, id, replacing) {
+  const entries = db.all('Transactions').filter((e) => counts(e) && e.party_id === id && e.id !== replacing);
+  const start = table === 'Staff' ? (db.all('Pay_Openings').find((o) => o.staff_id === id) || { advance: 0 }).advance : 0;
+  return entries.reduce((t, e) => t + payEffect(e).advance, start || 0);
+}
+
 // Checks the fields each kind needs, and that the records named exist and are active.
 function shape(db, input) {
   const kind = KINDS[input.kind];
@@ -219,6 +249,16 @@ function shape(db, input) {
   const category = kind.party === 'category' ? activeIn('Expense_Categories', 'category_id') : null;
   if (kind.party === 'contact') activeIn('Due_Contacts', 'party_id');
   if (kind.party === 'shareholder') activeIn('Shareholders', 'party_id');
+  if (kind.party === 'staff' && input.party_id) {
+    const person = db.get('Staff', input.party_id);
+    if (!person || (person.status !== 'active' && !person.left_on)) fields.party_id = { code: 'val.not_found', params: {} };
+  }
+  if (kind.period) need('period');
+  // A deduction recovers an advance, so it can't be more than is owed back.
+  if ((input.kind === 'staff_deduction' || input.kind === 'shareholder_deduction') && input.party_id && !fields.party_id) {
+    const outstanding = advanceOf(db, input.kind === 'staff_deduction' ? 'Staff' : 'Shareholders', input.party_id, input.replaces);
+    if (input.amount > outstanding) fields.amount = { code: 'val.over_advance', params: { advance: outstanding } };
+  }
   if (kind.party === 'vendor' || kind.party === 'publisher') {
     const supplier = activeIn('Suppliers', 'party_id');
     if (supplier && supplier.kind !== kind.party) fields.party_id = { code: 'val.not_found', params: {} };
@@ -236,6 +276,7 @@ function shape(db, input) {
     note: input.note || '',
     ref: input.ref || '',
     covers_up_to: kind.covers ? input.covers_up_to || '' : '',
+    period: kind.period ? input.period : '',
     category_needs_shareholder: Boolean(category && category.needs_shareholder),
   };
 }
@@ -289,6 +330,7 @@ export function record(ctx, entry, input, { checkDuplicates = true } = {}) {
     ref: entry.ref,
     details: entry.details || null,
     covers_up_to: entry.covers_up_to || '',
+    period: entry.period || '',
     file_id: entry.file_id || '',
     status: 'active',
     approval: decision.final ? 'final' : 'waiting',
