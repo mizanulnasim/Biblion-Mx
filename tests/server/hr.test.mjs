@@ -236,3 +236,27 @@ test('the board shows everyone\'s day; staff set their own PIN', () => {
   assert.equal(s.call(s.staff, 'attendance.pin', { pin: '12' }).data.error.fields.pin.code, 'val.pin');
   assert.equal(s.call(s.staff, 'attendance.pin', { pin: '1357' }).data.status, 'saved');
 });
+
+test('staff numbers are given in order; people change their own contact details, approved by a manager', () => {
+  const s = hr();
+  const numbers = s.call(s.owner, 'staff.list', {}).data.items.map((x) => x.number).sort();
+  assert.deepEqual(numbers, ['BIB0001', 'BIB0002', 'BIB0003']);
+  assert.equal(s.call(s.staff, 'staff.my_details').data.number, 'BIB0001');
+  assert.equal(s.call(s.staff, 'staff.my_details.save', { phone: '', email: 'not-an-email', address: '' }).data.error.fields.email.code, 'val.email');
+  const asked = s.call(s.staff, 'staff.my_details.save', { phone: '01711111111', email: 'sumi@example.com', address: 'Mirpur' }).data;
+  assert.equal(s.call(s.manager, 'people.waiting').data.details, 1);
+  // Not yet changed; the person can't decide their own.
+  assert.equal(s.call(s.owner, 'staff.list', {}).data.items.find((x) => x.name === 'Sumi').phone, '');
+  assert.equal(s.call(s.staff, 'staff.details.decide', { id: asked.record_id, decision: 'accept' }).error.code, 'FORBIDDEN');
+  assert.equal(s.call(s.manager, 'staff.details.decide', { id: asked.record_id, decision: 'accept' }).data.status, 'saved');
+  const sumi = s.call(s.owner, 'staff.list', {}).data.items.find((x) => x.name === 'Sumi');
+  assert.deepEqual([sumi.phone, sumi.email, sumi.address], ['01711111111', 'sumi@example.com', 'Mirpur']);
+  // A manager's own change waits for a shareholder.
+  const mine = s.call(s.manager, 'staff.my_details.save', { phone: '01722222222', email: null, address: '' }).data;
+  assert.equal(s.call(s.manager, 'staff.details.decide', { id: mine.record_id, decision: 'accept' }).data.error.code, 'OWN_ENTRY');
+  assert.equal(s.call(s.owner, 'staff.details.decide', { id: mine.record_id, decision: 'reject', note: 'Wrong number' }).data.status, 'saved');
+  assert.equal(s.call(s.manager, 'staff.my_details').data.rejected.decide_note, 'Wrong number');
+  // Switched off: people ask a manager instead.
+  s.call(s.owner, 'settings.shop.save', { ...s.call(s.owner, 'settings.shop').data, self_edit: false });
+  assert.equal(s.call(s.staff, 'staff.my_details.save', { phone: '1', email: null, address: '' }).data.error.code, 'FORBIDDEN');
+});

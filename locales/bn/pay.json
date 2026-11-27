@@ -127,5 +127,7 @@
   "pay.overdue_not_issued": "বাকি পড়েছে: বেতন স্লিপ এখনো দেওয়া হয়নি",
   "pay.due_by": "{date}-এর মধ্যে দেয়",
   "pay.sign_issued": "প্রদানকারী",
-  "pay.sign_received": "গ্রহণকারী"
+  "pay.sign_received": "গ্রহণকারী",
+  "pay.set.start_date": "অ্যাপের হিসাব শুরু যে দিন থেকে",
+  "pay.set.start_date_help": "শুরুর হিসাব এই দিনের; এর আগের বেতন বাকি গণ্য হয় না। খালি থাকলে: অ্যাপ চালুর দিন।"
 }

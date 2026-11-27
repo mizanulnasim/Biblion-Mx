@@ -166,13 +166,24 @@ function monthView(ctx, input) {
   return { month, current: thisPeriod(db), period_from: per.from, period_to: per.to, due_by: dueBy(db, per), rows };
 }
 
-// The months before this one whose due date has passed, newest first.
+// The day the app's records start: the setting, else the day it was set up.
+function recordsStart(db) {
+  const set = setting(db, 'accounting.start_date');
+  if (set) return set;
+  const setUp = db.all('Users').reduce((first, u) => (u.created_at < first ? u.created_at : first), db.nowIso);
+  return dhakaDate(Date.parse(setUp));
+}
+
+// The months before this one whose due date has passed, newest first, from
+// the month the app was set up (pay before it is in the starting balances).
 function pastDue(db) {
   const startDay = setting(db, 'accounting.month_start_day');
+  const firstMonth = periodKey(recordsStart(db), startDay);
   const out = [];
   let per = period(db, thisPeriod(db));
   for (let i = 0; i < OVERDUE_MONTHS; i++) {
     per = period(db, periodKey(addDays(per.from, -1), startDay));
+    if (per.key < firstMonth) break;
     if (today(db) > dueBy(db, per)) out.push(per);
   }
   return out;
@@ -235,7 +246,7 @@ function payslip(ctx, { id }) {
   const inMonth = db.all('Transactions').filter((e) => counts(e) && e.party_id === staff.id
     && (e.kind === 'salary_paid' ? e.period === slip.month : inPeriod(e.date) && ['staff_deduction', 'bonus_paid', 'food_paid', 'staff_advance'].includes(e.kind)));
   return {
-    staff: { name: staff.name, name_bn: staff.name_bn, position: staff.position, joined_on: joinedOn(staff) },
+    staff: { number: staff.number, name: staff.name, name_bn: staff.name_bn, position: staff.position, joined_on: joinedOn(staff) },
     slip: slipView(slip),
     entries: inMonth.sort((a, b) => (a.date < b.date ? -1 : 1)).map((e) => ({ date: e.date, kind: e.kind, amount: e.amount })),
   };
@@ -315,7 +326,7 @@ function changeSalary(ctx, input) {
 function payrollSettings(db) {
   return {
     divisor: setting(db, 'payroll.unpaid_divisor'), food_rule: setting(db, 'food.unpaid_rule'), food_rates: setting(db, 'food.rates'),
-    month_start_day: setting(db, 'accounting.month_start_day'), overdue_days: setting(db, 'payroll.overdue_days'),
+    month_start_day: setting(db, 'accounting.month_start_day'), overdue_days: setting(db, 'payroll.overdue_days'), start_date: setting(db, 'accounting.start_date'),
   };
 }
 
@@ -329,6 +340,7 @@ function savePayrollSettings(ctx, input) {
   // Left out (null): kept as they are.
   if (input.month_start_day !== null) saveSetting(ctx.db, 'accounting.month_start_day', input.month_start_day);
   if (input.overdue_days !== null) saveSetting(ctx.db, 'payroll.overdue_days', input.overdue_days);
+  if (input.start_date !== null) saveSetting(ctx.db, 'accounting.start_date', input.start_date);
   return saved(null, payrollSettings(ctx.db));
 }
 

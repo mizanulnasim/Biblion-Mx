@@ -67,7 +67,7 @@ function seed(server, state) {
     call(server, 'cafe.count.save', { date: day(n), lines }, token);
   }
   for (const name of ['Preview Owner', 'Second Shareholder']) call(server, 'setup.shareholder.save', { name, status: 'active' }, token);
-  call(server, 'settings.shop.save', { name: 'Biblion', tagline: 'Bookstore café and cultural space', address: 'House 0, Sample Road, Dhaka', phone: '01700000000', email: 'preview@example.com' }, token);
+  call(server, 'settings.shop.save', { ...call(server, 'settings.shop', {}, token).data, address: 'House 0, Sample Road, Dhaka', phone: '01700000000', email: 'preview@example.com' }, token);
   // Staff: the three sign-ins plus one person without a sign-in (punches on
   // the shop device, PIN 1111, turned on here); the shop at the preview position; a week of
   // past days entered as corrections.

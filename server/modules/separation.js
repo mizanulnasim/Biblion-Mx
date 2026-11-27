@@ -224,7 +224,7 @@ function mine(ctx) {
 function letterValues(db, staff) {
   const hours = staff.work_start ? `${staff.work_start} to ${staff.work_end}` : '';
   return {
-    today: letterDate(today(db)), name: staff.name, name_bn: staff.name_bn, position: staff.position, phone: staff.phone, address: staff.address,
+    today: letterDate(today(db)), staff_no: staff.number || '', name: staff.name, name_bn: staff.name_bn, position: staff.position, phone: staff.phone, address: staff.address,
     joined_on: letterDate(joinedOn(staff)), left_on: letterDate(staff.left_on), salary: staff.salary ? taka(staff.salary) : '', hours,
     conduct: setting(db, 'letters.experience_conduct'), shop_address: setting(db, 'shop.address'),
   };

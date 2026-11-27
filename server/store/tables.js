@@ -192,17 +192,26 @@ export const TABLES = Object.freeze({
   // Saturday). The private parts are shown only with their permission:
   // nid, birth_date, address (staff.identity); emergency:j [{name, relation,
   // phone}] (staff.emergency); family (staff.family); salary (salary.view).
-  // The punch PIN is kept only as a PBKDF2 hash.
+  // The punch PIN is kept only as a PBKDF2 hash. number: the staff number
+  // (BIB0001), given when the record is made.
   Staff: {
     group: 'hr',
     prefix: 'STF',
     columns: [
-      'name', 'name_bn', 'phone', 'position', 'user_id', 'joined_on', 'left_on', 'status',
+      'number', 'name', 'name_bn', 'phone', 'email', 'position', 'user_id', 'joined_on', 'left_on', 'status',
       'work_start', 'work_end', 'days_off:j',
       'nid', 'birth_date', 'address', 'emergency:j', 'family', 'salary:n',
       'pin_hash', 'pin_salt', 'pin_iter:n', 'pin_failed:n', 'pin_locked_until',
     ],
     secret: ['pin_hash', 'pin_salt', 'pin_iter'],
+  },
+  // A person's change to their own phone, email or address, waiting for a
+  // manager (a shareholder, for a manager's own). before:j the values it
+  // replaces. Status: waiting, approved, rejected, withdrawn.
+  Detail_Changes: {
+    group: 'hr',
+    prefix: 'DCH',
+    columns: ['staff_id', 'phone', 'email', 'address', 'before:j', 'status', 'decided_by', 'decided_at', 'decide_note'],
   },
   // Attendance punches. at: when it happened (server clock); device_ts: what
   // the phone recorded. source: phone, device (a shop punch device) or fix

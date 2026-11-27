@@ -84,5 +84,6 @@
   "reviews.criteria_help": "People are scored from 1 to 5 on each point. A new review uses the points as they are when it starts.",
   "reviews.self_setting": "People give their own view first",
   "reviews.self_setting_help": "Only for people who can sign in.",
-  "home.salary_overdue": "{count, plural, one {# salary is} other {# salaries are}} overdue"
+  "home.salary_overdue": "{count, plural, one {# salary is} other {# salaries are}} overdue",
+  "home.details_waiting": "{count, plural, one {# change} other {# changes}} to contact details waiting"
 }

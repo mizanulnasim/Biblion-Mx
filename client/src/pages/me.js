@@ -5,7 +5,7 @@ import { html, render } from '../ui/html.js';
 import { bindForm, formView } from '../ui/form.js';
 import { toast } from '../ui/toast.js';
 import { getLang, t } from '../core/i18n.js';
-import { write } from '../core/api.js';
+import { read, write } from '../core/api.js';
 import { can, device, getState, setState } from '../core/state.js';
 import { applyLook } from '../core/look.js';
 import { ACTIONS } from '../../../shared/contract/actions.js';
@@ -39,6 +39,43 @@ function passwordForm() {
   });
 }
 
+// My details: the staff number, and phone, email and address; a change
+// waits for a manager.
+function detailsView(d) {
+  return html`<section class="panel"><h2 class="section-title">${t('me.details')}</h2>
+    ${d.number ? html`<p>${t('me.staff_number', { number: d.number })}</p>` : ''}
+    ${d.waiting ? html`<p class="notice notice-warn">${t('me.details_waiting')}</p>` : ''}
+    ${d.rejected ? html`<p class="notice">${t('me.details_rejected', { note: d.rejected.decide_note })}</p>` : ''}
+    ${d.allowed ? formView({
+      submit: t('me.details_send'),
+      values: d.waiting || d,
+      fields: [
+        { name: 'phone', label: t('setup.phone'), inputmode: 'tel' },
+        { name: 'email', label: t('shop.email'), inputmode: 'email' },
+        { name: 'address', label: t('hr.address'), type: 'textarea' },
+      ],
+    }) : html`<p class="muted">${t('me.details_ask')}</p>`}</section>`;
+}
+
+function mountDetails(slot) {
+  const draw = (d) => {
+    render(slot, detailsView(d));
+    const form = slot.querySelector('form.form');
+    if (!form) return;
+    bindForm(form, {
+      schema: ACTIONS['staff.my_details.save'].schema,
+      busyLabel: t('common.saving'),
+      mapValues: (v) => ({ ...v, email: v.email || null }),
+      onSubmit: (v) => write('staff.my_details.save', v, { label: t('me.details') }),
+      onSaved: (reply) => {
+        toast(t(reply.status === 'queued' ? 'me.details_queued' : 'me.details_sent'));
+        read('staff.my_details').then((r) => draw(r.data));
+      },
+    });
+  };
+  read('staff.my_details').then((r) => draw(r.data)).catch(() => render(slot, ''));
+}
+
 export const mePage = {
   path: '/me',
   title: 'nav.me',
@@ -46,6 +83,7 @@ export const mePage = {
     const draw = () => {
       render(el, html`
         <section class="panel"><h2 class="section-title">${t('me.display')}</h2><div data-slot="display">${displayForm(getState().meta.settings)}</div></section>
+        ${can('self.staff') ? html`<div data-slot="details"></div>` : ''}
         <section class="panel"><h2 class="section-title">${t('me.password')}</h2>
           ${can('me.password') ? html`<div data-slot="password">${passwordForm()}</div>` : html`<p>${t('me.password_ask')}</p>`}</section>`);
 
@@ -67,6 +105,8 @@ export const mePage = {
           toast(t('me.saved'));
         },
       });
+
+      if (can('self.staff')) mountDetails(el.querySelector('[data-slot="details"]'));
 
       // Only for people allowed to change their own password.
       const pw = el.querySelector('[data-slot="password"] form');

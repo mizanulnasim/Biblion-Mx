@@ -127,5 +127,7 @@
   "pay.overdue_not_issued": "Overdue: the payslip isn't issued yet",
   "pay.due_by": "Due by {date}",
   "pay.sign_issued": "Issued by",
-  "pay.sign_received": "Received by"
+  "pay.sign_received": "Received by",
+  "pay.set.start_date": "The app's records start on",
+  "pay.set.start_date_help": "Opening balances are as of this day; salaries before it aren't counted as overdue. Empty: the day the app was set up."
 }

@@ -6,7 +6,7 @@
 export const LETTER_KINDS = Object.freeze(['offer', 'appointment', 'experience', 'release']);
 
 export const PLACEHOLDERS = Object.freeze([
-  'today', 'name', 'name_bn', 'position', 'phone', 'address', 'joined_on', 'left_on', 'salary', 'hours', 'conduct', 'shop_address',
+  'today', 'staff_no', 'name', 'name_bn', 'position', 'phone', 'address', 'joined_on', 'left_on', 'salary', 'hours', 'conduct', 'shop_address',
 ]);
 
 // The placeholders a template uses that aren't known (to refuse a typo).

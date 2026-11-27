@@ -119,5 +119,7 @@
   "nav.group.books": "বই",
   "nav.group.cafe": "ক্যাফে",
   "nav.group.people": "মানুষ",
-  "nav.group.settings": "সেটিংস"
+  "nav.group.settings": "সেটিংস",
+  "val.email": "name@example.com-এর মতো একটি ইমেইল ঠিকানা লিখুন।",
+  "val.unchanged": "কিছুই বদলায়নি।"
 }

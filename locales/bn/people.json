@@ -84,5 +84,6 @@
   "reviews.criteria_help": "প্রতিটি বিষয়ে ১ থেকে ৫ নম্বর দেওয়া হয়। নতুন মূল্যায়ন শুরুর সময়ের বিষয়গুলো ব্যবহার করে।",
   "reviews.self_setting": "সবাই আগে নিজের মতামত দেবেন",
   "reviews.self_setting_help": "শুধু যাঁরা সাইন ইন করতে পারেন তাঁদের জন্য।",
-  "home.salary_overdue": "{count, plural, one {#টি বেতন} other {#টি বেতন}} বাকি পড়েছে"
+  "home.salary_overdue": "{count, plural, one {#টি বেতন} other {#টি বেতন}} বাকি পড়েছে",
+  "home.details_waiting": "{count, plural, one {যোগাযোগের তথ্যে #টি বদল} other {যোগাযোগের তথ্যে #টি বদল}} অপেক্ষায়"
 }

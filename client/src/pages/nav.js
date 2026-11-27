@@ -36,6 +36,7 @@ export const NAV = Object.freeze([
   { path: '/cafe/orders', group: 'cafe', title: 'nav.cafe_orders', hint: 'nav.cafe_orders_hint', icon: 'truck', perm: 'cafe.view' },
   { path: '/cafe/items', group: 'cafe', title: 'nav.cafe_items', hint: 'nav.cafe_items_hint', icon: 'cup', perm: 'cafe.view' },
   { path: '/staff', group: 'people', title: 'nav.staff', hint: 'nav.staff_hint', icon: 'badge', perm: 'staff.view' },
+  { path: '/staff/changes', group: 'people', title: 'nav.staff_changes', hint: 'nav.staff_changes_hint', icon: 'badge', perm: 'staff.edit' },
   { path: '/attendance', group: 'people', title: 'nav.attendance', hint: 'nav.attendance_hint', icon: 'clock', perm: 'attendance.view' },
   { path: '/payroll', group: 'people', title: 'nav.payroll', hint: 'nav.payroll_hint', icon: 'wallet', perm: 'payroll.view' },
   { path: '/reviews', group: 'people', title: 'nav.reviews', hint: 'nav.reviews_hint', icon: 'badge', perm: 'performance.manage|self.staff' },

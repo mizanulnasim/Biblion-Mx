@@ -483,6 +483,7 @@ export const ACTIONS = Object.freeze({
       name: NAME,
       name_bn: { type: 'text', max: 80 },
       phone: { type: 'text', max: 20 },
+      email: { type: 'email' },
       position: { type: 'text', max: 60 },
       user_id: { type: 'id' },
       joined_on: { type: 'date' },
@@ -501,6 +502,14 @@ export const ACTIONS = Object.freeze({
     },
   },
   'attendance.pin': { write: true, area: 'hr', schema: { pin: { type: 'pin', required: true } } },
+  // The person's own phone, email and address: a change waits for a manager.
+  'staff.my_details': { cache: true },
+  'staff.my_details.save': {
+    write: true, offline: true, area: 'hr',
+    schema: { phone: { type: 'text', max: 20 }, email: { type: 'email' }, address: { type: 'text', max: 300 } },
+  },
+  'staff.details.waiting': { perm: 'staff.edit' },
+  'staff.details.decide': { write: true, perm: 'staff.edit', area: 'hr', schema: DECISION },
   'attendance.punch': {
     write: true, offline: true, area: 'hr',
     schema: { type: PUNCH_TYPE, device_ts: { type: 'instant', required: true }, ...PLACE, reason: { type: 'text', max: 200 } },
@@ -692,6 +701,7 @@ export const ACTIONS = Object.freeze({
       food_rates: { type: 'list', max: 20, of: { from: { type: 'date', required: true }, amount: { type: 'money', zero: true, required: true } } },
       month_start_day: { type: 'int', min: 1, max: 28 },
       overdue_days: { type: 'int', min: 0, max: 60 },
+      start_date: { type: 'date' },
     },
   },
   // ---- Tasks ----
@@ -770,7 +780,10 @@ export const ACTIONS = Object.freeze({
       tagline: { type: 'text', max: 120 },
       address: { type: 'text', max: 300 },
       phone: { type: 'text', max: 40 },
-      email: { type: 'text', max: 120 },
+      email: { type: 'email' },
+      number_prefix: { type: 'text', required: true, max: 6 },
+      number_digits: { type: 'int', required: true, min: 1, max: 8 },
+      self_edit: { type: 'bool' },
     },
   },
   // ---- Announcements, procedures, reviews ----

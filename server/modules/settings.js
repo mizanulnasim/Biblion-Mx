@@ -57,14 +57,26 @@ function saveAttendance(ctx, input) {
   return saved(null, attendanceSettings(ctx.db));
 }
 
-// Settings → Shop: the details on the letterhead.
+// Settings → Shop: the details on the letterhead; staff numbers, and
+// whether people may change their own contact details.
+const STAFF_KEYS = Object.freeze({ number_prefix: 'staff.number_prefix', number_digits: 'staff.number_digits', self_edit: 'staff.self_edit' });
+
+function shopSettings(db) {
+  const out = shopDetails(db);
+  for (const [name, key] of Object.entries(STAFF_KEYS)) out[name] = setting(db, key);
+  return out;
+}
+
 function saveShop(ctx, input) {
   for (const [name, key] of Object.entries(SHOP_KEYS)) saveSetting(ctx.db, key, input[name] || '');
-  return saved(null, shopDetails(ctx.db));
+  saveSetting(ctx.db, 'staff.number_prefix', input.number_prefix.toUpperCase());
+  saveSetting(ctx.db, 'staff.number_digits', input.number_digits);
+  saveSetting(ctx.db, 'staff.self_edit', Boolean(input.self_edit));
+  return saved(null, shopSettings(ctx.db));
 }
 
 export const SETTINGS_HANDLERS = {
-  'settings.shop': (ctx) => shopDetails(ctx.db),
+  'settings.shop': (ctx) => shopSettings(ctx.db),
   'settings.shop.save': saveShop,
   'settings.attendance': (ctx) => attendanceSettings(ctx.db),
   'settings.attendance.save': saveAttendance,

@@ -97,6 +97,6 @@ test('the shop\'s details for the letterhead: set by a shareholder, sent to ever
   const s = team();
   assert.deepEqual(s.call(s.staff, 'meta.get').data.shop, { name: 'Biblion', tagline: 'Bookstore café and cultural space', address: '', phone: '', email: '' });
   assert.equal(s.call(s.manager, 'settings.shop.save', { name: 'x' }).error.code, 'FORBIDDEN');
-  s.call(s.owner, 'settings.shop.save', { name: 'Biblion', tagline: '', address: 'House 1, Road 2, Dhaka', phone: '01700000000', email: 'shop@example.com' });
+  s.call(s.owner, 'settings.shop.save', { ...s.call(s.owner, 'settings.shop').data, address: 'House 1, Road 2, Dhaka', phone: '01700000000', email: 'shop@example.com' });
   assert.equal(s.call(s.staff, 'meta.get').data.shop.address, 'House 1, Road 2, Dhaka');
 });

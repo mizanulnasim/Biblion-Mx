@@ -23,7 +23,7 @@ function payroll() {
   s.ids.rafi = add({ name: 'Rafi', user_id: userId('manager'), joined_on: plus(today(), -200), salary: 20000 });
   // No food allowance unless a test sets one; calendar months unless a
   // test sets the 11th (the default).
-  s.call(s.owner, 'settings.payroll.save', { divisor: 'period_days', food_rule: 'every_day', food_rates: [{ from: '2000-01-01', amount: 0 }], month_start_day: 1 });
+  s.call(s.owner, 'settings.payroll.save', { divisor: 'period_days', food_rule: 'every_day', food_rates: [{ from: '2000-01-01', amount: 0 }], month_start_day: 1, start_date: plus(today(), -200) });
   return s;
 }
 

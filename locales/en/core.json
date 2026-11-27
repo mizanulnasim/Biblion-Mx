@@ -119,5 +119,7 @@
   "nav.group.books": "Books",
   "nav.group.cafe": "Café",
   "nav.group.people": "People",
-  "nav.group.settings": "Settings"
+  "nav.group.settings": "Settings",
+  "val.email": "Enter an email address like name@example.com.",
+  "val.unchanged": "Nothing has changed."
 }

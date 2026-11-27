@@ -1,5 +1,6 @@
 // Settings → Shop: the shop's name, description, address, phone and email,
-// as they appear on the letterhead of letters, payslips and reports.
+// as they appear on the letterhead of letters, payslips and reports; staff
+// numbers; and whether people may change their own contact details.
 
 import { html, render } from '../ui/html.js';
 import { errorBox } from '../ui/feedback.js';
@@ -20,13 +21,16 @@ export const settingsShopPage = {
     const draw = (data) => {
       render(el, html`<section class="panel">${formView({
         submit: t('common.save'),
-        values: data,
+        values: { ...data, number_digits: String(data.number_digits) },
         fields: [
           { name: 'name', label: t('shop.name'), required: true },
           { name: 'tagline', label: t('shop.tagline'), help: t('shop.tagline_help') },
           { name: 'address', label: t('shop.address'), type: 'textarea' },
           { name: 'phone', label: t('shop.phone'), inputmode: 'tel' },
           { name: 'email', label: t('shop.email'), inputmode: 'email' },
+          { name: 'number_prefix', label: t('shop.number_prefix'), required: true, help: t('shop.number_help') },
+          { name: 'number_digits', label: t('shop.number_digits'), inputmode: 'numeric', required: true },
+          { name: 'self_edit', label: t('shop.self_edit'), type: 'checkbox', help: t('shop.self_edit_help') },
         ],
       })}</section>
         <section class="panel"><h2 class="section-title">${t('shop.preview')}</h2><article class="doc">${letterhead()}</article></section>`);
@@ -36,7 +40,8 @@ export const settingsShopPage = {
         busyLabel: t('common.saving'),
         onSubmit: (v) => write('settings.shop.save', v),
         onSaved: (reply) => {
-          setState({ meta: { ...getState().meta, shop: reply.data } });
+          const d = reply.data;
+          setState({ meta: { ...getState().meta, shop: { name: d.name, tagline: d.tagline, address: d.address, phone: d.phone, email: d.email } } });
           toast(t('setup.saved'));
           draw(reply.data);
         },

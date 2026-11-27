@@ -48,5 +48,13 @@
   "me.password_changed": "Password changed.",
   "users.own_password": "May change their own password",
   "users.own_password_help": "Shareholders always may. Otherwise a shareholder sets and resets this person's password.",
-  "me.password_ask": "Your password is set by a shareholder. Ask one to change it."
+  "me.password_ask": "Your password is set by a shareholder. Ask one to change it.",
+  "me.details": "My details",
+  "me.staff_number": "Staff number: {number}",
+  "me.details_waiting": "Your change is waiting for a manager. Sending again replaces it.",
+  "me.details_rejected": "Your last change was not accepted: {note}",
+  "me.details_send": "Send for approval",
+  "me.details_ask": "Ask a manager to change these.",
+  "me.details_sent": "Sent. A manager will check it.",
+  "me.details_queued": "No connection. Saved on this phone and sent when you're online."
 }

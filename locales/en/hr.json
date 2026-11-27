@@ -313,5 +313,8 @@
   "hr.shop_hours_help": "A punch outside these hours waits for a manager's check.",
   "rota.rest_before": "Only {hours} hours' rest after the shift on {date}.",
   "rota.rest_after": "Only {hours} hours' rest before the shift on {date}.",
-  "hr.flag.break_out": "Left from a break before the shift's end"
+  "hr.flag.break_out": "Left from a break before the shift's end",
+  "hr.number": "Staff no.",
+  "hr.changes_help": "People's changes to their own phone, email and address. Accepting one updates their staff record.",
+  "hr.no_changes": "No changes waiting."
 }

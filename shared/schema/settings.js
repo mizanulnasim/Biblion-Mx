@@ -79,6 +79,9 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   // The accounting month starts on this day (owner decision: the 11th).
   // Payroll, payslips and month reports follow it.
   'accounting.month_start_day': 11,
+  // The day the app's records start (opening figures are as of then);
+  // empty: the day the app was set up.
+  'accounting.start_date': '',
   // Payroll: a day's pay is the salary ÷ the days in that accounting month
   // ('period_days') or ÷ 30 ('fixed_30'). A month's salary not paid this
   // many days after the month ends is overdue, issued or not.
@@ -119,6 +122,11 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   'shop.address': '',
   'shop.phone': '',
   'shop.email': '',
+  // Staff numbers (prefix and digits: BIB0001), and whether people may
+  // change their own phone, email and address (a manager approves it).
+  'staff.number_prefix': 'BIB',
+  'staff.number_digits': 4,
+  'staff.self_edit': true,
   'letters.offer': 'Offer of employment\n\nDate: {{today}}\n\nDear {{name}},\n\nWe are pleased to offer you the position of {{position}} at Biblion, starting on {{joined_on}}, at a monthly salary of {{salary}}. Your working hours will be {{hours}}.\n\nThe first three months are a probation period.\n\nPlease sign and return a copy of this letter to accept the offer.\n\nFor Biblion',
   'letters.appointment': 'Appointment letter\n\nDate: {{today}}\n\nTo {{name}}\n{{address}}\n\nYou are appointed as {{position}} at Biblion from {{joined_on}}. Your monthly salary is {{salary}}, and your working hours are {{hours}}, with the weekly day off set in the rota.\n\nLeave is earned and taken as set out in the shop\'s rules. Either side may end this appointment with written notice.\n\nFor Biblion',
   'letters.experience': 'Experience certificate\n\nDate: {{today}}\n\nThis is to certify that {{name}} worked at Biblion as {{position}} from {{joined_on}} to {{left_on}}.\n\n{{conduct}}\n\nWe wish them every success.\n\nFor Biblion',

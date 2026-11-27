@@ -76,5 +76,12 @@
   "shop.address": "Address",
   "shop.phone": "Phone",
   "shop.email": "Email",
-  "shop.preview": "The letterhead"
+  "shop.preview": "The letterhead",
+  "nav.staff_changes": "Contact detail changes",
+  "shop.number_prefix": "Staff number prefix",
+  "shop.number_help": "New staff get the next number, for example BIB0001.",
+  "shop.number_digits": "Staff number digits",
+  "shop.self_edit": "People may change their own phone, email and address",
+  "shop.self_edit_help": "Each change waits for a manager (a shareholder, for a manager's own).",
+  "nav.staff_changes_hint": "Approve people's changes to their own phone, email and address"
 }

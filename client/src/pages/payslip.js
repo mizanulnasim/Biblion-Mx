@@ -47,7 +47,7 @@ function documentView(data) {
   return html`<article class="doc">
     ${letterhead()}
     <h2 class="doc-title">${t('pay.payslip')}</h2><p class="muted">${monthName(slip.month)} · ${periodText(slip)}</p>
-    <p><strong>${staff.name}</strong>${staff.position ? ` · ${staff.position}` : ''}<br>
+    <p><strong>${staff.name}</strong>${staff.number ? ` · ${staff.number}` : ''}${staff.position ? ` · ${staff.position}` : ''}<br>
       <span class="muted">${t('pay.joined', { date: dateShort(`${staff.joined_on}T06:00:00Z`) })}</span></p>
     ${slip.status === 'cancelled' ? html`<p class="notice notice-warn">${t('pay.slip_cancelled', { reason: slip.cancel_reason })}</p>` : ''}
     ${slipLines(slip)}

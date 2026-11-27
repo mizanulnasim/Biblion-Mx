@@ -51,6 +51,7 @@ function attendanceView(att) {
     ${att.tasks ? html`<a class="notice notice-warn" href="#/tasks">${icon('check')}<span>${t('home.tasks_to_check', { count: att.tasks })}</span></a>` : ''}
     ${att.reviews ? html`<a class="notice notice-warn" href="#/reviews">${icon('badge')}<span>${t('home.reviews_waiting', { count: att.reviews })}</span></a>` : ''}
     ${att.salary ? html`<a class="notice notice-warn" href="#/payroll">${icon('money')}<span>${t('home.salary_overdue', { count: att.salary })}</span></a>` : ''}
+    ${att.details ? html`<a class="notice notice-warn" href="#/staff/changes">${icon('badge')}<span>${t('home.details_waiting', { count: att.details })}</span></a>` : ''}
     ${att.docs ? html`
       ${att.docs.pinned.map((d) => html`<a class="notice ${d.read ? '' : 'notice-warn'}" href="#/notices">${icon('log')}<span><strong>${d.title}</strong></span></a>`)}
       ${att.docs.unread ? html`<a class="notice" href="#/notices">${icon('log')}<span>${t('home.unread', { count: att.docs.unread })}</span></a>` : ''}

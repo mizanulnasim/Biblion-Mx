@@ -1,19 +1,23 @@
-// Staff records: the basic record, work hours and days off, and the punch
-// PIN. Identity, emergency contacts, family and salary appear only for
-// people allowed to see them (the server never sends them otherwise).
+// Staff records: the basic record (with its staff number), work hours and
+// days off, and the punch PIN. Identity, emergency contacts, family and
+// salary appear only for people allowed to see them (the server never sends
+// them otherwise). And people's changes to their own contact details,
+// waiting for a decision.
 
-import { html } from '../ui/html.js';
+import { html, on, render } from '../ui/html.js';
 import { mountList } from '../ui/list.js';
-import { chip } from '../ui/feedback.js';
+import { chip, emptyState, errorBox } from '../ui/feedback.js';
 import { formDialog } from '../ui/dialog.js';
-import { bindForm, formView } from '../ui/form.js';
+import { bindForm, errorText, formView } from '../ui/form.js';
 import { toast } from '../ui/toast.js';
 import { t } from '../core/i18n.js';
-import { write } from '../core/api.js';
+import { read, write } from '../core/api.js';
 import { can } from '../core/state.js';
 import { money } from '../core/format.js';
 import { ACTIONS } from '../../../shared/contract/actions.js';
 import { hoursText } from './attendance-common.js';
+import { decideRequest } from './rota.js';
+import { onArea } from '../core/live.js';
 
 const WEEKDAYS = ['date.wd.sun', 'date.wd.mon', 'date.wd.tue', 'date.wd.wed', 'date.wd.thu', 'date.wd.fri', 'date.wd.sat'];
 const STATUS = { active: ['users.active', 'ok'], left: ['hr.left', 'muted'] };
@@ -24,6 +28,7 @@ function fieldsFor(staff, users) {
     { name: 'name', label: t('users.name'), required: true },
     { name: 'name_bn', label: t('cafe.name_bn') },
     { name: 'phone', label: t('setup.phone'), inputmode: 'tel' },
+    { name: 'email', label: t('shop.email'), inputmode: 'email' },
     { name: 'position', label: t('hr.position') },
     {
       name: 'user_id', label: t('hr.sign_in'), type: 'select', placeholder: t('hr.no_sign_in'), help: t('hr.sign_in_help'),
@@ -87,7 +92,7 @@ function openStaff(staff, users, onSaved) {
       for (let i = 0; i < EMERGENCY_ROWS; i++) {
         if (`em_name_${i}` in v) out.emergency.push({ name: v[`em_name_${i}`], relation: v[`em_relation_${i}`], phone: v[`em_phone_${i}`] });
       }
-      for (const k of ['user_id', 'joined_on', 'left_on', 'work_start', 'work_end', 'pin', 'birth_date', 'salary']) if (out[k] === '') out[k] = null;
+      for (const k of ['email', 'user_id', 'joined_on', 'left_on', 'work_start', 'work_end', 'pin', 'birth_date', 'salary']) if (out[k] === '') out[k] = null;
       return out;
     },
     onSubmit: (v) => write('staff.save', v),
@@ -106,6 +111,7 @@ export const staffPage = {
   mount(el) {
     let users = [];
     const columns = [
+      { label: t('hr.number'), cell: (s) => s.number || '—', kind: 'nowrap' },
       { label: t('users.name'), cell: (s) => html`<strong>${s.name}</strong>${s.position ? html` <span class="muted">${s.position}</span>` : ''}` },
       { label: t('hr.sign_in'), cell: (s) => s.user_name || '—' },
       { label: t('hr.hours_label'), cell: (s) => hoursText(s), kind: 'nowrap' },
@@ -129,5 +135,41 @@ export const staffPage = {
       onTool: () => openStaff(null, users, () => list.reload()),
     });
     return () => list.destroy();
+  },
+};
+
+// A change's fields, before → after, where they differ.
+const CHANGE_FIELDS = [['phone', 'setup.phone'], ['email', 'shop.email'], ['address', 'hr.address']];
+function changeLines(c) {
+  return CHANGE_FIELDS.filter(([k]) => c[k] !== c.before[k]).map(([k, label]) => html`<span>${t(label)}: <span class="muted">${c.before[k] || '—'}</span> → <strong>${c[k] || '—'}</strong></span>`);
+}
+
+export const staffChangesPage = {
+  path: '/staff/changes',
+  title: 'nav.staff_changes',
+  perm: 'staff.edit',
+  mount(el) {
+    async function load() {
+      try {
+        const { items } = (await read('staff.details.waiting')).data;
+        render(el, html`<section class="panel"><p class="help">${t('hr.changes_help')}</p>
+          ${items.length ? html`<ul class="waiting-list">${items.map((c) => html`<li class="check-item">
+            <span><strong>${c.staff_name}</strong></span>${changeLines(c)}
+            <span class="check-actions">
+              <button type="button" class="btn btn-small btn-primary" data-act="decide" data-id="${c.id}" data-decision="accept">${t('hr.accept')}</button>
+              <button type="button" class="btn btn-small" data-act="decide" data-id="${c.id}" data-decision="reject">${t('hr.reject')}</button>
+            </span></li>`)}</ul>` : emptyState(t('hr.no_changes'))}</section>`);
+      } catch (err) {
+        render(el, errorBox(errorText(err)));
+      }
+    }
+    const offClick = on(el, 'click', { decide: (e, btn) => decideRequest('staff.details.decide', btn, load) });
+    const offArea = onArea('hr', load);
+    render(el, html`<div aria-busy="true"></div>`);
+    load();
+    return () => {
+      offClick();
+      offArea();
+    };
   },
 };

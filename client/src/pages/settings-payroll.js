@@ -21,7 +21,7 @@ export const settingsPayrollPage = {
     render(el, html`<div aria-busy="true"></div>`);
     read('settings.payroll').then(({ data }) => {
       const rows = data.food_rates.length + SPARE_ROWS;
-      const values = { divisor: data.divisor, food_rule: data.food_rule, month_start_day: String(data.month_start_day), overdue_days: String(data.overdue_days) };
+      const values = { divisor: data.divisor, food_rule: data.food_rule, month_start_day: String(data.month_start_day), overdue_days: String(data.overdue_days), start_date: data.start_date };
       data.food_rates.forEach((r, i) => {
         values[`rate_from_${i}`] = r.from;
         values[`rate_amount_${i}`] = String(r.amount);
@@ -39,6 +39,7 @@ export const settingsPayrollPage = {
         fields: [
           { name: 'month_start_day', label: t('pay.set.month_start'), inputmode: 'numeric', required: true, help: t('pay.set.month_start_help') },
           { name: 'overdue_days', label: t('pay.set.overdue_days'), inputmode: 'numeric', required: true },
+          { name: 'start_date', label: t('pay.set.start_date'), type: 'date', help: t('pay.set.start_date_help') },
           { name: 'divisor', label: t('pay.set.divisor'), type: 'select', required: true, help: t('pay.set.divisor_help'), options: [{ value: 'period_days', label: t('pay.set.divisor_month') }, { value: 'fixed_30', label: t('pay.set.divisor_30') }] },
           {
             name: 'food_rule', label: t('pay.set.food_rule'), type: 'select', required: true,
@@ -54,7 +55,7 @@ export const settingsPayrollPage = {
         mapValues: (v) => {
           const rates = [];
           for (let i = 0; i < rows; i++) if (v[`rate_from_${i}`]) rates.push({ from: v[`rate_from_${i}`], amount: v[`rate_amount_${i}`] || 0 });
-          return { divisor: v.divisor, food_rule: v.food_rule, food_rates: rates, month_start_day: v.month_start_day, overdue_days: v.overdue_days };
+          return { divisor: v.divisor, food_rule: v.food_rule, food_rates: rates, month_start_day: v.month_start_day, overdue_days: v.overdue_days, start_date: v.start_date || null };
         },
         onSubmit: (v) => write('settings.payroll.save', v),
         onSaved: () => toast(t('setup.saved')),

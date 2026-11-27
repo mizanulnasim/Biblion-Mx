@@ -5,6 +5,7 @@
 import { latinDigits } from './search.js';
 
 const COLOR = /^#[0-9a-f]{6}$/i;
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME = /^[a-z0-9._-]+$/;
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const RECORD_ID = /^[A-Z]{3}-[A-Z0-9]{4,20}$/;
@@ -111,6 +112,11 @@ function checkOne(spec, raw) {
     case 'color':
       if (typeof raw !== 'string' || !COLOR.test(raw)) return { error: { code: 'val.format' } };
       return { value: raw.toLowerCase() };
+    case 'email': {
+      const value = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+      if (!EMAIL.test(value) || value.length > 120) return { error: { code: 'val.email' } };
+      return { value };
+    }
     default:
       return { error: { code: 'val.format' } };
   }
