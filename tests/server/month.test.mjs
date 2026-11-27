@@ -57,6 +57,15 @@ test('closing: the days must be closed; then figures are kept, entries locked, a
   assert.equal(s.call(s.owner, 'shareholders.shares.save', { from: `${month}-15`, shares: [{ shareholder_id: s.ids.karim, percent: 100 }] }).data.error.fields.from.code, 'val.month_closed');
   const nadia = s.call(s.owner, 'shareholders.view').data.statements.find((x) => x.name === 'Nadia');
   assert.deepEqual([nadia.salary, nadia.profit, nadia.owed_to_them], [5000, 5000, 10000]);
+  // Overdue days after the month ends (0 here: the month has ended), less what was paid.
+  s.call(s.owner, 'settings.payroll.save', { ...s.call(s.owner, 'settings.payroll').data, overdue_days: 0 });
+  const overdue = () => s.call(s.owner, 'shareholders.view').data.statements.find((x) => x.name === 'Nadia').profit_overdue;
+  assert.equal(overdue(), 5000);
+  save(s, { kind: 'profit_share', date: today(), amount: 3000, party_id: s.ids.nadia });
+  assert.equal(overdue(), 2000);
+  // Home shows everyone's: Karim's 5,000 and Nadia's 2,000.
+  assert.equal(s.call(s.owner, 'people.waiting').data.profit_overdue, 7000);
+  assert.equal(s.call(s.manager, 'people.waiting').data.profit_overdue, 0);
   // Reopened with a reason, the figures follow the entries again.
   assert.equal(s.call(s.owner, 'month.reopen', { month, reason: 'Missed a bill' }).data.status, 'saved');
   assert.equal(s.call(s.owner, 'month.view', { month }).data.closed, false);

@@ -165,7 +165,7 @@ function statementsView(rows) {
   return html`<div class="list-body"><table class="table">
     <thead><tr><th scope="col">${t('users.name')}</th><th scope="col">${t('sh.owed_to_them')}</th><th scope="col">${t('sh.owes_business')}</th><th scope="col">${t('sh.settle')}</th></tr></thead>
     <tbody>${rows.map((r) => html`<tr>
-      <td data-label="${t('users.name')}"><span><strong>${r.name}</strong><br><span class="muted">${t('sh.owed_parts', { salary: money(r.salary), profit: money(r.profit), interest: money(r.interest_earned), paid: money(r.salary_paid + r.profit_paid + r.withdrawn) })}${r.opening_owed || r.opening_owes ? html`<br>${t('sh.opening_parts', { owed: money(r.opening_owed), owes: money(r.opening_owes) })}` : ''}</span></span></td>
+      <td data-label="${t('users.name')}"><span><strong>${r.name}</strong>${r.profit_overdue ? html` ${chip(t('sh.profit_overdue', { amount: money(r.profit_overdue) }), 'danger')}` : ''}<br><span class="muted">${t('sh.owed_parts', { salary: money(r.salary), profit: money(r.profit), interest: money(r.interest_earned), paid: money(r.salary_paid + r.profit_paid + r.withdrawn) })}${r.opening_owed || r.opening_owes ? html`<br>${t('sh.opening_parts', { owed: money(r.opening_owed), owes: money(r.opening_owes) })}` : ''}</span></span></td>
       <td data-label="${t('sh.owed_to_them')}" class="num"><span>${money(r.owed_to_them)}</span></td>
       <td data-label="${t('sh.owes_business')}" class="num"><span>${money(r.owes_business)}</span></td>
       <td data-label="${t('sh.settle')}" class="num"><span><strong>${money(r.settle)}</strong></span></td>

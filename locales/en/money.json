@@ -243,5 +243,7 @@
   "money.loan_help": "Name the loan so its interest is worked out.",
   "setup.holder": "Held by",
   "setup.holder_help": "For money held by a shareholder: who holds it. What it holds is owed by them to the business.",
-  "val.holder_owner_only": "Only money held by a shareholder names who holds it."
+  "val.holder_owner_only": "Only money held by a shareholder names who holds it.",
+  "home.profit_overdue": "Profit shares overdue: {amount}",
+  "sh.profit_overdue": "Profit share overdue: {amount}"
 }

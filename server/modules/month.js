@@ -246,11 +246,18 @@ function saveLoan(ctx, input) {
   return saved(row.id);
 }
 
+// For Home: profit shares overdue, in all.
+export function profitOverdue(ctx) {
+  if (!ctx.can('acc.shareholders')) return 0;
+  return r2(statements(ctx.db).reduce((t, s) => t + s.profit_overdue, 0));
+}
+
 // Each shareholder's account: what the business owes them and what they owe
 // it, from their opening figures (Getting started) on.
 function statements(db) {
   const closed = db.all('Month_Closings').filter((c) => c.status === 'closed');
   const entries = db.all('Transactions').filter(counts);
+  const overdueDays = setting(db, 'payroll.overdue_days');
   return db.all('Shareholders').map((s) => {
     const mine = entries.filter((e) => e.party_id === s.id);
     const paid = (kind) => r2(mine.filter((e) => e.kind === kind).reduce((t, e) => t + e.amount, 0));
@@ -262,6 +269,11 @@ function statements(db) {
     const advance = r2(mine.reduce((t, e) => t + payEffect(e).advance, 0));
     const loansTaken = r2(db.all('Loans').filter((l) => l.shareholder_id === s.id && l.direction === 'taken').reduce((t, l) => t + loanBalance(db, l, today(db)), 0));
     const loansGiven = r2(db.all('Loans').filter((l) => l.shareholder_id === s.id && l.direction === 'given').reduce((t, l) => t + loanBalance(db, l, today(db)), 0));
+    // Profit shares are due the payroll overdue days after their month
+    // ends; what is paid is set against the oldest first.
+    const dueShares = closed.filter((c) => addDays(c.figures.period_to, overdueDays) < today(db))
+      .reduce((t, c) => t + (c.figures.shares.find((x) => x.shareholder_id === s.id) || { amount: 0 }).amount, 0);
+    const profitOverdue = r2(Math.max(0, dueShares - paid('profit_share')));
     const owedToThem = r2((s.opening_owed || 0) + salary + profit + interestEarned - paid('owner_salary') - paid('profit_share') - paid('owner_withdrawal'));
     // The shop's money they hold now, in accounts held by them.
     const held = r2(db.all('Money_Accounts').filter((a) => a.kind === 'owner' && a.shareholder_id === s.id)
@@ -271,7 +283,7 @@ function statements(db) {
       id: s.id, name: s.name, salary, profit, interest_earned: interestEarned, salary_paid: paid('owner_salary'), profit_paid: paid('profit_share'),
       withdrawn: paid('owner_withdrawal'), owed_to_them: owedToThem, advance, loans_taken: loansTaken, interest_charged: interestCharged,
       owes_business: owesBusiness, loans_given: loansGiven, settle: r2(owedToThem - owesBusiness),
-      opening_owed: s.opening_owed || 0, opening_owes: s.opening_owes || 0, held,
+      opening_owed: s.opening_owed || 0, opening_owes: s.opening_owes || 0, held, profit_overdue: profitOverdue,
     };
   });
 }
