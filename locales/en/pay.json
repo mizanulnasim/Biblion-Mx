@@ -132,5 +132,8 @@
   "pay.set.start_date_help": "Opening balances are as of this day; salaries before it aren't counted as overdue. Empty: the day the app was set up.",
   "pay.overtime_hours": "Overtime hours to pay",
   "pay.overtime_hours_help": "{hours} hours of overtime this month, at {rate} an hour. Pay all, some or none.",
-  "pay.line.overtime": "Overtime: {hours} hours × {rate}"
+  "pay.line.overtime": "Overtime: {hours} hours × {rate}",
+  "pay.food_rate": "Own food allowance a day",
+  "pay.food_rate_help": "Empty: the shop's rate (Settings → Payroll).",
+  "pay.own_food_rate": "Food allowance {amount} a day"
 }

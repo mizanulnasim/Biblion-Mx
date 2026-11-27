@@ -37,10 +37,14 @@ test('the checklist: the start date, steps ticked by hand, and only for sharehol
   assert.equal(s.call(s.owner, 'start.step.save', { step: 'stock', done: true }).data.status, 'rejected');
 });
 
-test('shareholders\' opening figures count in their account', () => {
+test('shareholders\' opening figures and the cash they hold count in their account', () => {
   const s = shop();
   const karim = s.call(s.owner, 'setup.money').data.shareholders.find((x) => x.id === s.ids.karim);
-  s.call(s.owner, 'setup.shareholder.save', { ...karim, opening_held: 2000, opening_owed: 5000, opening_owes: 500 });
+  s.call(s.owner, 'setup.shareholder.save', { ...karim, opening_owed: 5000, opening_owes: 500 });
+  // The shop's cash Karim holds: an account held by him, Tk 2,000 then.
+  assert.equal(s.call(s.owner, 'setup.account.save', { name: 'Held by Karim', kind: 'owner', opening: 2000, status: 'active' }).data.error.fields.shareholder_id.code, 'val.required');
+  assert.equal(s.call(s.owner, 'setup.account.save', { name: 'Spare bank', kind: 'bank', shareholder_id: s.ids.karim, status: 'active' }).data.error.fields.shareholder_id.code, 'val.holder_owner_only');
+  s.call(s.owner, 'setup.account.save', { name: 'Held by Karim', kind: 'owner', opening: 2000, shareholder_id: s.ids.karim, status: 'active' });
   const st = s.call(s.owner, 'shareholders.view').data.statements.find((x) => x.id === s.ids.karim);
   assert.equal(st.owed_to_them, 5000);
   assert.equal(st.owes_business, 2500);

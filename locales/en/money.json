@@ -240,5 +240,8 @@
   "sh.salary_help": "Counted in each month's figures and owed to the shareholder.",
   "money.field.loan": "Loan",
   "money.no_loan": "Not a numbered loan",
-  "money.loan_help": "Name the loan so its interest is worked out."
+  "money.loan_help": "Name the loan so its interest is worked out.",
+  "setup.holder": "Held by",
+  "setup.holder_help": "For money held by a shareholder: who holds it. What it holds is owed by them to the business.",
+  "val.holder_owner_only": "Only money held by a shareholder names who holds it."
 }

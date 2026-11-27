@@ -111,7 +111,8 @@ function salaryDialog(row, onDone) {
   const body = dialog.querySelector('[aria-busy]');
   read('salary.history', { staff_id: row.staff.id }).then(({ data }) => {
     const latest = data.changes[0];
-    const values = { from: today() };
+    // The new salary starts as a copy of the latest one.
+    const values = { from: today(), food_rate: latest && latest.food_rate !== null ? String(latest.food_rate) : '' };
     (latest ? latest.parts : []).forEach((p, i) => {
       values[`part_name_${i}`] = p.name;
       values[`part_amount_${i}`] = String(p.amount);
@@ -122,12 +123,17 @@ function salaryDialog(row, onDone) {
         { name: `part_amount_${i}`, label: t('pay.part_amount'), inputmode: 'decimal' });
     }
     render(body, html`${data.changes.length ? html`<dl class="slip">${data.changes.map((c) => html`<dt>${t('pay.salary_from', { date: dateShort(`${c.from}T06:00:00Z`) })}
-        ${c.parts.filter((p) => p.name).length ? html`<span class="muted">${c.parts.map((p) => `${p.name || t('pay.line.salary')} ${money(p.amount)}`).join(' · ')}</span>` : ''}</dt><dd>${money(c.total)}</dd>`)}</dl>`
+        ${c.parts.filter((p) => p.name).length ? html`<span class="muted">${c.parts.map((p) => `${p.name || t('pay.line.salary')} ${money(p.amount)}`).join(' · ')}</span>` : ''}
+        ${c.food_rate !== null ? html`<span class="muted">${t('pay.own_food_rate', { amount: money(c.food_rate) })}</span>` : ''}</dt><dd>${money(c.total)}</dd>`)}</dl>`
       : emptyState(t('pay.no_salary_yet'))}
       ${can('salary.edit') ? html`<h3 class="subhead">${t('pay.salary_change')}</h3>${formView({
         submit: t('common.save'),
         values,
-        fields: [{ name: 'from', label: t('pay.salary_change_from'), type: 'date', required: true, help: t('pay.salary_change_help') }, ...parts, { name: 'note', label: t('pay.note'), type: 'textarea' }],
+        fields: [
+          { name: 'from', label: t('pay.salary_change_from'), type: 'date', required: true, help: t('pay.salary_change_help') }, ...parts,
+          { name: 'food_rate', label: t('pay.food_rate'), inputmode: 'decimal', help: t('pay.food_rate_help') },
+          { name: 'note', label: t('pay.note'), type: 'textarea' },
+        ],
       })}` : ''}`);
     body.removeAttribute('aria-busy');
     const form = body.querySelector('form.form');
@@ -138,7 +144,7 @@ function salaryDialog(row, onDone) {
       mapValues: (v) => {
         const list = [];
         for (let i = 0; i < SALARY_PARTS; i++) if (v[`part_amount_${i}`]) list.push({ name: v[`part_name_${i}`] || '', amount: v[`part_amount_${i}`] });
-        return { staff_id: row.staff.id, from: v.from, parts: list, note: v.note };
+        return { staff_id: row.staff.id, from: v.from, parts: list, food_rate: v.food_rate === '' ? null : v.food_rate, note: v.note };
       },
       onSubmit: (v) => write('salary.change', v),
       onSaved: () => {

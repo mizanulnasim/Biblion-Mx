@@ -22,7 +22,7 @@ import { saved } from '../../shared/contract/reply.js';
 import { dhakaDate } from '../../shared/hr/attendance.js';
 import { periodKey, periodOf } from '../../shared/hr/pay.js';
 import { addDays, datesBetween } from '../../shared/hr/plan.js';
-import { loanEffect, payEffect } from '../../shared/money/kinds.js';
+import { cashEffect, loanEffect, payEffect } from '../../shared/money/kinds.js';
 import { roleById } from '../../shared/schema/permissions.js';
 import { setting } from '../kernel/settings.js';
 import { bookCosts } from './suppliers.js';
@@ -263,12 +263,15 @@ function statements(db) {
     const loansTaken = r2(db.all('Loans').filter((l) => l.shareholder_id === s.id && l.direction === 'taken').reduce((t, l) => t + loanBalance(db, l, today(db)), 0));
     const loansGiven = r2(db.all('Loans').filter((l) => l.shareholder_id === s.id && l.direction === 'given').reduce((t, l) => t + loanBalance(db, l, today(db)), 0));
     const owedToThem = r2((s.opening_owed || 0) + salary + profit + interestEarned - paid('owner_salary') - paid('profit_share') - paid('owner_withdrawal'));
-    const owesBusiness = r2((s.opening_held || 0) + (s.opening_owes || 0) + advance + loansTaken + interestCharged);
+    // The shop's money they hold now, in accounts held by them.
+    const held = r2(db.all('Money_Accounts').filter((a) => a.kind === 'owner' && a.shareholder_id === s.id)
+      .reduce((t, a) => t + entries.reduce((u, e) => u + cashEffect(e, a.id), a.opening || 0), 0));
+    const owesBusiness = r2((s.opening_owes || 0) + held + advance + loansTaken + interestCharged);
     return {
       id: s.id, name: s.name, salary, profit, interest_earned: interestEarned, salary_paid: paid('owner_salary'), profit_paid: paid('profit_share'),
       withdrawn: paid('owner_withdrawal'), owed_to_them: owedToThem, advance, loans_taken: loansTaken, interest_charged: interestCharged,
       owes_business: owesBusiness, loans_given: loansGiven, settle: r2(owedToThem - owesBusiness),
-      opening_owed: s.opening_owed || 0, opening_held: s.opening_held || 0, opening_owes: s.opening_owes || 0,
+      opening_owed: s.opening_owed || 0, opening_owes: s.opening_owes || 0, held,
     };
   });
 }

@@ -57,7 +57,10 @@ function saveAccount(ctx, input) {
   if (current && current.kind === 'drawer' && current.status === 'active' && (input.kind !== 'drawer' || input.status !== 'active') && !otherDrawer) {
     throw fieldError(input.kind !== 'drawer' ? 'kind' : 'status', 'val.need_drawer');
   }
-  const row = upsert(db, 'Money_Accounts', input, { name: input.name, kind: input.kind, opening: input.opening || 0, status: input.status });
+  // Only money held by a shareholder names who holds it.
+  if (input.shareholder_id && (input.kind !== 'owner' || !db.get('Shareholders', input.shareholder_id))) throw fieldError('shareholder_id', input.kind !== 'owner' ? 'val.holder_owner_only' : 'val.not_found');
+  if (input.kind === 'owner' && !input.shareholder_id) throw fieldError('shareholder_id', 'val.required');
+  const row = upsert(db, 'Money_Accounts', input, { name: input.name, kind: input.kind, opening: input.opening || 0, status: input.status, shareholder_id: input.shareholder_id || '' });
   return saved(row.id, pick(row));
 }
 
@@ -85,7 +88,7 @@ function saveShareholder(ctx, input) {
   if (sameName(db.all('Shareholders'), input)) throw fieldError('name', 'val.taken');
   const row = upsert(db, 'Shareholders', input, {
     name: input.name, phone: input.phone || '', salary: input.salary || 0, status: input.status,
-    opening_held: input.opening_held || 0, opening_owed: input.opening_owed || 0, opening_owes: input.opening_owes || 0,
+    opening_owed: input.opening_owed || 0, opening_owes: input.opening_owes || 0,
   });
   return saved(row.id, pick(row));
 }

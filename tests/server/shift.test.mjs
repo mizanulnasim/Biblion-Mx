@@ -9,7 +9,7 @@ const DAY = '2026-11-20';
 
 function withAccounts() {
   const s = shop();
-  s.ids.held = s.call(s.owner, 'setup.account.save', { name: 'Held by Karim', kind: 'owner', status: 'active' }).data.record_id;
+  s.ids.held = s.call(s.owner, 'setup.account.save', { name: 'Held by Karim', kind: 'owner', shareholder_id: s.ids.karim, status: 'active' }).data.record_id;
   s.ids.bank = s.call(s.owner, 'setup.account.save', { name: 'Card bank', kind: 'bank', status: 'active' }).data.record_id;
   return s;
 }

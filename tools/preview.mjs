@@ -43,8 +43,10 @@ function seed(server, state) {
   const token = call(server, 'auth.login', { username: owner.username, password: owner.password }).data.data.token;
   for (const u of others) call(server, 'users.save', { ...u, status: 'active' }, token);
   // Sample setup so the money screen can be tried at once (preview only).
-  const accounts = [['Cash drawer', 'drawer', 5000], ['bKash', 'bkash', 2000], ['City Bank', 'bank', 50000], ['Held by Preview Owner', 'owner', 0]];
+  const holders = ['Preview Owner', 'Second Shareholder'].map((name) => call(server, 'setup.shareholder.save', { name, status: 'active' }, token).data.record_id);
+  const accounts = [['Cash drawer', 'drawer', 5000], ['bKash', 'bkash', 2000], ['City Bank', 'bank', 50000]];
   for (const [name, kind, opening] of accounts) call(server, 'setup.account.save', { name, kind, opening, status: 'active' }, token);
+  call(server, 'setup.account.save', { name: 'Held by Preview Owner', kind: 'owner', opening: 0, shareholder_id: holders[0], status: 'active' }, token);
   const categories = [['Milk', 'cafe', false], ['Snacks', 'cafe', false], ['Utilities', 'shared', false], ['Rent', 'shared', true], ['Book shipping', 'books', false]];
   for (const [name, area, needs] of categories) call(server, 'setup.category.save', { name, area, needs_shareholder: needs, status: 'active' }, token);
   call(server, 'setup.contact.save', { name: 'Rahim (regular)', phone: '01711000000', opening_due: 350, status: 'active' }, token);
@@ -66,7 +68,6 @@ function seed(server, state) {
     const lines = ['Milk', 'Bread', 'Eggs'].map((name, k) => ({ item_id: items.find((i) => i.name === name).id, counted: 200 - (15 - n) * (4 + k * 3) }));
     call(server, 'cafe.count.save', { date: day(n), lines }, token);
   }
-  for (const name of ['Preview Owner', 'Second Shareholder']) call(server, 'setup.shareholder.save', { name, status: 'active' }, token);
   call(server, 'settings.shop.save', { ...call(server, 'settings.shop', {}, token).data, address: 'House 0, Sample Road, Dhaka', phone: '01700000000', email: 'preview@example.com' }, token);
   // Staff: the three sign-ins plus one person without a sign-in (punches on
   // the shop device, PIN 1111, turned on here); the shop at the preview position; a week of

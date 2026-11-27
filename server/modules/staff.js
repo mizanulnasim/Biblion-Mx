@@ -203,7 +203,7 @@ function recordSalary(db, staff, amount, actor) {
   const now = dhakaDate(db.now.getTime());
   if (!amount || (changes.length && salaryOn(changes, now) === amount)) return;
   const from = changes.length ? now : joinedOn(staff);
-  const fields = { parts: [{ name: '', amount }], total: amount, note: '', entered_by: actor };
+  const fields = { parts: [{ name: '', amount }], total: amount, food_rate: null, note: '', entered_by: actor };
   const same = changes.find((c) => c.from === from);
   if (same) db.update('Salary_Changes', same, fields);
   else db.insert('Salary_Changes', { staff_id: staff.id, from, ...fields });

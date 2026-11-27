@@ -24,7 +24,7 @@ import { saved } from '../../shared/contract/reply.js';
 import { dhakaDate } from '../../shared/hr/attendance.js';
 import { leaveDays } from '../../shared/hr/leave.js';
 import { addDays, datesBetween } from '../../shared/hr/plan.js';
-import { employedDates, foodEarned, foodWeeks, instalmentDue, payslipFigures, periodKey, periodOf, salaryOn, salaryTotal } from '../../shared/hr/pay.js';
+import { employedDates, foodEarned, foodRateOf, foodWeeks, instalmentDue, payslipFigures, periodKey, periodOf, salaryOn, salaryTotal } from '../../shared/hr/pay.js';
 import { payEffect } from '../../shared/money/kinds.js';
 import { saveSetting, setting } from '../kernel/settings.js';
 import { attendanceMonth } from './attendance.js';
@@ -84,6 +84,9 @@ function draft(db, staff, month, p = planner(db), cut = {}) {
   };
 }
 
+// The person's food allowance a day, by date.
+const foodRate = (db, staff) => foodRateOf(setting(db, 'food.rates'), salaryChanges(db, staff));
+
 // Days that earn food allowance, from joining to today (or leaving).
 function foodDates(db, staff, p) {
   const last = staff.left_on && staff.left_on < today(db) ? staff.left_on : today(db);
@@ -102,7 +105,7 @@ export function monthPay(db, staff, month, p = planner(db)) {
   if (!employedDates(per, joinedOn(staff), staff.left_on).length) return { net: 0, food: 0 };
   const slip = db.all('Payslips').find((s) => s.staff_id === staff.id && s.month === month && s.status === 'issued');
   const net = slip ? slip.net : salaryChanges(db, staff).length ? draft(db, staff, month, p).net : 0;
-  const food = foodEarned(setting(db, 'food.rates'), foodDates(db, staff, p).filter((d) => d >= per.from && d <= per.to));
+  const food = foodEarned(foodRate(db, staff), foodDates(db, staff, p).filter((d) => d >= per.from && d <= per.to));
   return { net, food };
 }
 
@@ -110,7 +113,7 @@ export function payAccount(db, staff, p = planner(db)) {
   const opening = db.all('Pay_Openings').find((o) => o.staff_id === staff.id) || { owed: 0, advance: 0 };
   const slips = db.all('Payslips').filter((s) => s.staff_id === staff.id && s.status === 'issued');
   const entries = db.all('Transactions').filter((e) => counts(e) && e.party_id === staff.id);
-  const food = foodEarned(setting(db, 'food.rates'), foodDates(db, staff, p));
+  const food = foodEarned(foodRate(db, staff), foodDates(db, staff, p));
   // A confirmed final settlement adds unused leave paid out and takes off
   // notice short (server/modules/separation.js).
   const settled = db.all('Separations').filter((x) => x.staff_id === staff.id && (x.status === 'settled' || x.status === 'completed'))
@@ -135,7 +138,7 @@ export function payAccount(db, staff, p = planner(db)) {
     opening_owed: opening.owed || 0, opening_advance: opening.advance || 0, payslips: slips.reduce((t, s) => t + s.net, 0), food_earned: food, settlement: settled,
     salary_paid: sum('salary_paid'), food_paid: sum('food_paid'), deductions: sum('staff_deduction'), advances: sum('staff_advance'), bonuses: sum('bonus_paid'),
     owed: Math.round(owed), advance: Math.round(advance), instalment_due: Math.min(due, Math.round(advance)),
-    food_weeks: foodWeeks(setting(db, 'food.rates'), foodDates(db, staff, p)).slice(-FOOD_WEEKS_SHOWN),
+    food_weeks: foodWeeks(foodRate(db, staff), foodDates(db, staff, p)).slice(-FOOD_WEEKS_SHOWN),
   };
 }
 
@@ -316,7 +319,7 @@ function history(ctx, { staff_id: staffId }) {
   if (!staff) throw new AppError('NOT_FOUND');
   return {
     staff: { id: staff.id, name: staff.name, salary: staff.salary || 0 },
-    changes: salaryChanges(db, staff).slice().reverse().map((c) => ({ id: c.id || '', from: c.from, parts: c.parts, total: c.total, note: c.note || '' })),
+    changes: salaryChanges(db, staff).slice().reverse().map((c) => ({ id: c.id || '', from: c.from, parts: c.parts, total: c.total, food_rate: c.food_rate ?? null, note: c.note || '' })),
   };
 }
 
@@ -330,11 +333,14 @@ function changeSalary(ctx, input) {
   // A change before an issued payslip's month would leave that payslip wrong.
   const issued = db.all('Payslips').filter((s) => s.staff_id === staff.id && s.status === 'issued' && s.period_to >= input.from);
   if (issued.length) throw fieldError('from', 'val.payslip_issued', { month: issued[0].month });
-  const fields = { parts: input.parts.map((x) => ({ name: x.name || '', amount: x.amount })), total: salaryTotal(input.parts), note: input.note || '', entered_by: ctx.user.id };
+  const fields = {
+    parts: input.parts.map((x) => ({ name: x.name || '', amount: x.amount })), total: salaryTotal(input.parts), food_rate: input.food_rate,
+    note: input.note || '', entered_by: ctx.user.id,
+  };
   const same = db.all('Salary_Changes').find((c) => c.staff_id === staff.id && c.from === input.from);
   // The first recorded change keeps the salary from joining until it.
   if (!db.all('Salary_Changes').some((c) => c.staff_id === staff.id) && staff.salary && input.from > joinedOn(staff)) {
-    db.insert('Salary_Changes', { staff_id: staff.id, from: joinedOn(staff), parts: [{ name: '', amount: staff.salary }], total: staff.salary, note: '', entered_by: ctx.user.id });
+    db.insert('Salary_Changes', { staff_id: staff.id, from: joinedOn(staff), parts: [{ name: '', amount: staff.salary }], total: staff.salary, food_rate: null, note: '', entered_by: ctx.user.id });
   }
   const row = same ? db.update('Salary_Changes', same, fields) : db.insert('Salary_Changes', { staff_id: staff.id, from: input.from, ...fields });
   syncSalaries(db);

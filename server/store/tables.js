@@ -37,10 +37,12 @@ export const TABLES = Object.freeze({
     prefix: 'SET',
     columns: ['key', 'value:j'],
   },
+  // kind 'owner': the shop's money a shareholder holds (shareholder_id);
+  // its balance is owed by them to the business.
   Money_Accounts: {
     group: 'accounts',
     prefix: 'MAC',
-    columns: ['name', 'kind', 'opening:n', 'status'],
+    columns: ['name', 'kind', 'opening:n', 'status', 'shareholder_id'],
   },
   Expense_Categories: {
     group: 'accounts',
@@ -53,12 +55,12 @@ export const TABLES = Object.freeze({
     columns: ['name', 'phone', 'opening_due:n', 'status'],
   },
   // salary: the owner salary a month. Opening figures as of the start date:
-  // the shop's cash they held, what the business owed them, and what they
-  // owed the business.
+  // what the business owed them, and what they owed the business. (The
+  // shop's cash they hold is an account held by them: Money_Accounts.)
   Shareholders: {
     group: 'accounts',
     prefix: 'SHR',
-    columns: ['name', 'phone', 'salary:n', 'status', 'opening_held:n', 'opening_owed:n', 'opening_owes:n'],
+    columns: ['name', 'phone', 'salary:n', 'status', 'opening_owed:n', 'opening_owes:n'],
   },
   // Shareholders' shares from a date: shares:j [{shareholder_id, percent}],
   // adding up to 100.
@@ -354,12 +356,13 @@ export const TABLES = Object.freeze({
       'status', 'cancel_reason', 'issued_by', 'issued_at',
     ],
   },
-  // A salary, in parts:j [{name, amount}] adding up to total, from a date.
-  // The staff record's salary is the one in force today.
+  // A salary, in parts:j [{name, amount}] adding up to total, from a date,
+  // with the person's own food allowance a day (food_rate; null: the
+  // shop's). The staff record's salary is the one in force today.
   Salary_Changes: {
     group: 'hr',
     prefix: 'SAL',
-    columns: ['staff_id', 'from', 'parts:j', 'total:n', 'note', 'entered_by'],
+    columns: ['staff_id', 'from', 'parts:j', 'total:n', 'note', 'entered_by', 'food_rate:j'],
   },
   // What the shop owed each person, and what they owed back, when the app
   // started being used.

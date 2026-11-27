@@ -3,7 +3,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { foodWeeks, instalmentDue, payslipFigures, periodKey, periodOf, salaryOn, salaryTotal } from '../../shared/hr/pay.js';
+import { foodRateOf, foodWeeks, instalmentDue, payslipFigures, periodKey, periodOf, salaryOn, salaryTotal } from '../../shared/hr/pay.js';
 
 test('the accounting month runs from its start day to the day before it next month', () => {
   assert.deepEqual(periodOf('2026-11', 11), { key: '2026-11', from: '2026-11-11', to: '2026-12-10', days: 30 });
@@ -38,8 +38,15 @@ test('a payslip: a whole month at one salary, a change in the month by its days,
 
 test('food allowance by week from Saturday', () => {
   // 2026-11-27 is a Friday, 2026-11-28 a Saturday.
-  const weeks = foodWeeks([{ from: '2000-01-01', amount: 100 }], ['2026-11-26', '2026-11-27', '2026-11-28']);
+  const weeks = foodWeeks(foodRateOf([{ from: '2000-01-01', amount: 100 }], []), ['2026-11-26', '2026-11-27', '2026-11-28']);
   assert.deepEqual(weeks, [{ from: '2026-11-21', to: '2026-11-27', earned: 200 }, { from: '2026-11-28', to: '2026-12-04', earned: 100 }]);
+});
+
+test('a person\'s own food rate from a salary change, else the shop\'s', () => {
+  const rateOf = foodRateOf([{ from: '2000-01-01', amount: 100 }, { from: '2026-11-15', amount: 120 }], [
+    { from: '2026-01-01', food_rate: null }, { from: '2026-11-20', food_rate: 150 }, { from: '2026-11-25', food_rate: null },
+  ]);
+  assert.deepEqual(['2026-11-10', '2026-11-16', '2026-11-21', '2026-11-26'].map(rateOf), [100, 120, 150, 120]);
 });
 
 test('the advance instalment due: each advance by its instalment, repaid oldest first', () => {

@@ -21,16 +21,20 @@ const options = (map) => Object.keys(map).map((value) => ({ value, label: t(map[
 const SECTIONS = [
   {
     key: 'accounts', action: 'setup.account.save', title: 'setup.accounts', add: 'setup.add_account', help: 'setup.accounts_help',
-    fields: () => [
+    fields: (data) => [
       { name: 'name', label: t('users.name'), required: true },
       { name: 'kind', label: t('setup.account_kind'), type: 'select', required: true, options: options(ACCOUNT_KINDS), help: t('setup.account_kind_help') },
       { name: 'opening', label: t('setup.opening'), inputmode: 'numeric', help: t('setup.opening_help') },
+      {
+        name: 'shareholder_id', label: t('setup.holder'), type: 'select', placeholder: '—', help: t('setup.holder_help'),
+        options: data.shareholders.filter((h) => h.status === 'active').map((h) => ({ value: h.id, label: h.name })),
+      },
       { name: 'status', label: t('users.status'), type: 'select', required: true, options: STATUS_OPTIONS() },
     ],
     defaults: { kind: 'bank', status: 'active' },
     columns: () => [
       { label: t('users.name'), cell: (r) => r.name },
-      { label: t('setup.account_kind'), cell: (r) => t(ACCOUNT_KINDS[r.kind]) },
+      { label: t('setup.account_kind'), cell: (r, data) => (r.shareholder_id ? `${t(ACCOUNT_KINDS[r.kind])}: ${(data.shareholders.find((h) => h.id === r.shareholder_id) || {}).name || ''}` : t(ACCOUNT_KINDS[r.kind])) },
       { label: t('setup.opening'), cell: (r) => money(r.opening || 0), kind: 'nowrap num' },
     ],
   },
@@ -70,7 +74,6 @@ const SECTIONS = [
       { name: 'name', label: t('users.name'), required: true },
       { name: 'phone', label: t('setup.phone'), inputmode: 'tel' },
       { name: 'salary', label: t('sh.salary'), inputmode: 'decimal', help: t('sh.salary_help') },
-      { name: 'opening_held', label: t('sh.opening_held'), inputmode: 'decimal', help: t('sh.opening_held_help') },
       { name: 'opening_owed', label: t('sh.opening_owed'), inputmode: 'decimal', help: t('sh.opening_owed_help') },
       { name: 'opening_owes', label: t('sh.opening_owes'), inputmode: 'decimal', help: t('sh.opening_owes_help') },
       { name: 'status', label: t('users.status'), type: 'select', required: true, options: STATUS_OPTIONS() },
@@ -84,7 +87,7 @@ const SECTIONS = [
   },
 ];
 
-function sectionView(section, rows) {
+function sectionView(section, rows, data) {
   const columns = [...section.columns(), { label: t('users.status'), cell: (r) => (r.status === 'active' ? chip(t('users.active'), 'ok') : chip(t('users.inactive'), 'muted')), kind: 'nowrap' }];
   return html`<section class="panel">
     <div class="panel-head">
@@ -95,20 +98,21 @@ function sectionView(section, rows) {
     <div class="list-body">${rows.length ? html`<table class="table">
       <thead><tr>${columns.map((c) => html`<th scope="col">${c.label}</th>`)}</tr></thead>
       <tbody>${rows.map((r) => html`<tr data-act="edit" data-key="${section.key}" data-id="${r.id}" tabindex="0">
-        ${columns.map((c) => html`<td data-label="${c.label}" class="${c.kind || ''}"><span>${c.cell(r)}</span></td>`)}</tr>`)}</tbody>
+        ${columns.map((c) => html`<td data-label="${c.label}" class="${c.kind || ''}"><span>${c.cell(r, data)}</span></td>`)}</tr>`)}</tbody>
     </table>` : emptyState(t('setup.empty'))}</div>
   </section>`;
 }
 
-function openRecord(section, record, onSaved) {
+function openRecord(section, record, data, onSaved) {
   const values = record ? { ...record } : { ...section.defaults };
-  const dialog = formDialog(t(section.add), formView({ fields: section.fields(), values, submit: t('common.save') }));
+  const dialog = formDialog(t(section.add), formView({ fields: section.fields(data), values, submit: t('common.save') }));
   bindForm(dialog.querySelector('form.form'), {
     schema: ACTIONS[section.action].schema,
     busyLabel: t('common.saving'),
     mapValues: (v) => {
       const out = { ...v, id: record ? record.id : null, version: record ? record.version : null };
-      for (const key of ['opening', 'opening_due', 'salary', 'opening_held', 'opening_owed', 'opening_owes']) if (key in out && out[key] === '') out[key] = null;
+      if ('shareholder_id' in out && !out.shareholder_id) out.shareholder_id = null;
+      for (const key of ['opening', 'opening_due', 'salary', 'opening_owed', 'opening_owes']) if (key in out && out[key] === '') out[key] = null;
       return out;
     },
     onSubmit: async (payload) => {
@@ -152,14 +156,14 @@ export const setupMoneyPage = {
       (reply) => {
         data = reply.data;
         render(notice, '');
-        render(body, SECTIONS.map((s) => sectionView(s, data[s.key])));
+        render(body, SECTIONS.map((s) => sectionView(s, data[s.key], data)));
       },
       (err) => render(notice, errorBox(errorText(err))),
     );
     const section = (btn) => SECTIONS.find((s) => s.key === btn.dataset.key);
     const off = on(el, 'click', {
-      add: (e, btn) => openRecord(section(btn), null, reload),
-      edit: (e, tr) => openRecord(section(tr), data[tr.dataset.key].find((r) => r.id === tr.dataset.id), reload),
+      add: (e, btn) => openRecord(section(btn), null, data, reload),
+      edit: (e, tr) => openRecord(section(tr), data[tr.dataset.key].find((r) => r.id === tr.dataset.id), data, reload),
     });
     const onKey = (e) => {
       if (e.key === 'Enter' && e.target.matches('tr[data-act="edit"]')) e.target.click();

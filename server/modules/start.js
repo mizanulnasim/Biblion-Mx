@@ -17,7 +17,7 @@ function counts(db) {
   return {
     date: {},
     accounts: { count: n(db.all('Money_Accounts').filter((a) => a.opening)) },
-    shareholders: { count: n(db.all('Shareholders').filter((s) => s.opening_held || s.opening_owed || s.opening_owes)) },
+    shareholders: { count: n(db.all('Shareholders').filter((s) => s.opening_owed || s.opening_owes || db.all('Money_Accounts').some((a) => a.shareholder_id === s.id))) },
     dues: { count: n(db.all('Due_Contacts').filter((c) => c.opening_due)) },
     suppliers: { count: n(db.all('Suppliers').filter((s) => s.opening_due)) },
     advances: { count: n(db.all('Pay_Openings').filter((o) => o.owed || o.advance)) },

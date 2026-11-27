@@ -132,5 +132,8 @@
   "pay.set.start_date_help": "শুরুর হিসাব এই দিনের; এর আগের বেতন বাকি গণ্য হয় না। খালি থাকলে: অ্যাপ চালুর দিন।",
   "pay.overtime_hours": "যত ঘণ্টা ওভারটাইম দেওয়া হবে",
   "pay.overtime_hours_help": "এ মাসে {hours} ঘণ্টা ওভারটাইম, ঘণ্টায় {rate}। সব, কিছু বা কোনোটিই না দিতে পারেন।",
-  "pay.line.overtime": "ওভারটাইম: {hours} ঘণ্টা × {rate}"
+  "pay.line.overtime": "ওভারটাইম: {hours} ঘণ্টা × {rate}",
+  "pay.food_rate": "নিজের দৈনিক খাবার ভাতা",
+  "pay.food_rate_help": "খালি: দোকানের হার (সেটিংস → বেতন)।",
+  "pay.own_food_rate": "খাবার ভাতা দিনে {amount}"
 }

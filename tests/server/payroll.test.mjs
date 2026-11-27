@@ -81,6 +81,9 @@ test('food allowance is earned by day from the rate in force', () => {
   s.call(s.owner, 'settings.payroll.save', { divisor: 'period_days', food_rule: 'every_day', food_rates: [{ from: '2000-01-01', amount: 100 }, { from: plus(today(), -9), amount: 150 }] });
   const earned = row(s, today().slice(0, 7), 'Sumi').account.food_earned;
   assert.equal(earned, 191 * 100 + 10 * 150);
+  // Sumi's own rate from 4 days ago (today included: 5 days at 200).
+  s.call(s.owner, 'salary.change', { staff_id: s.ids.sumi, from: plus(today(), -4), parts: [{ name: '', amount: 12000 }], food_rate: 200 });
+  assert.equal(row(s, today().slice(0, 7), 'Sumi').account.food_earned, 191 * 100 + 5 * 150 + 5 * 200);
   s.call(s.owner, 'settings.payroll.save', { divisor: 'period_days', food_rule: 'worked_days', food_rates: [{ from: '2000-01-01', amount: 100 }] });
   assert.equal(row(s, today().slice(0, 7), 'Sumi').account.food_earned, 0);
 });

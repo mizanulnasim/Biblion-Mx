@@ -1,5 +1,6 @@
 // Pay worked out the same way everywhere: the accounting month, a person's
-// salary on a date, a month's payslip, food allowance earned (by week), and
+// salary on a date, a month's payslip, food allowance earned (by week, at
+// the shop's rate or the person's own), and
 // the advance instalment due. Amounts are whole taka.
 //
 // The accounting month starts on a set day (Settings → Payroll; 1 is the
@@ -79,9 +80,21 @@ function rateOn(rates, date) {
   return amount;
 }
 
-// Food allowance earned on the given dates.
-export function foodEarned(rates, dates) {
-  return Math.round(dates.reduce((sum, d) => sum + rateOn(rates, d), 0));
+// One person's food allowance a day on a date: the rate in the salary in
+// force then (food_rate, when set: null means the shop's), else the shop's
+// rate. changes: [{from, food_rate}].
+export function foodRateOf(rates, changes) {
+  const sorted = changes.slice().sort((a, b) => (a.from < b.from ? -1 : 1));
+  return (date) => {
+    let own = null;
+    for (const c of sorted) if (c.from <= date) own = c.food_rate ?? null;
+    return own === null ? rateOn(rates, date) : own;
+  };
+}
+
+// Food allowance earned on the given dates, at rateOf(date) a day.
+export function foodEarned(rateOf, dates) {
+  return Math.round(dates.reduce((sum, d) => sum + rateOf(d), 0));
 }
 
 // The Saturday a week (Saturday to Friday) starts on.
@@ -92,7 +105,7 @@ function weekStart(date) {
 
 // Food allowance earned, by week from Saturday, oldest first:
 // [{from, to, earned}].
-export function foodWeeks(rates, dates) {
+export function foodWeeks(rateOf, dates) {
   const weeks = new Map();
   for (const d of dates) {
     const from = weekStart(d);
@@ -100,7 +113,7 @@ export function foodWeeks(rates, dates) {
     weeks.get(from).push(d);
   }
   return [...weeks.entries()].sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([from, ds]) => ({ from, to: addDays(from, 6), earned: foodEarned(rates, ds) }));
+    .map(([from, ds]) => ({ from, to: addDays(from, 6), earned: foodEarned(rateOf, ds) }));
 }
 
 // The deduction to suggest this month for advances repaid in instalments.

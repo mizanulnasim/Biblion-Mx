@@ -136,7 +136,7 @@ export const ACTIONS = Object.freeze({
   'setup.money': { perm: 'acc.setup' },
   'setup.account.save': {
     write: true, perm: 'acc.setup', area: 'money',
-    schema: { ...SETUP_BASE, kind: { type: 'enum', required: true, values: ['drawer', 'bkash', 'bank', 'owner'] }, opening: { type: 'int', min: 0 } },
+    schema: { ...SETUP_BASE, kind: { type: 'enum', required: true, values: ['drawer', 'bkash', 'bank', 'owner'] }, opening: { type: 'int', min: 0 }, shareholder_id: { type: 'id' } },
   },
   'setup.category.save': {
     write: true, perm: 'acc.setup', area: 'money',
@@ -150,7 +150,7 @@ export const ACTIONS = Object.freeze({
     write: true, perm: 'acc.setup', area: 'money',
     schema: {
       ...SETUP_BASE, phone: { type: 'text', max: 20 }, salary: { type: 'money', zero: true },
-      opening_held: { type: 'money', zero: true }, opening_owed: { type: 'money', zero: true }, opening_owes: { type: 'money', zero: true },
+      opening_owed: { type: 'money', zero: true }, opening_owes: { type: 'money', zero: true },
     },
   },
   // ---- Month closing and shareholders ----
@@ -766,6 +766,7 @@ export const ACTIONS = Object.freeze({
       staff_id: { type: 'id', required: true },
       from: { type: 'date', required: true },
       parts: { type: 'list', required: true, max: 8, of: { name: { type: 'text', max: 40 }, amount: { type: 'money', required: true } } },
+      food_rate: { type: 'money', zero: true },
       note: { type: 'text', max: 300 },
     },
   },
