@@ -6,7 +6,7 @@
 import { html, on, render } from '../ui/html.js';
 import { errorBox } from '../ui/feedback.js';
 import { errorText } from '../ui/form.js';
-import { read } from '../core/api.js';
+import { read, write } from '../core/api.js';
 import { onArea } from '../core/live.js';
 import { dateShortTime, money } from '../core/format.js';
 import { details, kindLabel, reasonTexts } from './money-common.js';
@@ -14,7 +14,7 @@ import { openEntry } from './money-entry.js';
 import { icon } from '../ui/icons.js';
 import { t } from '../core/i18n.js';
 import { can, getState, subscribe } from '../core/state.js';
-import { dateShort, partOfDay } from '../core/format.js';
+import { dateShort, monthLabel, partOfDay } from '../core/format.js';
 import { NAV, NAV_GROUPS } from './nav.js';
 import { punchCard, startPunch } from './attendance-common.js';
 import { taskActions, taskItem } from './tasks.js';
@@ -41,10 +41,34 @@ function waitingView(home) {
       <span>${t('home.mine_waiting', { count: home.mine_waiting })}</span></a>` : ''}`;
 }
 
+// A message's words: dates, amounts, months and money kinds in the person's
+// language.
+function messageText(text) {
+  const params = {};
+  for (const [k, v] of Object.entries(text.p || {})) {
+    if (v && typeof v === 'object') {
+      if ('d' in v) params[k] = dateShort(`${v.d}T06:00:00Z`);
+      else if ('m' in v) params[k] = money(v.m);
+      else if ('mo' in v) params[k] = v.mo ? monthLabel(v.mo) : '';
+      else params[k] = kindLabel(v.k);
+    } else {
+      params[k] = v;
+    }
+  }
+  return t(text.t, params);
+}
+
+function messagesView(list) {
+  if (!list || !list.length) return '';
+  return html`<ul class="messages">${list.map((m) => html`<li class="notice message">
+    ${m.link ? html`<a href="#${m.link}">${messageText(m.text)}</a>` : html`<span>${messageText(m.text)}</span>`}
+    <button type="button" class="btn btn-small" data-act="dismiss" data-id="${m.id}">${t('msg.dismiss')}</button></li>`)}</ul>`;
+}
+
 function attendanceView(att) {
   if (!att) return '';
   if (att.error) return errorBox(att.error);
-  return html`${att.staff && att.day ? punchCard(att) : ''}
+  return html`${messagesView(att.messages)}${att.staff && att.day ? punchCard(att) : ''}
     ${att.checks ? html`<a class="notice notice-warn" href="#/attendance">${icon('clock')}<span>${t('home.attendance_checks', { count: att.checks })}</span></a>` : ''}
     ${att.rota ? html`<a class="notice notice-warn" href="#/rota">${icon('daily')}<span>${t('home.rota_waiting', { count: att.rota })}</span></a>` : ''}
     ${att.leave ? html`<a class="notice notice-warn" href="#/leave">${icon('badge')}<span>${t('home.leave_waiting', { count: att.leave })}</span></a>` : ''}
@@ -152,6 +176,11 @@ export const homePage = {
     });
     const offClick = on(el, 'click', {
       open: (e, btn) => openEntry(btn.dataset.id, load),
+      dismiss: async (e, btn) => {
+        btn.disabled = true;
+        await write('messages.dismiss', { id: btn.dataset.id });
+        loadAttendance();
+      },
       punch: (e, btn) => startPunch(btn, loadAttendance),
       ...taskActions((id) => tasks.items.find((x) => x.id === id), loadTasks),
     });

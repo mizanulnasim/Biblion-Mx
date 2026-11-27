@@ -12,6 +12,7 @@ import { isDayClosed, isMonthClosed } from './closing.js';
 import { supplierBalances } from './suppliers.js';
 import { payAccount } from './payroll.js';
 import { planner } from './rota.js';
+import { tell } from './messages.js';
 
 const fieldError = (fields) => new AppError('VALIDATION', {}, fields);
 
@@ -353,6 +354,11 @@ export function record(ctx, entry, input, { checkDuplicates = true } = {}) {
     entered_by: ctx.user.id,
   });
   if (old) db.update('Transactions', old, { status: 'replaced', replaced_by: row.id });
+  // A salary paid is told to the person (not again when it is corrected).
+  if (row.kind === 'salary_paid' && !old) {
+    const staff = db.get('Staff', row.party_id);
+    if (staff) tell(ctx, staff.user_id, 'msg.salary_paid', { amount: { m: row.amount }, month: { mo: row.period } }, '/me/pay');
+  }
   if (pair) {
     db.setReason(input.reason || '');
     db.update('Transactions', pair, { status: 'cancelled', replaced_by: row.id, cancel_reason: input.reason || '', cancelled_by: ctx.user.id, cancelled_at: db.nowIso });
@@ -375,6 +381,8 @@ function cancel(ctx, input) {
   const entry = changeable(ctx, input.id, 'id');
   db.setReason(input.reason);
   db.update('Transactions', entry, { status: 'cancelled', cancel_reason: input.reason, cancelled_by: ctx.user.id, cancelled_at: db.nowIso });
+  // Cancelled by someone else: whoever entered it is told why.
+  tell(ctx, entry.entered_by, 'msg.entry_cancelled', { kind: { k: entry.kind }, amount: { m: entry.amount }, reason: input.reason }, '/money');
   return saved(entry.id);
 }
 

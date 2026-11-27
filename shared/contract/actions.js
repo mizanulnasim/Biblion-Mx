@@ -108,6 +108,8 @@ export const ACTIONS = Object.freeze({
     },
   },
   'sync.version': {},
+  // A message on Home, dismissed by the person it is for.
+  'messages.dismiss': { write: true, area: 'core', schema: { id: { type: 'id', required: true } } },
   'users.list': { perm: 'users.manage', cache: true, schema: PAGED },
   'users.save': {
     write: true, perm: 'users.manage', area: 'core',

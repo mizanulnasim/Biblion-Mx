@@ -11,6 +11,7 @@ import { COUNTED, dhakaDate, dhakaIso } from '../../shared/hr/attendance.js';
 import { setting } from '../kernel/settings.js';
 import { mayDecideFor, staffOfUser } from './staff.js';
 import { leaveTypes } from './leave-types.js';
+import { tell } from './messages.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
 const WEEK_DAYS = 7;
@@ -303,6 +304,8 @@ function decide(ctx, { id, decision, note }) {
   if (note) db.setReason(note);
   if (decision === 'accept') apply(ctx, db.update('Rota_Requests', r, { decide_note: note || '' }));
   else db.update('Rota_Requests', r, { status: 'declined', decided_by: ctx.user.id, decided_at: db.nowIso, decide_note: note });
+  // Everyone in the request is told.
+  for (const s of people) tell(ctx, s.user_id, decision === 'accept' ? 'msg.rota_approved' : 'msg.rota_declined', { date: { d: r.date }, note: note || '' }, '/rota');
   return saved(r.id);
 }
 

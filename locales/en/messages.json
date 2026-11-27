@@ -1,0 +1,15 @@
+{
+  "msg.dismiss": "Dismiss",
+  "msg.task_moved": "Your task “{title}” moved from {from} to {to}.",
+  "msg.task_moved_given": "{name}'s task “{title}” moved from {from} to {to}.",
+  "msg.task_sent_back": "Your task “{title}” was sent back: {note}",
+  "msg.leave_approved": "Your leave from {from} to {to} was approved.",
+  "msg.leave_declined": "Your leave from {from} to {to} was declined: {note}",
+  "msg.rota_approved": "Your rota request for {date} was approved.",
+  "msg.rota_declined": "Your rota request for {date} was declined: {note}",
+  "msg.details_approved": "Your new contact details were approved.",
+  "msg.details_rejected": "Your contact details change was not approved: {note}",
+  "msg.payslip_issued": "Your payslip for {month} is ready: {net}.",
+  "msg.salary_paid": "Salary of {amount} paid for {month}.",
+  "msg.entry_cancelled": "Your {kind} of {amount} was cancelled: {reason}"
+}

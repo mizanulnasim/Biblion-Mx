@@ -22,6 +22,7 @@ import { setting } from '../kernel/settings.js';
 import { planner } from './rota.js';
 import { mayDecideFor, staffOfUser } from './staff.js';
 import { storeFile } from './files.js';
+import { tell } from './messages.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
 const today = (db) => dhakaDate(db.now.getTime());
@@ -118,7 +119,8 @@ export function makeTasks(db) {
 // When leave is approved: repeating tasks on those days are skipped, and
 // one-off tasks move to the person's last working day before the leave (not
 // before today); with none, they stay and are flagged for a manager.
-export function moveTasksForLeave(db, leave) {
+export function moveTasksForLeave(ctx, leave) {
+  const { db } = ctx;
   const p = planner(db);
   const staff = db.get('Staff', leave.staff_id);
   const now = today(db);
@@ -130,8 +132,18 @@ export function moveTasksForLeave(db, leave) {
     }
     const before = leave.from > now ? workingDayFor(db, staff, addDays(leave.from, -1), p) : '';
     if (!before) db.update('Tasks', t, { move_flag: 'no_day' });
-    else db.update('Tasks', t, { due_date: before, moved_from: t.moved_from || t.due_date, move_flag: '' });
+    else {
+      db.update('Tasks', t, { due_date: before, moved_from: t.moved_from || t.due_date, move_flag: '' });
+      toldMoved(ctx, t, staff, t.due_date, before);
+    }
   }
+}
+
+// The doer and the giver are told when a task moves to an earlier day.
+function toldMoved(ctx, t, staff, from, to) {
+  const params = { title: t.title, from: { d: from }, to: { d: to } };
+  tell(ctx, staff.user_id, 'msg.task_moved', params, '/tasks');
+  if (t.created_by !== staff.user_id) tell(ctx, t.created_by, 'msg.task_moved_given', { ...params, name: staff.name }, '/tasks');
 }
 
 // A task the signed-in person may do: theirs, or open and given to them
@@ -279,6 +291,7 @@ function create(ctx, input) {
     title: input.title, details: input.details || '', ...who, ...due, priority: input.priority || 'normal', due_time: input.due_time || '', link: input.link || '',
     ...doing(input), created_by: ctx.user.id,
   });
+  if (row.moved_from) toldMoved(ctx, row, db.get('Staff', row.staff_id), row.moved_from, row.due_date);
   return saved(row.id, { due_date: row.due_date, moved_from: row.moved_from, move_flag: row.move_flag });
 }
 
@@ -386,6 +399,7 @@ function verify(ctx, { id, decision, note }) {
   db.update('Tasks', t, {
     status: decision === 'accept' ? 'done' : 'open', checked_by: ctx.user.id, checked_at: db.nowIso, check_note: note || '',
   });
+  if (decision !== 'accept') tell(ctx, staff.user_id, 'msg.task_sent_back', { title: t.title, note }, '/tasks');
   return saved(t.id);
 }
 

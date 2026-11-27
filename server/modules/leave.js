@@ -21,6 +21,7 @@ import { saveSetting, setting } from '../kernel/settings.js';
 import { joinedOn, mayDecideFor, staffOfUser } from './staff.js';
 import { planner } from './rota.js';
 import { moveTasksForLeave } from './tasks.js';
+import { tell } from './messages.js';
 import { leaveType, leaveTypes } from './leave-types.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
@@ -121,7 +122,7 @@ function apply(ctx, input) {
     staff_id: staff.id, kind: type.id, half, from: input.from, to: input.to, days, reason: input.reason, status: final ? 'approved' : 'waiting',
     decided_by: final ? ctx.user.id : '', decided_at: final ? db.nowIso : '', decide_note: '', cancel_reason: '', asked_by: ctx.user.id,
   });
-  if (final) moveTasksForLeave(db, row);
+  if (final) moveTasksForLeave(ctx, row);
   return saved(row.id, { final, days });
 }
 
@@ -137,7 +138,8 @@ function decide(ctx, { id, decision, note }) {
   if (decision === 'accept' && (leaveType(db, l.kind) || {}).from_balance) checkBalance(db, staff, l.days, l.id);
   if (note) db.setReason(note);
   const row = db.update('Leaves', l, { status: decision === 'accept' ? 'approved' : 'declined', decided_by: ctx.user.id, decided_at: db.nowIso, decide_note: note || '' });
-  if (decision === 'accept') moveTasksForLeave(db, row);
+  if (decision === 'accept') moveTasksForLeave(ctx, row);
+  tell(ctx, staff.user_id, decision === 'accept' ? 'msg.leave_approved' : 'msg.leave_declined', { from: { d: l.from }, to: { d: l.to }, note: note || '' }, '/leave');
   return saved(l.id);
 }
 

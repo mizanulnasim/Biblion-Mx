@@ -429,3 +429,7 @@ Built exactly as v1: net sales + other income + interest on loans shareholders t
 - **Counted from:** the last payment (any payment, even a part payment), else the first book received or the opening stock. When nothing was owed and something becomes owed again, the count starts from that day.
 - **Overdue:** when something is owed after the due date (due by = counted from + N months). With nothing owed, it isn't overdue.
 - **Who is told:** the payment tracker shows the due date and status; Home tells shareholders, whoever can pay publishers, and managers.
+
+### Notifications (28 Nov 2026)
+- **Shareholders' daily warnings email:** sent only on days with something to say, one hour after the shop closes (the hour is a setting). It lists money overdue (salaries, profit shares, publisher payments), what waits for a shareholder's approval, the day's shift missing or the day not closed, and the drawer short or over. Each shareholder adds their own address in My settings and can turn the email off there. Sent through the Google account the app runs on (free).
+- **Messages on Home:** a message stays on the person's Home until they dismiss it, for: a task moved to an earlier day (giver and doer); their leave or shift request decided; their money entry or task sent back; their payslip issued and salary paid; their contact-detail change decided. No email or phone notifications for these.

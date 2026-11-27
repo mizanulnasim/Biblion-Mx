@@ -1,0 +1,15 @@
+{
+  "msg.dismiss": "সরান",
+  "msg.task_moved": "আপনার কাজ “{title}” {from} থেকে {to}-এ সরানো হয়েছে।",
+  "msg.task_moved_given": "{name}-এর কাজ “{title}” {from} থেকে {to}-এ সরানো হয়েছে।",
+  "msg.task_sent_back": "আপনার কাজ “{title}” ফেরত পাঠানো হয়েছে: {note}",
+  "msg.leave_approved": "{from} থেকে {to} আপনার ছুটি মঞ্জুর হয়েছে।",
+  "msg.leave_declined": "{from} থেকে {to} আপনার ছুটি মঞ্জুর হয়নি: {note}",
+  "msg.rota_approved": "{date}-এর জন্য আপনার রোটা অনুরোধ মঞ্জুর হয়েছে।",
+  "msg.rota_declined": "{date}-এর জন্য আপনার রোটা অনুরোধ মঞ্জুর হয়নি: {note}",
+  "msg.details_approved": "আপনার নতুন যোগাযোগের তথ্য মঞ্জুর হয়েছে।",
+  "msg.details_rejected": "আপনার যোগাযোগের তথ্যের বদল মঞ্জুর হয়নি: {note}",
+  "msg.payslip_issued": "{month}-এর বেতন স্লিপ তৈরি: {net}।",
+  "msg.salary_paid": "{month}-এর বেতন {amount} দেওয়া হয়েছে।",
+  "msg.entry_cancelled": "আপনার {kind} {amount} বাতিল হয়েছে: {reason}"
+}

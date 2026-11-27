@@ -464,6 +464,10 @@ fieldset.panel legend { padding: 0 var(--space-2); margin-left: calc(-1 * var(--
 .doc-logo { height: 56px; filter: var(--logo-filter); }
 .doc-title { margin: 0; }
 .doc-foot { margin-top: var(--space-5); }
+/* Messages on Home, each dismissed on its own. */
+.messages { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: grid; gap: var(--space-2); }
+.message { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+
 /* Reports: as wide as their tables; a wide table scrolls on screen. */
 .report { max-width: 1100px; }
 .report-table { overflow-x: auto; margin: var(--space-3) 0; }

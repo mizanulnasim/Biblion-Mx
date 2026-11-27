@@ -485,6 +485,13 @@ export const TABLES = Object.freeze({
     prefix: 'RPP',
     columns: ['report', 'ref', 'printed_by'],
   },
+  // A message on a person's Home until they dismiss it (seen_at). text:
+  // {t: message id, p: params}; link: where it opens.
+  Messages: {
+    group: 'core',
+    prefix: 'MSG',
+    columns: ['user_id', 'text:j', 'link', 'seen_at'],
+  },
   // One row per closed date; reopening keeps the row with its reason.
   Day_Closings: {
     group: 'accounts',
