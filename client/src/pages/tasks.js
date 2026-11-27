@@ -16,6 +16,7 @@ import { dateShort, dateShortTime, today } from '../core/format.js';
 import { ACTIONS } from '../../../shared/contract/actions.js';
 import { errorMessageId } from '../../../shared/contract/errors.js';
 import { TASK_LINKS, TASK_ROLES } from '../../../shared/tasks/tasks.js';
+import { shrinkPhoto, toBase64 } from '../ui/files.js';
 import { decideRequest } from './rota.js';
 
 const STATUS = {
@@ -95,16 +96,78 @@ function textDialog({ title, label, action, payload, field, onDone, done }) {
   });
 }
 
+function doneToast(reply) {
+  if (reply.status === 'queued') toast(t('tasks.queued'));
+  else if (reply.status === 'saved') toast(t(reply.data.status === 'to_check' ? 'tasks.sent_for_check' : 'tasks.marked_done'));
+  else if (reply.status === 'rejected') toast(t(errorMessageId(reply.error.code), reply.error.params), 'error');
+}
+
+// A photo field: the photo is made smaller and sent as soon as it is chosen.
+function photoField(slot, label, has, required) {
+  return html`<div class="field"><label for="ph-${slot}">${label}${required ? '' : html` <span class="muted">${t('form.optional')}</span>`}</label>
+    <input id="ph-${slot}" type="file" accept="image/*" capture="environment" data-slot="${slot}" aria-describedby="ph-${slot}-state">
+    <p class="help" id="ph-${slot}-state">${has ? t('tasks.photo_added') : ''}</p>
+    <p class="field-error" id="f-${slot === 'before' || slot === 'after' ? slot : `answers.${slot}`}-err"></p></div>`;
+}
+
+// Doing a task with a checklist or evidence: the answers, the photos (sent
+// when chosen), and the note.
+function doTask(task, onDone) {
+  const has = (slot) => task.files.some((f) => f.slot === slot);
+  const fields = task.checklist.filter((c) => c.type !== 'photo').map((c) => ({
+    name: `answers.${c.id}`, label: c.unit ? `${c.label} (${c.unit})` : c.label, required: c.required,
+    ...(c.type === 'check' ? { type: 'checkbox' } : c.type === 'number' ? { inputmode: 'decimal' } : {}),
+  }));
+  fields.push({ name: 'note', label: t('tasks.note'), type: 'textarea', required: Boolean(task.evidence.note) });
+  const photos = html`${task.checklist.filter((c) => c.type === 'photo').map((c) => photoField(c.id, c.label, has(c.id), c.required))}
+    ${task.evidence.before ? photoField('before', t('tasks.photo_before'), has('before'), true) : ''}
+    ${task.evidence.after ? photoField('after', t('tasks.photo_after'), has('after'), true) : ''}`;
+  const values = {};
+  for (const c of task.checklist) values[`answers.${c.id}`] = c.type === 'check' ? task.answers[c.id] === 'yes' : task.answers[c.id] || '';
+  const dialog = formDialog(task.title, formView({ submit: t('tasks.done'), values, fields, extra: photos }));
+  const form = dialog.querySelector('form.form');
+  form.addEventListener('change', async (e) => {
+    const input = e.target;
+    if (!input.dataset.slot || !input.files[0]) return;
+    const state = form.querySelector(`#ph-${input.dataset.slot}-state`);
+    state.textContent = t('tasks.photo_sending');
+    try {
+      const photo = await shrinkPhoto(input.files[0]);
+      const reply = await write('tasks.attach', { id: task.id, slot: input.dataset.slot, name: 'photo.jpg', mime: 'image/jpeg', data: toBase64(photo.bytes) }, { label: task.title });
+      state.textContent = reply.status === 'saved' ? t('tasks.photo_added') : t(errorMessageId(reply.error ? reply.error.code : 'NETWORK'));
+    } catch (err) {
+      state.textContent = errorText(err);
+    }
+  });
+  bindForm(form, {
+    schema: { note: ACTIONS['tasks.complete'].schema.note },
+    busyLabel: t('common.saving'),
+    mapValues: (v) => ({
+      id: task.id, note: v.note,
+      answers: task.checklist.filter((c) => c.type !== 'photo').map((c) => ({ item: c.id, value: c.type === 'check' ? (v[`answers.${c.id}`] ? 'yes' : '') : v[`answers.${c.id}`] })),
+    }),
+    onSubmit: (v) => write('tasks.complete', v, { label: task.title }),
+    onSaved: (reply) => {
+      dialog.close();
+      doneToast(reply);
+      onDone();
+    },
+  });
+}
+
 // The buttons on a task, shared with Home.
 export function taskActions(findTask, onDone) {
   return {
     done: async (e, btn) => {
       const task = findTask(btn.dataset.id);
+      const ev = task.evidence || {};
+      if (task.checklist.length || ev.before || ev.after || ev.note) {
+        doTask(task, onDone);
+        return;
+      }
       btn.disabled = true;
       const reply = await write('tasks.complete', { id: task.id }, { label: task.title });
-      if (reply.status === 'queued') toast(t('tasks.queued'));
-      else if (reply.status === 'saved') toast(t(reply.data.status === 'to_check' ? 'tasks.sent_for_check' : 'tasks.marked_done'));
-      else if (reply.status === 'rejected') toast(t(errorMessageId(reply.error.code), reply.error.params), 'error');
+      doneToast(reply);
       onDone();
     },
     'not-done': (e, btn) => textDialog({
@@ -142,12 +205,47 @@ function fromWho(who) {
   return { staff_id: pick('staff'), role: pick('role'), position: pick('position'), team_id: pick('team') };
 }
 
+// The checklist and evidence fields of the give and repeating-task forms.
+const CHECK_ROWS = 5;
+const CHECK_TYPES = { check: 'tasks.check.check', number: 'tasks.check.number', text: 'tasks.check.text', photo: 'tasks.check.photo' };
+function doingFields() {
+  const rows = [];
+  for (let i = 0; i < CHECK_ROWS; i++) {
+    rows.push(
+      { name: `c_label_${i}`, label: t('tasks.check_item', { n: i + 1 }), help: i ? '' : t('tasks.checklist_help') },
+      { name: `c_type_${i}`, label: t('tasks.check_type'), type: 'select', options: Object.keys(CHECK_TYPES).map((k) => ({ value: k, label: t(CHECK_TYPES[k]) })) },
+      { name: `c_req_${i}`, label: t('tasks.check_required'), type: 'checkbox' },
+    );
+  }
+  return [
+    ...rows,
+    { name: 'evidence_before', label: t('tasks.evidence_before'), type: 'checkbox' },
+    { name: 'evidence_after', label: t('tasks.evidence_after'), type: 'checkbox' },
+    { name: 'evidence_note', label: t('tasks.evidence_note'), type: 'checkbox' },
+  ];
+}
+function doingValues(x) {
+  const values = { evidence_before: Boolean(x && x.evidence.before), evidence_after: Boolean(x && x.evidence.after), evidence_note: Boolean(x && x.evidence.note) };
+  for (let i = 0; i < CHECK_ROWS; i++) values[`c_type_${i}`] = 'check';
+  (x ? x.checklist : []).forEach((c, i) => {
+    values[`c_label_${i}`] = c.label;
+    values[`c_type_${i}`] = c.type;
+    values[`c_req_${i}`] = c.required;
+  });
+  return values;
+}
+function doingPayload(v) {
+  const checklist = [];
+  for (let i = 0; i < CHECK_ROWS; i++) if (v[`c_label_${i}`]) checklist.push({ label: v[`c_label_${i}`], type: v[`c_type_${i}`], required: v[`c_req_${i}`] });
+  return { checklist, evidence_before: v.evidence_before, evidence_after: v.evidence_after, evidence_note: v.evidence_note };
+}
+
 const linkOptions = () => [{ value: '', label: t('tasks.link.none') }, ...Object.keys(TASK_LINKS).map((k) => ({ value: k, label: t(TASK_LINKS[k].label) }))];
 
 function giveTask(lists, onDone) {
   const dialog = formDialog(t('tasks.give'), formView({
     submit: t('tasks.give'),
-    values: { due_date: today(), priority: 'normal' },
+    values: { due_date: today(), priority: 'normal', ...doingValues(null) },
     fields: [
       { name: 'title', label: t('tasks.title'), required: true },
       { name: 'details', label: t('tasks.details'), type: 'textarea' },
@@ -157,12 +255,16 @@ function giveTask(lists, onDone) {
       { name: 'due_date', label: t('tasks.due_date'), type: 'date', required: true },
       { name: 'due_time', label: t('tasks.due_time'), type: 'time' },
       { name: 'link', label: t('tasks.link'), type: 'select', options: linkOptions(), help: t('tasks.link_help') },
+      ...doingFields(),
     ],
   }));
   bindForm(dialog.querySelector('form.form'), {
     schema: { ...ACTIONS['tasks.create'].schema, ...WHO },
     busyLabel: t('common.saving'),
-    mapValues: (v) => ({ ...v, ...fromWho(v.who), due_time: v.due_time || null, link: v.link || null }),
+    mapValues: (v) => ({
+      title: v.title, details: v.details, who: v.who, ...fromWho(v.who), each: v.each, priority: v.priority, due_date: v.due_date,
+      due_time: v.due_time || null, link: v.link || null, ...doingPayload(v),
+    }),
     onSubmit: ({ who, ...v }) => write('tasks.create', v),
     onSaved: () => {
       dialog.close();
@@ -287,6 +389,7 @@ const TEMPLATE_STATUS = { active: ['users.active', 'ok'], paused: ['tasks.paused
 function editTemplate(tpl, lists, onDone) {
   const values = tpl ? { ...tpl, who: whoValue(tpl), day_of_month: tpl.day_of_month ? String(tpl.day_of_month) : '', every: tpl.every ? String(tpl.every) : '', dates: tpl.dates.join(', ') }
     : { repeat: 'daily', start_date: today(), status: 'active', priority: 'normal' };
+  Object.assign(values, doingValues(tpl));
   if (tpl) for (const d of tpl.days) values[`day_${d}`] = true;
   const dialog = formDialog(tpl ? tpl.title : t('tasks.add_repeating'), formView({
     submit: t('common.save'),
@@ -304,6 +407,7 @@ function editTemplate(tpl, lists, onDone) {
       { name: 'day_of_month', label: t('tasks.day_of_month'), inputmode: 'numeric', help: t('tasks.day_of_month_help') },
       { name: 'due_time', label: t('tasks.due_time'), type: 'time' },
       { name: 'link', label: t('tasks.link'), type: 'select', options: linkOptions(), help: t('tasks.link_help') },
+      ...doingFields(),
       { name: 'start_date', label: t('tasks.start_date'), type: 'date', required: true },
       { name: 'end_date', label: t('tasks.end_date'), type: 'date' },
       { name: 'status', label: t('users.status'), type: 'select', required: true, options: Object.keys(TEMPLATE_STATUS).map((k) => ({ value: k, label: t(TEMPLATE_STATUS[k][0]) })), help: t('tasks.status_help') },
@@ -329,7 +433,7 @@ function editTemplate(tpl, lists, onDone) {
       priority: v.priority, repeat: v.repeat, every: v.every || null,
       days: WEEKDAYS.map((wd, day) => day).filter((day) => v[`day_${day}`]).map((day) => ({ day })),
       dates: (v.dates || '').split(/[,\s]+/).filter(Boolean).map((date) => ({ date })),
-      day_of_month: v.day_of_month || null, due_time: v.due_time || null, link: v.link || null,
+      day_of_month: v.day_of_month || null, due_time: v.due_time || null, link: v.link || null, ...doingPayload(v),
       start_date: v.start_date, end_date: v.end_date || null, status: v.status,
     }),
     onSubmit: ({ who, ...v }) => write('tasks.template.save', v),

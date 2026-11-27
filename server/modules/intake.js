@@ -13,9 +13,10 @@ import { extract, guessKind, readBkash, readShiftReport } from '../../shared/int
 import { page } from '../kernel/paging.js';
 import { saveSetting, setting } from '../kernel/settings.js';
 import {
-  base64ToBytes, bytesToBase64, deleteProp, fileBytes, folderFor, getProp, postJson, readText, saveFile, setProp, sha256Hex,
+  base64ToBytes, bytesToBase64, deleteProp, fileBytes, getProp, postJson, readText, setProp, sha256Hex,
 } from '../platform.js';
 import { prepareEntry, record } from './money.js';
+import { storeFile } from './files.js';
 import { createDelivery } from './books.js';
 import { dhakaDate } from './requisitions.js';
 
@@ -34,13 +35,10 @@ function upload(ctx, { name, mime, data }) {
     const earlier = db.all('Intake_Docs').find((d) => d.file_id === same.id);
     throw fieldError({ data: { code: 'val.file_exists', params: { id: earlier ? earlier.id : '' } } });
   }
-  const driveId = saveFile(folderFor(`uploads/${dhakaDate(db.now).slice(0, 7)}`), name, mime, bytes);
-  const file = db.insert('Files', {
-    drive_id: driveId, name, mime, size: bytes.length, checksum, sensitive: false, uploaded_by: ctx.user.id, status: 'active', record_ids: [],
-  });
+  const file = storeFile(ctx, { name, mime, data }, 'uploads');
   let text = '';
   try {
-    text = readText(driveId, mime);
+    text = readText(file.drive_id, mime);
   } catch (err) {
     // A file Drive can't read is still kept; the person fills the entries in.
   }

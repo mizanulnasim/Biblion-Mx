@@ -342,13 +342,16 @@ export const TABLES = Object.freeze({
   // (shared/tasks/tasks.js: repeat, every, days, day_of_month, dates). Given
   // to a person (staff_id), a role (manager or staff), a position or a team;
   // each: one task for every person of it, else one anyone of it may do.
-  // priority: low, normal, high, urgent. Status: active, paused, ended.
+  // priority: low, normal, high, urgent. checklist:j [{id, label, type: check,
+  // number, text or photo, required, min, max, unit}]; evidence:j {before,
+  // after, note}: photos or a note the person must give. Status: active,
+  // paused, ended.
   Task_Templates: {
     group: 'hr',
     prefix: 'TTP',
     columns: [
       'title', 'details', 'staff_id', 'role', 'position', 'team_id', 'each:b', 'priority', 'repeat', 'every:n', 'days:j', 'day_of_month:n',
-      'dates:j', 'due_time', 'link', 'start_date', 'end_date', 'status',
+      'dates:j', 'due_time', 'link', 'checklist:j', 'evidence:j', 'start_date', 'end_date', 'status',
     ],
   },
   // Tasks, one-off or made from a template for one date. Given to a person
@@ -359,12 +362,14 @@ export const TABLES = Object.freeze({
   // the date it was due before approved leave moved it; move_flag no_day:
   // there was no earlier working day to move it to. record_id: the record a
   // linked task was done with; override_reason: a manager let it be done
-  // without one.
+  // without one. answers:j {item id: value}; files:j [{slot: before, after,
+  // receipt or a checklist item id, file_id}].
   Tasks: {
     group: 'hr',
     prefix: 'TSK',
     columns: [
       'template_id', 'each_of', 'title', 'details', 'staff_id', 'role', 'position', 'team_id', 'priority', 'due_date', 'due_time', 'link', 'status', 'record_id', 'override_reason',
+      'checklist:j', 'evidence:j', 'answers:j', 'files:j',
       'note', 'done_at', 'done_by', 'checked_by', 'checked_at', 'check_note', 'skip_reason', 'moved_from', 'move_flag', 'comments:j', 'created_by',
     ],
   },

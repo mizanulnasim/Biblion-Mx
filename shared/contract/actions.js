@@ -56,6 +56,18 @@ const TASK_FIELDS = {
   priority: { type: 'enum', values: PRIORITIES },
   due_time: { type: 'time' },
   link: { type: 'text', max: 40 },
+  // Items to fill in when doing the task.
+  checklist: {
+    type: 'list', max: 20,
+    of: {
+      label: { type: 'text', required: true, max: 120 }, type: { type: 'enum', required: true, values: ['check', 'number', 'text', 'photo'] },
+      required: { type: 'bool' }, min: { type: 'number' }, max: { type: 'number' }, unit: { type: 'text', max: 12 },
+    },
+  },
+  // Photos before and after, or a note, the person must give.
+  evidence_before: { type: 'bool' },
+  evidence_after: { type: 'bool' },
+  evidence_note: { type: 'bool' },
 };
 const DECISION = {
   id: { type: 'id', required: true },
@@ -747,7 +759,19 @@ export const ACTIONS = Object.freeze({
     write: true, perm: 'tasks.create', area: 'hr',
     schema: { ...TASK_FIELDS, due_date: { type: 'date', required: true } },
   },
-  'tasks.complete': { write: true, offline: true, area: 'hr', schema: { id: { type: 'id', required: true }, note: { type: 'text', max: 300 } } },
+  'tasks.complete': {
+    write: true, offline: true, area: 'hr',
+    schema: { id: { type: 'id', required: true }, note: { type: 'text', max: 300 }, answers: { type: 'list', max: 20, of: { item: { type: 'text', required: true, max: 20 }, value: { type: 'text', max: 300 } } } },
+  },
+  // A photo for a task: before, after, a receipt, or a checklist item's.
+  'tasks.attach': {
+    write: true, area: 'hr',
+    schema: {
+      id: { type: 'id', required: true }, slot: { type: 'text', required: true, max: 20 },
+      name: { type: 'text', required: true, max: 120 }, mime: { type: 'enum', required: true, values: UPLOAD_TYPES },
+      data: { type: 'text', required: true, max: Math.ceil(MAX_UPLOAD_BYTES * 4 / 3) + 4 },
+    },
+  },
   'tasks.not_done': { write: true, offline: true, area: 'hr', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 300 } } },
   'tasks.comment': { write: true, offline: true, area: 'hr', schema: { id: { type: 'id', required: true }, text: { type: 'text', required: true, max: 500 } } },
   'tasks.verify': { write: true, perm: 'tasks.verify', area: 'hr', schema: DECISION },

@@ -20,6 +20,7 @@ import { TASK_LINKS, occursOn } from '../../shared/tasks/tasks.js';
 import { setting } from '../kernel/settings.js';
 import { planner } from './rota.js';
 import { mayDecideFor, staffOfUser } from './staff.js';
+import { storeFile } from './files.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
 const today = (db) => dhakaDate(db.now.getTime());
@@ -62,6 +63,7 @@ function taskView(db, t, n) {
     role: t.role, position: t.position, team: teamName(db, t), priority: t.priority || 'normal',
     due_date: t.due_date, due_time: t.due_time, link: t.link, status: t.status, overdue: late,
     record_id: t.record_id, override_reason: t.override_reason, move_flag: t.move_flag,
+    checklist: t.checklist || [], evidence: t.evidence || {}, answers: t.answers || {}, files: t.files || [],
     note: t.note, done_at: t.done_at, check_note: t.check_note, skip_reason: t.skip_reason, moved_from: t.moved_from,
     comments: t.comments || [], version: t.version,
   };
@@ -69,7 +71,8 @@ function taskView(db, t, n) {
 
 function newTask(db, fields) {
   return db.insert('Tasks', {
-    template_id: '', details: '', staff_id: '', role: '', position: '', team_id: '', priority: 'normal', due_time: '', link: '', status: 'open', record_id: '', override_reason: '',
+    template_id: '', details: '', staff_id: '', role: '', position: '', team_id: '', priority: 'normal', due_time: '', link: '', status: 'open',
+    checklist: [], evidence: {}, answers: {}, files: [], record_id: '', override_reason: '',
     note: '', done_at: '', done_by: '', checked_by: '', checked_at: '', check_note: '', skip_reason: '', moved_from: '', move_flag: '',
     comments: [], ...fields,
   });
@@ -93,6 +96,7 @@ export function makeTasks(db) {
   const make = (tpl, date, staffId) => {
     newTask(db, {
       template_id: tpl.id, each_of: staffId, title: tpl.title, details: tpl.details, ...whoFields(tpl, staffId), priority: tpl.priority || 'normal',
+      checklist: tpl.checklist || [], evidence: tpl.evidence || {},
       due_date: date, due_time: tpl.due_time, link: tpl.link, created_by: 'SYSTEM',
     });
     made++;
@@ -185,6 +189,50 @@ function activeStaff(db, id) {
   return staff;
 }
 
+// The checklist (each item with an id) and the evidence asked for.
+function doing(input) {
+  return {
+    checklist: (input.checklist || []).map((c, i) => ({
+      id: `c${i + 1}`, label: c.label, type: c.type, required: Boolean(c.required), min: c.min ?? null, max: c.max ?? null, unit: c.unit || '',
+    })),
+    evidence: { before: Boolean(input.evidence_before), after: Boolean(input.evidence_after), note: Boolean(input.evidence_note) },
+  };
+}
+
+// What is still missing before a task can be done: [{field, code, params}].
+function missing(t, answers, note) {
+  const out = [];
+  const hasFile = (slot) => (t.files || []).some((f) => f.slot === slot);
+  for (const c of t.checklist || []) {
+    const v = answers[c.id];
+    const empty = c.type === 'photo' ? !hasFile(c.id) : c.type === 'check' ? v !== 'yes' : v === undefined || v === '';
+    if (c.required && empty) out.push({ field: `answers.${c.id}`, code: 'val.required', params: {} });
+    if (c.type === 'number' && !empty) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) out.push({ field: `answers.${c.id}`, code: 'val.not_number', params: {} });
+      else if ((c.min !== null && n < c.min) || (c.max !== null && n > c.max)) out.push({ field: `answers.${c.id}`, code: 'val.between', params: { min: c.min ?? '', max: c.max ?? '' } });
+    }
+  }
+  const ev = t.evidence || {};
+  if (ev.before && !hasFile('before')) out.push({ field: 'before', code: 'val.photo_needed', params: {} });
+  if (ev.after && !hasFile('after')) out.push({ field: 'after', code: 'val.photo_needed', params: {} });
+  if (ev.note && !note) out.push({ field: 'note', code: 'val.required', params: {} });
+  return out;
+}
+
+// A photo for a task the person may do: before, after, a receipt, or a
+// checklist item's. A new one replaces the slot's earlier one.
+function attach(ctx, input) {
+  const { db } = ctx;
+  const { t } = ownTask(ctx, input.id);
+  if (t.status !== 'open') throw new AppError('CONFLICT', { by: '' });
+  const slots = ['before', 'after', 'receipt', ...(t.checklist || []).filter((c) => c.type === 'photo').map((c) => c.id)];
+  if (!slots.includes(input.slot)) throw fieldError('slot', 'val.choice');
+  const file = storeFile(ctx, input, 'tasks', [t.id]);
+  db.update('Tasks', t, { files: [...(t.files || []).filter((f) => f.slot !== input.slot), { slot: input.slot, file_id: file.id }] });
+  return saved(t.id, { file_id: file.id });
+}
+
 // A person, a role, a position or a team: exactly one.
 function assignee(db, input) {
   const given = ['staff_id', 'role', 'position', 'team_id'].filter((k) => input[k]);
@@ -227,7 +275,8 @@ function create(ctx, input) {
     else if (day !== input.due_date) due = { due_date: day, moved_from: input.due_date, move_flag: '' };
   }
   const row = newTask(db, {
-    title: input.title, details: input.details || '', ...who, ...due, priority: input.priority || 'normal', due_time: input.due_time || '', link: input.link || '', created_by: ctx.user.id,
+    title: input.title, details: input.details || '', ...who, ...due, priority: input.priority || 'normal', due_time: input.due_time || '', link: input.link || '',
+    ...doing(input), created_by: ctx.user.id,
   });
   return saved(row.id, { due_date: row.due_date, moved_from: row.moved_from, move_flag: row.move_flag });
 }
@@ -242,15 +291,19 @@ function recordFor(db, t) {
   return row ? row.id : '';
 }
 
-function complete(ctx, { id, note }) {
+function complete(ctx, { id, note, answers: list }) {
   const { db } = ctx;
   const { t, me } = ownTask(ctx, id);
   if (t.status !== 'open') throw new AppError('CONFLICT', { by: '' });
+  const answers = {};
+  for (const a of list || []) answers[a.item] = a.value ?? '';
+  const gaps = missing(t, answers, note);
+  if (gaps.length) throw new AppError('VALIDATION', {}, Object.fromEntries(gaps.map((g) => [g.field, { code: g.code, params: g.params }])));
   const recordId = t.link && TASK_LINKS[t.link] ? recordFor(db, t) : '';
   if (t.link && !recordId && !t.override_reason) throw new AppError('TASK_RECORD');
   // Checked by someone more senior; a shareholder's own is final.
   const status = roleKey(ctx.user) === 'owner' ? 'done' : 'to_check';
-  db.update('Tasks', t, { staff_id: me.id, status, record_id: recordId, note: note || '', done_at: db.nowIso, done_by: ctx.user.id });
+  db.update('Tasks', t, { staff_id: me.id, status, record_id: recordId, answers, note: note || '', done_at: db.nowIso, done_by: ctx.user.id });
   return saved(t.id, { status });
 }
 
@@ -344,6 +397,7 @@ function templates(ctx) {
     items: db.all('Task_Templates').sort((a, b) => a.title.localeCompare(b.title)).map((t) => ({
       id: t.id, version: t.version, title: t.title, details: t.details, staff_id: t.staff_id, staff_name: n.get(t.staff_id) || '', role: t.role,
       position: t.position, team_id: t.team_id, team: teamName(db, t), each: t.each, priority: t.priority || 'normal',
+      checklist: t.checklist || [], evidence: t.evidence || {},
       repeat: t.repeat, every: t.every, days: t.days || [], day_of_month: t.day_of_month, dates: t.dates || [], due_time: t.due_time, link: t.link,
       start_date: t.start_date, end_date: t.end_date, status: t.status,
     })),
@@ -366,7 +420,7 @@ function saveTemplate(ctx, input) {
   if (input.repeat === 'dates' && !dates.length) throw fieldError('dates', 'val.required');
   if (input.end_date && input.end_date < input.start_date) throw fieldError('end_date', 'val.date_order');
   const fields = {
-    title: input.title, details: input.details || '', ...who, each: Boolean(input.each) && !who.staff_id, priority: input.priority || 'normal',
+    title: input.title, details: input.details || '', ...who, each: Boolean(input.each) && !who.staff_id, priority: input.priority || 'normal', ...doing(input),
     repeat: input.repeat, every: every ? input.every : null, days: weekly ? days : [], day_of_month: monthly ? input.day_of_month : null,
     dates: input.repeat === 'dates' ? dates : [], due_time: input.due_time || '', link: input.link || '',
     start_date: input.start_date, end_date: input.end_date || '', status: input.status,
@@ -425,6 +479,7 @@ export const TASK_HANDLERS = {
   'tasks.list': list,
   'tasks.create': create,
   'tasks.complete': complete,
+  'tasks.attach': attach,
   'tasks.not_done': notDone,
   'tasks.comment': comment,
   'tasks.verify': verify,

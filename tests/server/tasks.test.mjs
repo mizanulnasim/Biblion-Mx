@@ -158,3 +158,23 @@ test('a task for a position or a team: one anyone of it may do, or a copy for ea
   assert.equal(mine(s, s.staff).filter((x) => x.title === 'Count the till').length, 2);
   assert.equal(mine(s, s.manager).filter((x) => x.title === 'Count the till').length, 2);
 });
+
+test('a checklist and evidence: required answers, numbers in range, photos and a note before it is done', () => {
+  const s = team();
+  const id = s.call(s.manager, 'tasks.create', {
+    title: 'Fridge check', staff_id: s.ids.sumi, due_date: today(), evidence_after: true, evidence_note: true,
+    checklist: [{ label: 'Doors closed', type: 'check', required: true }, { label: 'Temperature', type: 'number', required: true, min: 1, max: 5, unit: '°C' }, { label: 'Shelf', type: 'photo', required: true }],
+  }).data.record_id;
+  const task = mine(s, s.staff).find((x) => x.id === id);
+  assert.deepEqual(task.checklist.map((c) => c.id), ['c1', 'c2', 'c3']);
+  const tooWarm = s.call(s.staff, 'tasks.complete', { id, answers: [{ item: 'c1', value: '' }, { item: 'c2', value: '9' }] }).data.error.fields;
+  assert.deepEqual(Object.keys(tooWarm).sort(), ['after', 'answers.c1', 'answers.c2', 'answers.c3', 'note']);
+  assert.equal(tooWarm['answers.c2'].code, 'val.between');
+  const photo = { name: 'p.jpg', mime: 'image/jpeg', data: Buffer.from('a photo').toString('base64') };
+  assert.equal(s.call(s.staff, 'tasks.attach', { id, slot: 'c3', ...photo }).data.status, 'saved');
+  assert.equal(s.call(s.staff, 'tasks.attach', { id, slot: 'after', ...photo }).data.status, 'saved');
+  assert.equal(s.call(s.staff, 'tasks.attach', { id, slot: 'nowhere', ...photo }).data.error.fields.slot.code, 'val.choice');
+  const done = s.call(s.staff, 'tasks.complete', { id, note: 'All fine', answers: [{ item: 'c1', value: 'yes' }, { item: 'c2', value: '4' }] }).data;
+  assert.equal(done.data.status, 'to_check');
+  assert.deepEqual(mine(s, s.staff).find((x) => x.id === id).answers, { c1: 'yes', c2: '4' });
+});
