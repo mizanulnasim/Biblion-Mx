@@ -40,8 +40,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 // {ok:false, error:{code:'NETWORK'}} so callers handle every outcome alike.
 async function post(action, payload, opId) {
   const url = (window.BIBLION_CONFIG || {}).API_URL;
-  const body = JSON.stringify({ action, payload, token: device.get('token'), op_id: opId, contract: CONTRACT });
   for (let attempt = 0; ; attempt++) {
+    // Sent again on each try, so the server can correct the phone's clock.
+    const body = JSON.stringify({ action, payload, token: device.get('token'), op_id: opId, contract: CONTRACT, client_now: new Date().toISOString() });
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -91,16 +92,18 @@ export async function read(action, payload = {}) {
   throw new ApiError(reply.error.code, reply.error.params, reply.error.fields);
 }
 
-// `label` names the entry on "Saved on this phone".
-export async function write(action, payload = {}, { opId = newOpId(), label = '' } = {}) {
+// `label` names the entry on "Saved on this phone". `owner` is who the
+// entry is kept for when it can't be sent: the signed-in person, or a shop
+// punch device ('device:<id>').
+export async function write(action, payload = {}, { opId = newOpId(), label = '', owner = userId() } = {}) {
   const def = ACTIONS[action];
   const reply = await post(action, payload, opId);
   if (reply.ok) {
     if (reply.data.status === 'saved' && def.area) handlers.areaChanged(def.area);
     return reply.data;
   }
-  if (reply.error.code === 'NETWORK' && def.offline && userId()) {
-    await queue.put(newItem({ op_id: opId, owner: userId(), action, payload, label, now: Date.now() }));
+  if (reply.error.code === 'NETWORK' && def.offline && owner) {
+    await queue.put(newItem({ op_id: opId, owner, action, payload, label, now: Date.now() }));
     await refreshQueueCount();
     return { status: 'queued', op_id: opId };
   }
@@ -109,13 +112,12 @@ export async function write(action, payload = {}, { opId = newOpId(), label = ''
 
 // ---- Saved on this phone -------------------------------------------------
 
-export async function queueItems() {
-  const owner = userId();
+export async function queueItems(owner = userId()) {
   return (await queue.all()).filter((i) => i.owner_user_id === owner).sort((a, b) => a.created_at - b.created_at);
 }
 
-export async function refreshQueueCount() {
-  const items = await queueItems();
+export async function refreshQueueCount(owner = userId()) {
+  const items = await queueItems(owner);
   setState({
     queued: items.length,
     attention: items.filter((i) => i.status === 'needs_input' || i.status === 'failed').length,
@@ -134,11 +136,10 @@ const sync = createSync({
   now: () => Date.now(),
 });
 
-export async function sendQueue() {
-  const owner = userId();
+export async function sendQueue(owner = userId()) {
   if (!owner) return null;
   const report = await sync.run(owner);
-  await refreshQueueCount();
+  await refreshQueueCount(owner);
   return report;
 }
 

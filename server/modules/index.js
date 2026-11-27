@@ -4,6 +4,7 @@
 
 import { areaVersions } from '../kernel/areas.js';
 import { AUDIT_HANDLERS } from './audit.js';
+import { ATTENDANCE_HANDLERS } from './attendance.js';
 import { AUTH_HANDLERS } from './auth.js';
 import { BOOK_HANDLERS } from './books.js';
 import { CAFE_HANDLERS } from './cafe.js';
@@ -20,6 +21,7 @@ import { SPECIAL_ORDER_HANDLERS } from './special-orders.js';
 import { STOCKTAKE_HANDLERS } from './stocktake.js';
 import { SUPPLIER_HANDLERS } from './suppliers.js';
 import { SETUP_HANDLERS } from './setup.js';
+import { STAFF_HANDLERS } from './staff.js';
 import { USER_HANDLERS } from './users.js';
 
 export const HANDLERS = Object.freeze({
@@ -41,5 +43,7 @@ export const HANDLERS = Object.freeze({
   ...INTAKE_HANDLERS,
   ...CAFE_HANDLERS,
   ...CAFE_ORDER_HANDLERS,
+  ...STAFF_HANDLERS,
+  ...ATTENDANCE_HANDLERS,
   'sync.version': () => ({ areas: areaVersions() }),
 });

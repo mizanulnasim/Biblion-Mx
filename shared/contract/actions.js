@@ -30,6 +30,13 @@ const STATUS = { type: 'enum', required: true, values: ['active', 'inactive'] };
 const RULE = { type: 'enum', required: true, values: ['final', 'shareholder'] };
 const SETUP_BASE = { id: { type: 'id' }, version: { type: 'int', min: 1 }, name: NAME, status: STATUS };
 const USERNAME = { type: 'username', required: true, min: 3, max: 40 };
+const PUNCH_TYPE = { type: 'enum', required: true, values: ['in', 'out'] };
+const PLACE = {
+  lat: { type: 'number', min: -90, max: 90 },
+  lng: { type: 'number', min: -180, max: 180 },
+  accuracy: { type: 'number', min: 0, max: 100000 },
+};
+const SIGNATURE = { type: 'text', required: true, max: 64 };
 
 export const ACTIONS = Object.freeze({
   'ping': { public: true },
@@ -439,5 +446,104 @@ export const ACTIONS = Object.freeze({
   'closing.day.reopen': {
     write: true, perm: 'acc.approve', area: 'money',
     schema: { date: { type: 'date', required: true }, reason: { type: 'text', required: true, max: 500 } },
+  },
+  // ---- Staff and attendance ----
+  'staff.list': { perm: 'staff.view', schema: { ...PAGED, status: { type: 'enum', values: ['active', 'left'] } } },
+  'staff.save': {
+    write: true, perm: 'staff.edit', area: 'hr',
+    schema: {
+      id: { type: 'id' },
+      version: { type: 'int', min: 1 },
+      name: NAME,
+      name_bn: { type: 'text', max: 80 },
+      phone: { type: 'text', max: 20 },
+      position: { type: 'text', max: 60 },
+      user_id: { type: 'id' },
+      joined_on: { type: 'date' },
+      status: { type: 'enum', required: true, values: ['active', 'left'] },
+      work_start: { type: 'time' },
+      work_end: { type: 'time' },
+      days_off: { type: 'list', max: 7, of: { day: { type: 'int', required: true, min: 0, max: 6 } } },
+      nid: { type: 'text', max: 30 },
+      birth_date: { type: 'date' },
+      address: { type: 'text', max: 300 },
+      emergency: { type: 'list', max: 3, of: { name: { type: 'text', max: 80 }, relation: { type: 'text', max: 40 }, phone: { type: 'text', max: 20 } } },
+      family: { type: 'text', max: 500 },
+      salary: { type: 'money', zero: true },
+      pin: { type: 'pin' },
+    },
+  },
+  'attendance.pin': { write: true, area: 'hr', schema: { pin: { type: 'pin', required: true } } },
+  'attendance.punch': {
+    write: true, offline: true, area: 'hr',
+    schema: { type: PUNCH_TYPE, device_ts: { type: 'instant', required: true }, ...PLACE, reason: { type: 'text', max: 200 } },
+  },
+  'attendance.today': { cache: true },
+  'attendance.mine': { cache: true, schema: { month: { type: 'month' } } },
+  'attendance.staff': { perm: 'attendance.view', schema: { staff_id: { type: 'id', required: true }, month: { type: 'month' } } },
+  'attendance.board': { perm: 'attendance.view', schema: { date: { type: 'date' } } },
+  'attendance.checks': { perm: 'attendance.manage' },
+  'attendance.fix': {
+    write: true, area: 'hr',
+    schema: {
+      staff_id: { type: 'id' },
+      date: { type: 'date', required: true },
+      type: PUNCH_TYPE,
+      time: { type: 'time', required: true },
+      replaces: { type: 'id' },
+      reason: { type: 'text', required: true, max: 200 },
+    },
+  },
+  'attendance.fix.withdraw': { write: true, area: 'hr', schema: { id: { type: 'id', required: true } } },
+  'attendance.decide': {
+    write: true, perm: 'attendance.manage', area: 'hr',
+    schema: {
+      kind: { type: 'enum', required: true, values: ['punch', 'fix'] },
+      id: { type: 'id', required: true },
+      decision: { type: 'enum', required: true, values: ['accept', 'reject'] },
+      note: { type: 'text', max: 200 },
+    },
+  },
+  // The reply holds the device's secret, so it is never stored.
+  'attendance.device.register': { write: true, replay: false, perm: 'attendance.manage', area: 'hr', schema: { name: NAME } },
+  'attendance.devices': { perm: 'attendance.manage' },
+  'attendance.device.save': {
+    write: true, perm: 'attendance.manage', area: 'hr',
+    schema: { id: { type: 'id', required: true }, version: { type: 'int', required: true, min: 1 }, name: NAME, status: STATUS },
+  },
+  // A shop punch device proves itself with its signature, not a sign-in.
+  'attendance.device.staff': {
+    public: true,
+    schema: { device_id: { type: 'id', required: true }, ts: { type: 'instant', required: true }, sig: SIGNATURE },
+  },
+  'attendance.device.punch': {
+    public: true, write: true, offline: true, area: 'hr',
+    schema: {
+      punch_id: { type: 'text', required: true, max: 40 },
+      staff_id: { type: 'id', required: true },
+      type: PUNCH_TYPE,
+      device_ts: { type: 'instant', required: true },
+      ...PLACE,
+      device_id: { type: 'id', required: true },
+      sig: SIGNATURE,
+    },
+  },
+  'settings.attendance': { perm: 'settings.manage' },
+  'settings.attendance.save': {
+    write: true, perm: 'settings.manage', area: 'hr',
+    schema: {
+      lat: { type: 'number', min: -90, max: 90 },
+      lng: { type: 'number', min: -180, max: 180 },
+      radius_m: { type: 'int', required: true, min: 10, max: 5000 },
+      max_accuracy_m: { type: 'int', required: true, min: 10, max: 5000 },
+      exception: { type: 'enum', required: true, values: ['check', 'block'] },
+      late_grace: { type: 'int', required: true, min: 0, max: 240 },
+      early_grace: { type: 'int', required: true, min: 0, max: 240 },
+      incomplete_after: { type: 'int', required: true, min: 0, max: 1440 },
+      duplicate_window_sec: { type: 'int', required: true, min: 0, max: 3600 },
+      clock_skew_flag_min: { type: 'int', required: true, min: 1, max: 1440 },
+      offline_max_age_days: { type: 'int', required: true, min: 1, max: 60 },
+      offline_auto_validate: { type: 'bool' },
+    },
   },
 });

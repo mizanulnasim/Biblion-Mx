@@ -54,7 +54,8 @@ function filterView(f, value) {
 
 // options: {key, action, area, columns:[{label, cell(row), kind}], empty, emptySearch,
 //           searchLabel, tools (html for the bar), onRow(row), onTool(name),
-//           filters: [{name, label, options:[{value,label}]}], initial: {name: value}}
+//           filters: [{name, label, options:[{value,label}]}], initial: {name: value},
+//           onData(reply) (the whole reply, for anything sent beside the rows)}
 // A filter's empty choice shows everything; chosen values are sent with the query.
 export function mountList(el, options) {
   const saved = tab.get(`page:${options.key}`) || {};
@@ -94,6 +95,7 @@ export function mountList(el, options) {
       ({ data, cachedAt }) => {
         rows = data.items;
         query.offset = data.offset;
+        if (options.onData) options.onData(data);
         render(notice, staleNotice(cachedAt));
         if (!data.total) {
           render(body, emptyState(query.q ? options.emptySearch : options.empty));

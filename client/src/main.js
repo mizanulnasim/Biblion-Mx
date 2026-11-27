@@ -15,6 +15,11 @@ import { usersPage } from './pages/users.js';
 import { activityPage } from './pages/activity.js';
 import { savedPage } from './pages/saved.js';
 import { mePage } from './pages/me.js';
+import { staffPage } from './pages/staff.js';
+import { myAttendancePage } from './pages/my-attendance.js';
+import { attendancePage, attendancePersonPage } from './pages/attendance.js';
+import { settingsAttendancePage } from './pages/settings-attendance.js';
+import { mountKiosk } from './pages/kiosk.js';
 import { moneyPage } from './pages/money.js';
 import { moneyFormPage } from './pages/money-form.js';
 import { setupMoneyPage } from './pages/setup-money.js';
@@ -74,7 +79,15 @@ async function endSession() {
   shell = null;
   setState({ meta: null, queued: 0, attention: 0 });
   history.replaceState(null, '', '#/');
-  showSignIn(root, { onSignedIn: startSession });
+  signedOutScreen();
+}
+
+// With nobody signed in, a shop punch device shows punching; any other
+// device shows sign-in.
+function signedOutScreen() {
+  const signIn = () => showSignIn(root, { onSignedIn: startSession });
+  if (device.get('kiosk')) mountKiosk(root, { onSignIn: signIn });
+  else signIn();
 }
 
 async function startSession({ token, meta }) {
@@ -90,7 +103,7 @@ async function startSession({ token, meta }) {
   shell = mountShell(root, { items: NAV, groups: NAV_GROUPS, onSignOut: signOut });
   startRouter({
     // Pages a person has no permission for are not routes for them at all.
-    routes: [homePage, dailyPage, closingPage, booksPage, deliveryPage, deliveriesPage, bookSalesPage, suppliersPage, requisitionsPage, requisitionPage, orderFormPage, ordersPage, stocktakePage, settingsBooksPage, uploadPage, uploadsPage, uploadDocPage, settingsIntakePage, cafeCountPage, cafeItemsPage, cafeOrdersPage, cafeOrderPage, settingsCafePage, moneyPage, moneyFormPage, setupMoneyPage, approvalsPage, usersPage, activityPage, savedPage, mePage].filter((p) => !p.perm || can(p.perm)).concat(notFound),
+    routes: [homePage, dailyPage, closingPage, booksPage, deliveryPage, deliveriesPage, bookSalesPage, suppliersPage, requisitionsPage, requisitionPage, orderFormPage, ordersPage, stocktakePage, settingsBooksPage, uploadPage, uploadsPage, uploadDocPage, settingsIntakePage, cafeCountPage, cafeItemsPage, cafeOrdersPage, cafeOrderPage, settingsCafePage, staffPage, myAttendancePage, attendancePage, attendancePersonPage, settingsAttendancePage, moneyPage, moneyFormPage, setupMoneyPage, approvalsPage, usersPage, activityPage, savedPage, mePage].filter((p) => !p.perm || can(p.perm)).concat(notFound),
     outlet: shell.outlet,
     onChange: (page, path) => shell.setPage(page, path),
     confirmLeave: () => confirmDialog({ title: t('guard.title'), body: t('guard.body'), ok: t('guard.leave'), tone: 'danger' }),
@@ -128,8 +141,13 @@ async function boot() {
       if (err.code !== 'AUTH_REQUIRED') throw err;
     }
   }
+  // A punch device starts without asking the server, so it works offline.
+  if (device.get('kiosk')) {
+    signedOutScreen();
+    return;
+  }
   const { data } = await read('setup.status');
-  if (data.initialized) showSignIn(root, { onSignedIn: startSession });
+  if (data.initialized) signedOutScreen();
   else showSetup(root, { onDone: () => showSignIn(root, { onSignedIn: startSession }) });
 }
 

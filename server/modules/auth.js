@@ -54,7 +54,7 @@ function login(ctx, input) {
     expires_at: new Date(db.now.getTime() + BUSINESS_DEFAULTS['auth.session_days'] * DAY_MS).toISOString(),
     revoked: false,
   });
-  return saved(user.id, { token, meta: metaFor(current) });
+  return saved(user.id, { token, meta: metaFor(current, db) });
 }
 
 function logout(ctx) {

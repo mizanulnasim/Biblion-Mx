@@ -23,8 +23,12 @@ export function subscribe(fn) {
   return () => listeners.delete(fn);
 }
 
+// 'self.staff' is not a permission: it means the person has a staff record
+// of their own (to punch, see their attendance and ask for corrections).
 export function can(permission) {
-  return Boolean(state.meta && state.meta.permissions.includes(permission));
+  if (!state.meta) return false;
+  if (permission === 'self.staff') return Boolean(state.meta.staff);
+  return state.meta.permissions.includes(permission);
 }
 
 const PREFIX = 'bm.';

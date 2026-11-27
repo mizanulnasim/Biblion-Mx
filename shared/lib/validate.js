@@ -9,6 +9,10 @@ const USERNAME = /^[a-z0-9._-]+$/;
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const RECORD_ID = /^[A-Z]{3}-[A-Z0-9]{4,20}$/;
 const MAX_AMOUNT = 1000000000;
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+const PIN = /^\d{4,6}$/;
+const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+const INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
 
 function realDate(text) {
   const m = ISO_DATE.exec(text);
@@ -74,6 +78,36 @@ function checkOne(spec, raw) {
       if (value > MAX_AMOUNT) return { error: { code: 'val.max', params: { max: MAX_AMOUNT } } };
       return { value };
     }
+    // A time of day, "HH:MM" (24 hours).
+    case 'time': {
+      const value = latinDigits(String(raw)).trim();
+      if (!TIME.test(value)) return { error: { code: 'val.time' } };
+      return { value };
+    }
+    // Any number, with a decimal point (a map position, for example).
+    case 'number': {
+      const value = typeof raw === 'number' ? raw : Number(latinDigits(String(raw)).trim());
+      if (!Number.isFinite(value)) return { error: { code: 'val.decimal' } };
+      if (spec.min !== undefined && value < spec.min) return { error: { code: 'val.min', params: { min: spec.min } } };
+      if (spec.max !== undefined && value > spec.max) return { error: { code: 'val.max', params: { max: spec.max } } };
+      return { value };
+    }
+    // A month, "YYYY-MM".
+    case 'month': {
+      const value = latinDigits(String(raw)).trim();
+      if (!MONTH.test(value)) return { error: { code: 'val.format' } };
+      return { value };
+    }
+    // A PIN of 4 to 6 digits.
+    case 'pin': {
+      const value = latinDigits(String(raw)).trim();
+      if (!PIN.test(value)) return { error: { code: 'val.pin' } };
+      return { value };
+    }
+    // A moment, as an ISO time in UTC (what a phone records for a punch).
+    case 'instant':
+      if (typeof raw !== 'string' || !INSTANT.test(raw) || Number.isNaN(Date.parse(raw))) return { error: { code: 'val.format' } };
+      return { value: raw };
     case 'color':
       if (typeof raw !== 'string' || !COLOR.test(raw)) return { error: { code: 'val.format' } };
       return { value: raw.toLowerCase() };

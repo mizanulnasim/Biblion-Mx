@@ -29,6 +29,10 @@ export const PREVIEW_USERS = [
   { username: 'staff', password: 'preview-staff', display_name: 'Preview Staff', role_id: 'ROL-STAFF' },
 ];
 
+// Where the preview's shop is (Dhaka). Browsers in the preview can be told
+// they are here to try punching.
+const PREVIEW_PLACE = Object.freeze({ lat: 23.7808, lng: 90.4106 });
+
 function call(server, action, payload, token) {
   return server.post({ action, payload, token, op_id: crypto.randomUUID(), contract: 1 });
 }
@@ -63,6 +67,27 @@ function seed(server, state) {
     call(server, 'cafe.count.save', { date: day(n), lines }, token);
   }
   for (const name of ['Preview Owner', 'Second Shareholder']) call(server, 'setup.shareholder.save', { name, status: 'active' }, token);
+  // Staff: the three sign-ins plus one person without a sign-in (punches on
+  // the shop device, PIN 1111); the shop at the preview position; a week of
+  // past days entered as corrections.
+  const userIds = new Map(call(server, 'users.list', {}, token).data.items.map((u) => [u.username, u.id]));
+  const staff = (fields) => call(server, 'staff.save', { status: 'active', joined_on: day(10), work_start: '10:00', work_end: '18:00', days_off: [{ day: 5 }], ...fields }, token).data.record_id;
+  const people = [
+    staff({ name: 'Preview Owner', user_id: userIds.get('owner'), position: 'Shareholder', work_start: null, work_end: null }),
+    staff({ name: 'Preview Manager', user_id: userIds.get('manager'), position: 'Manager', pin: '2222' }),
+    staff({ name: 'Preview Staff', user_id: userIds.get('staff'), position: 'Café', pin: '3333', salary: 12000 }),
+    staff({ name: 'Kamal', position: 'Books', pin: '1111', salary: 11000 }),
+  ];
+  call(server, 'settings.attendance.save', { ...call(server, 'settings.attendance', {}, token).data, lat: PREVIEW_PLACE.lat, lng: PREVIEW_PLACE.lng }, token);
+  for (let n = 7; n >= 1; n--) {
+    const date = day(n);
+    if (new Date(`${date}T00:00:00Z`).getUTCDay() === 5) continue;
+    for (const [k, id] of people.slice(1).entries()) {
+      if (n === 3 && k === 2) continue;
+      call(server, 'attendance.fix', { staff_id: id, date, type: 'in', time: `10:0${(n + k) % 10}`, reason: 'Preview sample' }, token);
+      if (n !== 2 || k !== 1) call(server, 'attendance.fix', { staff_id: id, date, type: 'out', time: `18:${String(10 + n * k).padStart(2, '0')}`, reason: 'Preview sample' }, token);
+    }
+  }
   call(server, 'auth.logout', {}, token);
 }
 

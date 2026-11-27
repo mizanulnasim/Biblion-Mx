@@ -83,6 +83,13 @@ function checkCode(files) {
     if (CONSOLE_ALLOWED[name]) rest = rest.replace(CONSOLE_ALLOWED[name], '');
     if (/\bconsole\./.test(rest)) problems.push(`console.* in ${name}`);
     if (/\bdebugger\b/.test(code)) problems.push(`debugger in ${name}`);
+    // A name declared twice at the top of a module is an error in a real
+    // module, even where the bundle would let it through.
+    const seen = new Set();
+    for (const m of code.matchAll(/^(?:export )?(?:async )?(?:function\*? |const |let |class )(\w+)/gm)) {
+      if (seen.has(m[1])) problems.push(`'${m[1]}' declared twice in ${name}`);
+      seen.add(m[1]);
+    }
   }
   // Colours: only the design tokens hold them. The brand accent default is
   // a setting value and lives with the settings.
@@ -93,6 +100,13 @@ function checkCode(files) {
     if (COLOUR.test(withoutIds.replace(/&#\d+;/g, ''))) problems.push(`Colour value in ${name} (use a token from tokens.css)`);
   }
   if (COLOUR.test(read('client/styles/app.css'))) problems.push('Colour value in client/styles/app.css (use a token from tokens.css)');
+  // One class, one top-level rule: two pages giving the same class name
+  // different looks would style each other.
+  const seen = new Set();
+  for (const m of read('client/styles/app.css').matchAll(/^(\.[\w-]+) \{/gm)) {
+    if (seen.has(m[1])) problems.push(`Style rule ${m[1]} written twice in client/styles/app.css`);
+    seen.add(m[1]);
+  }
 }
 
 function read(file) {

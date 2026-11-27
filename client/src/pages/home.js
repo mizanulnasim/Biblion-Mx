@@ -1,6 +1,7 @@
 // Home: a greeting, what waits for this person (entries to approve, their
 // own entries waiting for a shareholder, anything saved on this phone), and
-// their shortcuts.
+// their shortcuts. People with a staff record punch in and out here, and
+// managers see attendance checks waiting for them.
 
 import { html, on, render } from '../ui/html.js';
 import { errorBox } from '../ui/feedback.js';
@@ -15,6 +16,7 @@ import { t } from '../core/i18n.js';
 import { can, getState, subscribe } from '../core/state.js';
 import { dateShort, partOfDay } from '../core/format.js';
 import { NAV, NAV_GROUPS } from './nav.js';
+import { punchCard, startPunch } from './attendance-common.js';
 
 const GREETINGS = { morning: 'home.greeting_morning', afternoon: 'home.greeting_afternoon', evening: 'home.greeting_evening' };
 
@@ -38,7 +40,14 @@ function waitingView(home) {
       <span>${t('home.mine_waiting', { count: home.mine_waiting })}</span></a>` : ''}`;
 }
 
-function view(state, home) {
+function attendanceView(att) {
+  if (!att) return '';
+  if (att.error) return errorBox(att.error);
+  return html`${att.staff && att.day ? punchCard(att) : ''}
+    ${att.checks ? html`<a class="notice notice-warn" href="#/attendance">${icon('clock')}<span>${t('home.attendance_checks', { count: att.checks })}</span></a>` : ''}`;
+}
+
+function view(state, home, att) {
   const now = Date.now();
   const shortcuts = NAV.filter((item) => item.path !== '/' && (!item.perm || can(item.perm)));
   return html`
@@ -46,6 +55,7 @@ function view(state, home) {
       <p class="hero-date">${dateShort(new Date(now).toISOString())}</p>
       <h2 class="hero-title">${t(GREETINGS[partOfDay(now)], { name: state.meta.user.display_name })}</h2>
     </section>
+    ${attendanceView(att)}
     ${waitingView(home)}
     ${state.queued || state.attention ? html`
       <a class="notice ${state.attention ? 'notice-warn' : ''}" href="#/saved">
@@ -66,7 +76,17 @@ export const homePage = {
   title: 'nav.home',
   mount(el) {
     let home = null;
-    const draw = () => render(el, view(getState(), home));
+    let att = null;
+    const draw = () => render(el, view(getState(), home, att));
+    const loadAttendance = async () => {
+      if (!can('self.staff') && !can('attendance.manage')) return;
+      try {
+        att = (await read('attendance.today')).data;
+      } catch (err) {
+        att = { error: errorText(err) };
+      }
+      draw();
+    };
     const load = async () => {
       if (!can('acc.entry')) return;
       try {
@@ -78,12 +98,18 @@ export const homePage = {
     };
     draw();
     load();
+    loadAttendance();
     const unsubscribe = subscribe(draw);
     const offArea = onArea('money', load);
-    const offClick = on(el, 'click', { open: (e, btn) => openEntry(btn.dataset.id, load) });
+    const offHr = onArea('hr', loadAttendance);
+    const offClick = on(el, 'click', {
+      open: (e, btn) => openEntry(btn.dataset.id, load),
+      punch: (e, btn) => startPunch(btn, loadAttendance),
+    });
     return () => {
       unsubscribe();
       offArea();
+      offHr();
       offClick();
     };
   },

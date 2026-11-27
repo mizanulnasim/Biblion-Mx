@@ -178,3 +178,35 @@ These are working choices made while building. Each is easy to change.
 - **Still to come:**
   - PDF and Excel copies of an order come with the downloads milestone.
   - Linking names typed on bills to items, and comparing with Loyverse café sales, come with uploads part 2.
+
+## Milestone 8: HR, part 1 — staff records and attendance (assumptions to confirm)
+- **Staff records** are separate from sign-ins. A record can be linked to one sign-in, so that person can punch from their own phone and see their own attendance. Someone without a sign-in punches on the shop's punch device.
+- **Private parts** are sent and saved only with their permission:
+  - NID, date of birth and address (`staff.identity`, shareholders);
+  - emergency contacts (`staff.emergency`, managers and shareholders);
+  - family (`staff.family`, shareholders);
+  - salary (`salary.view` / `salary.edit`, shareholders).
+- **Work hours** are one start and end time per person, plus their weekly days off. Roster, shift swaps, leave and holidays come in HR part 2. Until then, a leave day shows as absent.
+- **Punching from a phone:**
+  - The punch is checked against the shop's position (set in Settings → Attendance, 50 m by default).
+  - From further away, the person gives a reason and a manager checks the punch, or it is refused. This is a setting.
+  - A phone that only knows its position roughly (beyond 100 m) counts as further away.
+- **The phone's clock is corrected:** each request carries the phone's time, so a wrong clock doesn't move the punch. A clock more than 5 minutes wrong is marked on the punch.
+- **Punches made offline** keep the time the button was pressed. They are checked by a manager (a setting can accept them), and refused after 7 days.
+- **Punch order:** in, out, in, out. The same punch twice within 2 minutes is one punch.
+- **The shop's punch device:**
+  - A manager makes a tablet or phone a punch device in Settings → Attendance. With nobody signed in, it shows everyone with a PIN.
+  - Each punch is signed with the device's secret and a key made from the person's PIN (PBKDF2, then HMAC-SHA256). The PIN never leaves the device, and the server keeps only its hash.
+  - 5 wrong PINs lock that person's PIN for 15 minutes.
+  - Punches go one at a time through the usual offline queue (each with its own id), not a batch route.
+  - The device needs no location.
+- **Checks and corrections:**
+  - Staff ask for a correction (a missing punch, or one replacing a wrong one) with a reason.
+  - A manager decides staff corrections; a shareholder decides managers'. Nobody decides their own, and a shareholder's own is final.
+  - A manager can add a missing punch for someone directly.
+  - "Not accepted" needs a note the person sees.
+- **A day's summary:**
+  - Late counts after the grace minutes (0 by default), and then from the start time.
+  - A missing punch-out shows as "No punch out" 2 hours after work ends.
+  - Days before someone joined are not counted.
+- **Not yet:** night shifts across midnight, half days, and attendance in payroll (HR part 3).

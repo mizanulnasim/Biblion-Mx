@@ -238,7 +238,7 @@ export const uploadDocPage = {
       const ready = doc.status === 'ready';
       const target = doc.kind ? INTAKE_KINDS[doc.kind].target : '';
       render(el, html`
-        <div class="check">
+        <div class="doc-check">
           <section class="panel scan"><div class="panel-head"><h2 class="section-title">${doc.file ? doc.file.name : ''}</h2>${intakeChip(doc.status)}</div>
             <p class="muted">${t('intake.uploaded_by', { name: doc.uploaded_by })}${doc.ai_used ? html` · ${t('intake.ai_used')}` : ''}</p>
             <div class="scan-view">${scanView(doc, scanUrl)}</div>

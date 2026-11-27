@@ -33,15 +33,15 @@ export function dateShortTime(iso) {
   return t('date.short_time', p);
 }
 
-export function dateShort(iso) {
-  return t('date.short', parts(iso));
+// "10:02", Bangladesh time.
+export function timeOf(iso) {
+  return iso ? parts(iso).time : '';
 }
 
-// 'morning' | 'afternoon' | 'evening' in Bangladesh time.
-export function partOfDay(ms) {
-  const hour = new Date(ms + DHAKA_OFFSET_MS).getUTCHours();
-  if (hour < 12) return 'morning';
-  return hour < 17 ? 'afternoon' : 'evening';
+// "7 h 18 min", or "18 min" under an hour, from minutes.
+export function duration(minutes) {
+  const h = Math.floor(minutes / 60);
+  return h ? t('date.duration', { h, m: minutes % 60 }) : t('date.minutes', { m: minutes });
 }
 
 export function dateShort(iso) {

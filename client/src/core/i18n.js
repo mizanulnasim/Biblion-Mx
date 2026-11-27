@@ -69,7 +69,7 @@ function format(template, params) {
     if (comma < 0) {
       const value = params[inner.trim()];
       if (value === undefined || value === null) out += '';
-      else out += typeof value === 'number' ? localDigits(value) : String(value);
+      else out += typeof value === 'number' || /^\d{1,2}:\d{2}$/.test(value) ? localDigits(value) : String(value);
     } else {
       const name = inner.slice(0, comma).trim();
       const rest = inner.slice(comma + 1);

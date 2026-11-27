@@ -1,5 +1,5 @@
 // The one entry point for every API call.
-// Request: {action, payload, token, op_id, contract}
+// Request: {action, payload, token, op_id, contract, client_now}
 // Reply:   {ok: true, data} or {ok: false, error: {code, params, fields}}
 // A write's `data` is always {status: saved | needs_input | rejected, ...}.
 
@@ -51,7 +51,9 @@ function dispatch(req) {
 
   const db = openDb(new Date());
   db.setContext({ action: req.action, op_id: req.op_id || '' });
-  const ctx = { db, user: null, session: null, level: 0, can: () => false };
+  // What the phone's clock showed when it sent the request (to correct punch times).
+  const clientNow = typeof req.client_now === 'string' && !Number.isNaN(Date.parse(req.client_now)) ? req.client_now : null;
+  const ctx = { db, user: null, session: null, level: 0, can: () => false, clientNow };
 
   if (!def.public) {
     const found = resolveSession(db, req.token);

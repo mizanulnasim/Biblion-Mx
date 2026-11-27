@@ -382,8 +382,8 @@ fieldset.panel legend { padding: 0 var(--space-2); margin-left: calc(-1 * var(--
   background: var(--scrim); color: var(--on-accent); font-size: 1.5rem; font-weight: 700; pointer-events: none;
 }
 .upload-files { margin-bottom: var(--space-3); }
-.check { display: grid; gap: var(--space-4); grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
-.check .scan { position: sticky; top: 72px; }
+.doc-check { display: grid; gap: var(--space-4); grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+.doc-check .scan { position: sticky; top: 72px; }
 .scan-view { display: grid; place-items: center; min-height: 200px; background: var(--surface-2); border-radius: var(--radius-small); overflow: hidden; }
 .scan-img { max-width: 100%; max-height: 70vh; object-fit: contain; }
 .scan-pdf { width: 100%; height: 70vh; border: 0; }
@@ -391,7 +391,7 @@ fieldset.panel legend { padding: 0 var(--space-2); margin-left: calc(-1 * var(--
 .kind-grid { display: grid; gap: var(--space-2); grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
 .kind-btn { flex-direction: column; min-height: 56px; white-space: normal; text-align: center; }
 .kind-guess { font-size: 0.75rem; font-weight: 400; }
-@media (max-width: 960px) { .check { grid-template-columns: minmax(0, 1fr); } .check .scan { position: static; } }
+@media (max-width: 960px) { .doc-check { grid-template-columns: minmax(0, 1fr); } .doc-check .scan { position: static; } }
 
 /* ---- Café ---- */
 .count-rows { display: grid; gap: var(--space-2); }
@@ -411,3 +411,33 @@ fieldset.panel legend { padding: 0 var(--space-2); margin-left: calc(-1 * var(--
 }
 .nav-group { margin: var(--space-3) 0 var(--space-1); padding: 0 var(--space-3); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
 .hero + .section-title, .tiles + .section-title { margin-top: var(--space-4); }
+
+/* Attendance */
+.btn-large { min-height: 56px; padding: var(--space-3) var(--space-5); font-size: 1.1rem; }
+.punch-card { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.punch-state { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.month-totals { margin: 0 0 var(--space-3); color: var(--text-muted); }
+.att-days { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.att-day { padding: var(--space-2) 0; border-top: 1px solid var(--border); }
+.day-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.day-head .btn { margin-left: auto; }
+.punches { list-style: none; margin: var(--space-1) 0 0; padding: 0; display: grid; gap: var(--space-1); }
+.punch { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-1) 0; }
+.punch .btn { margin-left: auto; }
+.check-item { display: grid; gap: var(--space-1); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-small); background: var(--surface); }
+.check-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* The shop's punch device: big targets, readable from a step away. */
+.kiosk { min-height: 100vh; padding: var(--space-4); background: var(--bg); display: grid; align-content: start; gap: var(--space-4); }
+.kiosk-head { display: flex; align-items: center; gap: var(--space-4); }
+.kiosk-head .conn { margin-left: auto; }
+.kiosk-logo { height: 40px; filter: var(--logo-filter); }
+.kiosk-time { font-size: 1.6rem; }
+.kiosk-title { margin: 0; font-size: 1.4rem; }
+.kiosk-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+.kiosk-person { width: 100%; min-height: 96px; display: grid; gap: var(--space-1); place-content: center; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; box-shadow: var(--shadow); }
+.kiosk-person:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.kiosk-name { font-size: 1.15rem; font-weight: 700; }
+.kiosk-next { color: var(--accent); font-weight: 600; }
+.kiosk-pin input { font-size: 1.6rem; letter-spacing: 0.4em; text-align: center; }
+.kiosk-foot { text-align: center; }

@@ -54,3 +54,8 @@ export function newToken() {
 export function tokenHash(token) {
   return toHex(sha256Bytes(token));
 }
+
+// HMAC-SHA256 of a text, as hex: what a shop punch device signs with.
+export function signHex(text, keyText) {
+  return toHex(hmacSha256(utf8Bytes(text), utf8Bytes(keyText)));
+}

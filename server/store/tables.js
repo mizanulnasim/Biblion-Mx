@@ -185,6 +185,51 @@ export const TABLES = Object.freeze({
       'approved_by', 'approved_at', 'closed_reason', 'entered_by',
     ],
   },
+  // Staff records. user_id links the person's sign-in, if they have one.
+  // Hours: work_start/work_end ("HH:MM") and days_off (0 Sunday … 6
+  // Saturday). The private parts are shown only with their permission:
+  // nid, birth_date, address (staff.identity); emergency:j [{name, relation,
+  // phone}] (staff.emergency); family (staff.family); salary (salary.view).
+  // The punch PIN is kept only as a PBKDF2 hash.
+  Staff: {
+    group: 'hr',
+    prefix: 'STF',
+    columns: [
+      'name', 'name_bn', 'phone', 'position', 'user_id', 'joined_on', 'status',
+      'work_start', 'work_end', 'days_off:j',
+      'nid', 'birth_date', 'address', 'emergency:j', 'family', 'salary:n',
+      'pin_hash', 'pin_salt', 'pin_iter:n', 'pin_failed:n', 'pin_locked_until',
+    ],
+    secret: ['pin_hash', 'pin_salt', 'pin_iter'],
+  },
+  // Attendance punches. at: when it happened (server clock); device_ts: what
+  // the phone recorded. source: phone, device (a shop punch device) or fix
+  // (an approved correction). flags: outside, no_location, offline, skew.
+  // Status: ok, check (waits for a manager), rejected, replaced.
+  Punches: {
+    group: 'hr',
+    prefix: 'PUN',
+    columns: [
+      'staff_id', 'date', 'type', 'at', 'device_ts', 'source', 'device_id', 'lat:n', 'lng:n', 'accuracy:n', 'distance_m:n',
+      'flags:j', 'reason', 'status', 'decided_by', 'decided_at', 'decide_note', 'fix_id', 'entered_by',
+    ],
+  },
+  // Corrections: a missing or wrong punch, asked for with a reason.
+  // replaces: the punch it corrects, if any. Status: waiting, approved,
+  // declined, withdrawn.
+  Attendance_Fixes: {
+    group: 'hr',
+    prefix: 'AFX',
+    columns: ['staff_id', 'date', 'type', 'time', 'replaces', 'reason', 'status', 'decided_by', 'decided_at', 'decide_note', 'asked_by'],
+  },
+  // Shop punch devices. The secret is shown once, to the device that
+  // registers, and signs every punch made on it.
+  Punch_Devices: {
+    group: 'hr',
+    prefix: 'PDV',
+    columns: ['name', 'secret', 'status'],
+    secret: ['secret'],
+  },
   // One row per closed date; reopening keeps the row with its reason.
   Day_Closings: {
     group: 'accounts',

@@ -1,5 +1,6 @@
 // Settings → Approvals: the money amount limit and the switch for each kind.
 
+import { AppError } from '../../shared/contract/errors.js';
 import { saved } from '../../shared/contract/reply.js';
 import { APPROVAL_RULES } from '../../shared/rules/approval.js';
 import { approvalSettings, saveSetting, setting } from '../kernel/settings.js';
@@ -31,7 +32,31 @@ function saveCafe(ctx, input) {
   return saved(null, cafeSettings(ctx.db));
 }
 
+// Settings → Attendance: the payload names, and the setting each one is.
+const ATTENDANCE_KEYS = Object.freeze({
+  lat: 'gps.lat', lng: 'gps.lng', radius_m: 'gps.radius_m', max_accuracy_m: 'gps.max_accuracy_m', exception: 'gps.exception',
+  late_grace: 'attendance.late_grace_min', early_grace: 'attendance.early_grace_min', incomplete_after: 'attendance.incomplete_after_min',
+  duplicate_window_sec: 'attendance.duplicate_window_sec', clock_skew_flag_min: 'attendance.clock_skew_flag_min',
+  offline_max_age_days: 'attendance.offline_max_age_days', offline_auto_validate: 'attendance.offline_auto_validate',
+});
+
+function attendanceSettings(db) {
+  const out = {};
+  for (const [name, key] of Object.entries(ATTENDANCE_KEYS)) out[name] = setting(db, key);
+  return out;
+}
+
+function saveAttendance(ctx, input) {
+  if ((input.lat === null) !== (input.lng === null)) {
+    throw new AppError('VALIDATION', {}, { [input.lat === null ? 'lat' : 'lng']: { code: 'val.required', params: {} } });
+  }
+  for (const [name, key] of Object.entries(ATTENDANCE_KEYS)) saveSetting(ctx.db, key, name === 'offline_auto_validate' ? Boolean(input[name]) : input[name]);
+  return saved(null, attendanceSettings(ctx.db));
+}
+
 export const SETTINGS_HANDLERS = {
+  'settings.attendance': (ctx) => attendanceSettings(ctx.db),
+  'settings.attendance.save': saveAttendance,
   'settings.cafe': (ctx) => cafeSettings(ctx.db),
   'settings.cafe.save': saveCafe,
   'settings.approvals': (ctx) => approvalSettings(ctx.db),

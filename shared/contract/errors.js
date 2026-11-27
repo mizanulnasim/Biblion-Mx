@@ -17,6 +17,15 @@ const ERRORS = Object.freeze({
   BUSY: 'err.busy',
   SERVER: 'err.server',
   NETWORK: 'err.network',
+  NO_STAFF: 'err.no_staff',
+  SEQUENCE: 'err.sequence',
+  NOT_IN: 'err.not_in',
+  TOO_OLD: 'err.too_old',
+  OUTSIDE: 'err.outside',
+  LOCATION_REQUIRED: 'err.location_required',
+  PIN_WRONG: 'err.pin_wrong',
+  PIN_LOCKED: 'err.pin_locked',
+  DEVICE: 'err.device',
 });
 
 export class AppError extends Error {

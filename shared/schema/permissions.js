@@ -27,6 +27,16 @@
 //   acc.approve       approve entries waiting for a shareholder
 //   acc.setup         money accounts, categories, due contacts, shareholders
 //   settings.manage   business settings (approvals)
+//   staff.view        see staff records (without the private parts below)
+//   staff.edit        add and edit staff records, set their punch PIN
+//   staff.identity    see and edit NID, date of birth and address
+//   staff.emergency   see and edit emergency contacts
+//   staff.family      see and edit family details
+//   salary.view       see salaries; salary.edit changes them
+//   attendance.view   everyone's attendance
+//   attendance.manage check punches, decide corrections, add missing punches,
+//                     and set up shop punch devices
+// Everyone works with their own punches and corrections without a permission.
 const PERMISSIONS = Object.freeze([
   'users.manage', 'audit.view', 'settings.manage',
   'acc.entry', 'acc.expense', 'acc.income', 'acc.dues', 'acc.loans', 'acc.transfer', 'acc.shareholders',
@@ -35,6 +45,8 @@ const PERMISSIONS = Object.freeze([
   'books.view', 'books.catalog', 'books.receive', 'books.sell', 'books.adjust', 'setup.books',
   'books.requisition', 'books.order', 'books.orders', 'settings.books', 'intake.upload',
   'cafe.view', 'cafe.count', 'cafe.order', 'cafe.approve', 'cafe.receive', 'cafe.setup',
+  'staff.view', 'staff.edit', 'staff.identity', 'staff.emergency', 'staff.family', 'salary.view', 'salary.edit',
+  'attendance.view', 'attendance.manage',
 ]);
 
 // Staff never enter money, so the Staff role has no money permission.
@@ -45,6 +57,7 @@ export const ROLES = Object.freeze([
     'books.view', 'books.catalog', 'books.receive', 'books.sell', 'books.adjust',
     'books.requisition', 'books.order', 'books.orders', 'intake.upload',
     'cafe.view', 'cafe.count', 'cafe.order', 'cafe.approve', 'cafe.receive',
+    'staff.view', 'staff.edit', 'staff.emergency', 'attendance.view', 'attendance.manage',
   ] },
   { id: 'ROL-STAFF', key: 'staff', name: 'role.staff', level: 1, permissions: ['books.order', 'books.view', 'cafe.count'] },
 ]);
