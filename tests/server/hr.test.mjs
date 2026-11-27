@@ -83,8 +83,16 @@ test('in, out, then in again moments later is a new punch, not a double tap', ()
   assert.deepEqual(s.call(s.staff, 'attendance.today').data.next, ['out', 'break']);
 });
 
+// Today's hours for Sumi run to 23:59, so a day still open isn't overdue
+// whatever the time the tests run.
+function allDay(s) {
+  const shift = s.call(s.manager, 'rota.shift.save', { name: 'All day', start: '00:00', end: '23:59', status: 'active' }).data.record_id;
+  s.call(s.manager, 'rota.set', { staff_id: s.ids.staff_rec, date: new Date(Date.now() + 6 * 3600000).toISOString().slice(0, 10), value: shift });
+}
+
 test('a break and back are recorded; a break is paid time', () => {
   const s = hr();
+  allDay(s);
   // Within the last two minutes, so none counts as kept on a phone.
   punch(s, s.staff, { device_ts: ago(1.9) });
   assert.equal(punch(s, s.staff, { type: 'back', device_ts: ago(1.7) }).error.code, 'NOT_ON_BREAK');
@@ -101,9 +109,8 @@ test('a break and back are recorded; a break is paid time', () => {
 
 test('out straight from a break ends it; before the shift\'s end a manager checks it', () => {
   const s = hr();
-  // Today's hours run to 23:59, so leaving now is before the end.
-  const allDay = s.call(s.manager, 'rota.shift.save', { name: 'All day', start: '00:00', end: '23:59', status: 'active' }).data.record_id;
-  s.call(s.manager, 'rota.set', { staff_id: s.ids.staff_rec, date: new Date(Date.now() + 6 * 3600000).toISOString().slice(0, 10), value: allDay });
+  // Leaving now is before the shift's end.
+  allDay(s);
   punch(s, s.staff, { device_ts: ago(1.5) });
   punch(s, s.staff, { type: 'break', device_ts: ago(1) });
   const out = punch(s, s.staff, { type: 'out', device_ts: ago(0.5) });
