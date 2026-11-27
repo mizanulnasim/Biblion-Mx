@@ -212,6 +212,36 @@ export function salaryReport(db, month) {
   };
 }
 
+// What the shop owed a person in pay at the end of a date: their opening
+// figure, payslips for months ended by then, food allowance earned to it
+// and a settlement on leaving by its last day, less pay given by then.
+function staffOwedOn(db, staff, date, p) {
+  const opening = (db.all('Pay_Openings').find((o) => o.staff_id === staff.id) || { owed: 0 }).owed || 0;
+  const slips = db.all('Payslips').filter((x) => x.staff_id === staff.id && x.status === 'issued' && x.period_to <= date).reduce((t, x) => t + x.net, 0);
+  const food = foodEarned(foodRate(db, staff), foodDates(db, staff, p).filter((d) => d <= date));
+  const settled = db.all('Separations').filter((x) => x.staff_id === staff.id && (x.status === 'settled' || x.status === 'completed') && x.last_day <= date)
+    .reduce((t, x) => t + x.settlement.leave_pay - x.settlement.notice_cut, 0);
+  const paid = db.all('Transactions').filter((e) => counts(e) && e.party_id === staff.id && e.date <= date).reduce((t, e) => t + payEffect(e).owed, 0);
+  return Math.round(opening + slips + food + settled + paid);
+}
+
+// A person's pay over a range of dates, for the payables report: owed
+// before it, earned in it (payslips for months ending in it, food
+// allowance, a leaving settlement), paid, taken back from advances, and
+// owed at its end.
+export function staffPayFigures(db, staff, from, to, p = planner(db)) {
+  const inR = (d) => d >= from && d <= to;
+  const slips = db.all('Payslips').filter((x) => x.staff_id === staff.id && x.status === 'issued' && inR(x.period_to)).reduce((t, x) => t + x.net, 0);
+  const food = foodEarned(foodRate(db, staff), foodDates(db, staff, p).filter(inR));
+  const settled = db.all('Separations').filter((x) => x.staff_id === staff.id && (x.status === 'settled' || x.status === 'completed') && inR(x.last_day))
+    .reduce((t, x) => t + x.settlement.leave_pay - x.settlement.notice_cut, 0);
+  const sum = (kinds) => db.all('Transactions').filter((e) => counts(e) && e.party_id === staff.id && kinds.includes(e.kind) && inR(e.date)).reduce((t, e) => t + e.amount, 0);
+  return {
+    start: staffOwedOn(db, staff, addDays(from, -1), p), earned: Math.round(slips + food + settled), paid: sum(['salary_paid', 'food_paid']),
+    other: sum(['staff_deduction']), end: staffOwedOn(db, staff, to, p),
+  };
+}
+
 // The day the app's records start: the setting, else the day it was set up.
 function recordsStart(db) {
   const set = setting(db, 'accounting.start_date');

@@ -15,6 +15,7 @@ function textOf(x) {
   if (typeof x === 'number') return figure(x);
   if (typeof x === 'string') return x;
   if ('s' in x) return x.s;
+  if ('n' in x) return localDigits(String(x.n));
   if ('d' in x) return x.d ? day(x.d) : '';
   return t(x.t, Object.fromEntries(Object.entries(x.p || {}).map(([k, v]) => [k, v && typeof v === 'object' ? textOf(v) : v])));
 }
@@ -53,7 +54,7 @@ export function reportView(model) {
 // numbers and totals in bold.
 export function reportSheets(model) {
   const rows = [[{ v: textOf(model.title), bold: true }], ...model.sub.map((x) => [textOf(x)]), []];
-  const value = (x) => (typeof x === 'number' ? x : textOf(x));
+  const value = (x) => (typeof x === 'number' ? x : x && typeof x === 'object' && 'n' in x ? x.n : textOf(x));
   for (const b of model.blocks) {
     if (b.kind === 'section') rows.push([], [{ v: textOf(b.title), bold: true }]);
     else if (b.kind === 'note') rows.push([textOf(b.text)]);

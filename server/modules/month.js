@@ -88,7 +88,7 @@ function sharesOn(db, date) {
 // ---- The month's figures ------------------------------------------------------------
 
 // Staff whose pay is a salary (not shareholders, who have an owner salary).
-function salaried(db) {
+export function salaried(db) {
   return db.all('Staff').filter((s) => {
     const user = s.user_id ? db.get('Users', s.user_id) : null;
     const role = user ? roleById(user.role_id) : null;

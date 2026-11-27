@@ -7,7 +7,7 @@
 // {kind: 'note', text}, or signature lines {kind: 'sign', labels}.
 // A text is a plain string, {s: plain string}, {t: message id, p: params}
 // or {d: date}; a cell is a text or a number (money unless its column says
-// 'percent'). Titles, headings and labels are given here as message ids,
+// 'percent'), and {n: a count} is a number that isn't money. Titles, headings and labels are given here as message ids,
 // or as {s: a name}. Figures follow the same rules as the screens they
 // come from.
 
@@ -19,12 +19,15 @@ import { addDays } from '../../shared/hr/plan.js';
 import { KINDS, cashEffect, dueEffect, payEffect } from '../../shared/money/kinds.js';
 import { setting } from '../kernel/settings.js';
 import { lookups } from './money.js';
-import { loanRegister, statements, withShares } from './month.js';
-import { salaryReport } from './payroll.js';
+import { loanRegister, salaried, statements, withShares } from './month.js';
+import { salaryReport, staffPayFigures } from './payroll.js';
+import { bookCosts, supplierLines } from './suppliers.js';
+import { planner } from './rota.js';
 
 const r2 = (n) => Math.round(n * 100) / 100;
 const counts = (e) => e.status === 'active';
 const t = (id, p = {}) => ({ t: id, p });
+const n = (count) => ({ n: count });
 const d = (date) => ({ d: date });
 const s = (text) => ({ s: text });
 // A label: a message id, or already a text.
@@ -266,7 +269,195 @@ function allMoney(db, { from, to }) {
   };
 }
 
-const BUILD = { daily, monthly, shareholders, salary, loans, dues, all_money: allMoney };
+// ---- Books, publishers and vendors ---------------------------------------------------------
+
+const LINE_KINDS = { book_receive: 'suppliers.line.receive', book_returned: 'suppliers.line.returned', book_sale: 'suppliers.line.sale' };
+const kindText = (kind) => t(LINE_KINDS[kind] || KINDS[kind].label);
+const suppliersOf = (db, kind) => db.all('Suppliers').filter((x) => x.kind === kind).sort((a, b) => a.name.localeCompare(b.name));
+// What was owed a supplier at the end of a date.
+const owedOn = (supplier, lines, date) => r2((supplier.opening_due || 0) + sum(lines.filter((l) => l.date <= date), (l) => l.amount));
+const between = (lines, from, to) => lines.filter((l) => l.date >= from && l.date <= to);
+
+function booksMonthly(db, { month }) {
+  const per = period(db, month);
+  const costs = bookCosts(db);
+  const books = new Map(db.all('Books').map((b) => [b.id, b]));
+  const moves = db.all('Stock_Movements').filter((m) => m.status === 'active' && m.date >= per.from && m.date <= per.to);
+  const sold = moves.filter((m) => m.kind === 'sale');
+  const lost = moves.filter((m) => m.kind === 'damaged' || m.kind === 'lost');
+  const cost = (rows) => sum(rows, (m) => -m.qty * (costs.get(m.book_id) || 0));
+  const sales = sum(sold, (m) => m.sale_amount);
+  const writeoffs = sum(db.all('Transactions').filter((e) => counts(e) && e.kind === 'publisher_writeoff' && e.date >= per.from && e.date <= per.to), (e) => e.amount);
+  const rows = suppliersOf(db, 'publisher').map((p) => {
+    const lines = supplierLines(db, p.id);
+    const inP = between(lines, per.from, per.to);
+    const mine = sold.filter((m) => (books.get(m.book_id) || {}).publisher_id === p.id);
+    return [p.name, owedOn(p, lines, addDays(per.from, -1)), n(sum(mine, (m) => -m.qty)), sum(inP.filter((l) => l.kind.startsWith('book_')), (l) => l.amount),
+      sum(inP.filter((l) => !l.kind.startsWith('book_')), (l) => -l.amount), owedOn(p, lines, per.to), sum(mine, (m) => m.sale_amount), r2(sum(mine, (m) => m.sale_amount) - cost(mine))];
+  }).filter((r) => r.slice(1).some((v) => (typeof v === 'number' ? v : v.n)));
+  const col = (i) => sum(rows, (r) => (typeof r[i] === 'number' ? r[i] : r[i].n));
+  return {
+    title: 'rep.title.books_monthly',
+    sub: [rangeText(per.from, per.to)],
+    blocks: [
+      section('rep.books_sales'),
+      kv([['rep.copies_sold', n(sum(sold, (m) => -m.qty))], ['rep.book_sales', sales], ['rep.cost_sold', cost(sold)], ['rep.gross_profit', r2(sales - cost(sold)), true],
+        ['rep.copies_lost', n(sum(lost, (m) => -m.qty))], ['rep.cost_lost', cost(lost)], ['rep.writeoffs', writeoffs]]),
+      section('rep.by_publisher'),
+      table([['rep.col.publisher'], ['rep.col.before', 'money'], ['rep.col.copies', 'count'], ['rep.col.due_added', 'money'], ['rep.col.paid', 'money'], ['rep.col.after', 'money'],
+        ['rep.col.sales', 'money'], ['rep.col.gross_profit', 'money']], rows,
+      rows.length ? [t('rep.col.total'), col(1), n(col(2)), col(3), col(4), col(5), col(6), col(7)] : null),
+      note(t('rep.books_note')),
+    ],
+  };
+}
+
+// A publisher's statement for a range: books that added to what is owed,
+// title by title, and money paid, refunded or written off.
+function publisherStatement(db, { party_id: id, from, to }) {
+  const p = db.get('Suppliers', id);
+  const lines = supplierLines(db, id);
+  const inP = between(lines, from, to);
+  const books = new Map();
+  for (const l of inP.filter((x) => x.kind.startsWith('book_'))) {
+    const key = `${l.book_id}|${l.kind}`;
+    const row = books.get(key) || { title: l.book, kind: l.kind, qty: 0, amount: 0 };
+    row.qty += l.qty;
+    row.amount = r2(row.amount + l.amount);
+    books.set(key, row);
+  }
+  const titles = [...books.values()].sort((a, b) => a.title.localeCompare(b.title));
+  const money = inP.filter((x) => !x.kind.startsWith('book_'));
+  const names = lookups(db);
+  return {
+    title: 'rep.title.publisher_statement',
+    sub: [t('rep.to_party', { name: p.name }), rangeText(from, to)],
+    blocks: [
+      section('rep.books_in_period'),
+      table([['rep.col.title'], ['rep.col.kind'], ['rep.col.copies', 'count'], ['rep.col.amount', 'money']], titles.map((x) => [x.title, kindText(x.kind), n(x.qty), x.amount]),
+        titles.length ? [t('rep.col.total'), '', n(sum(titles, (x) => x.qty)), sum(titles, (x) => x.amount)] : null),
+      section('rep.account'),
+      kv([['rep.owed_start', owedOn(p, lines, addDays(from, -1))], ['rep.add_books', sum(titles, (x) => x.amount)],
+        ['rep.less_paid', sum(money.filter((l) => l.amount < 0), (l) => l.amount)], ['rep.add_back', sum(money.filter((l) => l.amount > 0), (l) => l.amount)],
+        ['rep.owed_end', owedOn(p, lines, to), true]]),
+      section('rep.money_in_period'),
+      table([['rep.col.date'], ['rep.col.kind'], ['rep.col.account'], ['rep.col.note'], ['rep.col.amount', 'money']],
+        money.map((l) => [d(l.date), kindText(l.kind), (names.get(l.account_id) || {}).name || '', [l.ref, l.note].filter(Boolean).join(' · '), Math.abs(l.amount)])),
+      sign('rep.sign_for_shop', 'rep.sign_publisher'),
+    ],
+  };
+}
+
+// Each publisher on a date: what is owed, the last payment and what the
+// sales are paid up to.
+function tracker(db, { date }) {
+  const rows = suppliersOf(db, 'publisher').filter((p) => p.status === 'active').map((p) => {
+    const lines = supplierLines(db, p.id).filter((l) => l.date <= date);
+    const payments = lines.filter((l) => l.kind === 'publisher_payment');
+    const last = payments.length ? payments[payments.length - 1].date : '';
+    const settled = payments.map((l) => l.covers_up_to).filter(Boolean).sort().pop() || '';
+    const days = last ? Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${last}T00:00:00Z`)) / 86400000) : null;
+    return [p.name, t(p.pays_on === 'delivery' ? 'rep.pays_delivery' : 'rep.pays_sale'), owedOn(p, lines, date), last ? d(last) : t('rep.never'), days === null ? '' : n(days), settled ? d(settled) : ''];
+  });
+  return {
+    title: 'rep.title.tracker',
+    sub: [t('rep.as_of', { date: d(date) })],
+    blocks: [table([['rep.col.publisher'], ['rep.col.pays_on'], ['rep.col.owed', 'money'], ['rep.col.last_payment'], ['rep.col.days_since', 'count'], ['rep.col.settled_to']], rows)],
+  };
+}
+
+// Each vendor over a range: owed before, bought on credit or paid on the
+// spot, credit notes, paid, owed after, and the cost in the range.
+function vendors(db, { from, to }) {
+  const entries = db.all('Transactions').filter((e) => counts(e) && e.date >= from && e.date <= to);
+  const rows = suppliersOf(db, 'vendor').map((v) => {
+    const lines = supplierLines(db, v.id);
+    const k = (kind) => sum(entries.filter((e) => e.party_id === v.id && e.kind === kind), (e) => e.amount);
+    const credit = k('vendor_purchase_credit');
+    const spot = k('vendor_purchase_paid');
+    const notes = k('vendor_credit_note');
+    return [v.name, owedOn(v, lines, addDays(from, -1)), credit, spot, notes, k('vendor_payment'), owedOn(v, lines, to), r2(credit + spot - notes)];
+  }).filter((r) => r.slice(1).some(Boolean));
+  const col = (i) => sum(rows, (r) => r[i]);
+  return {
+    title: 'rep.title.vendors',
+    sub: [rangeText(from, to)],
+    blocks: [table([['rep.col.vendor'], ['rep.col.before', 'money'], ['rep.col.on_credit', 'money'], ['rep.col.on_spot', 'money'], ['rep.col.credit_notes', 'money'],
+      ['rep.col.paid', 'money'], ['rep.col.after', 'money'], ['rep.col.cost', 'money']], rows, rows.length ? [t('rep.col.total'), ...[1, 2, 3, 4, 5, 6, 7].map(col)] : null)],
+  };
+}
+
+function vendorStatement(db, { party_id: id, from, to }) {
+  const v = db.get('Suppliers', id);
+  const names = lookups(db);
+  const entries = db.all('Transactions').filter((e) => counts(e) && e.party_id === id && e.date >= from && e.date <= to).sort((a, b) => (a.date < b.date ? -1 : 1));
+  const lines = supplierLines(db, id);
+  const start = owedOn(v, lines, addDays(from, -1));
+  let running = start;
+  const rows = entries.map((e) => {
+    running = r2(running + (lines.find((l) => l.id === e.id) || { amount: 0 }).amount);
+    return [d(e.date), t(KINDS[e.kind].label), e.ref || '', e.note || '', (names.get(e.account_id) || {}).name || '', e.amount, running];
+  });
+  const k = (kind) => sum(entries.filter((e) => e.kind === kind), (e) => e.amount);
+  return {
+    title: 'rep.title.vendor_statement',
+    sub: [t('rep.to_party', { name: v.name }), rangeText(from, to)],
+    blocks: [
+      table([['rep.col.date'], ['rep.col.kind'], ['rep.col.bill'], ['rep.col.note'], ['rep.col.account'], ['rep.col.amount', 'money'], ['rep.col.owed', 'money']],
+        [['', t('rep.owed_start'), '', '', '', '', start], ...rows]),
+      section('rep.account'),
+      kv([['rep.owed_start', start], ['rep.on_credit', k('vendor_purchase_credit')], ['rep.credit_notes', -k('vendor_credit_note')], ['rep.less_paid', -k('vendor_payment')],
+        ['rep.owed_end', owedOn(v, lines, to), true], ['rep.on_spot', k('vendor_purchase_paid')]]),
+      sign('rep.sign_for_shop', 'rep.sign_vendor'),
+    ],
+  };
+}
+
+// What the shop owes, group by group: owed at the start + new − paid −
+// other = owed at the end, each worked out on its own so a line that
+// doesn't add up shows.
+function payables(db, { from, to }) {
+  const before = addDays(from, -1);
+  const groups = [];
+  const p = planner(db);
+  // Shareholders' own staff records are in their group, as in the month's figures.
+  groups.push(['rep.pay.staff', salaried(db).map((x) => {
+    const f = staffPayFigures(db, x, from, to, p);
+    return [x.name, f.start, f.earned, f.paid, f.other, f.end];
+  })]);
+  const startS = statements(db, before);
+  groups.push(['rep.pay.shareholders', statements(db, to).map((x, i) => {
+    const b = startS[i];
+    return [x.name, b.owed_to_them, r2(x.salary + x.profit + x.interest_earned - b.salary - b.profit - b.interest_earned),
+      r2(x.salary_paid + x.profit_paid + x.withdrawn - b.salary_paid - b.profit_paid - b.withdrawn), 0, x.owed_to_them];
+  })]);
+  for (const [kind, title, paidKind] of [['vendor', 'rep.pay.vendors', 'vendor_payment'], ['publisher', 'rep.pay.publishers', 'publisher_payment']]) {
+    groups.push([title, suppliersOf(db, kind).map((x) => {
+      const lines = supplierLines(db, x.id);
+      const inP = between(lines, from, to);
+      const paid = -sum(inP.filter((l) => l.kind === paidKind), (l) => l.amount);
+      return [x.name, owedOn(x, lines, before), sum(inP.filter((l) => l.amount > 0), (l) => l.amount), paid,
+        r2(-sum(inP.filter((l) => l.amount < 0), (l) => l.amount) - paid), owedOn(x, lines, to)];
+    })]);
+  }
+  const off = [];
+  const blocks = [note(t('rep.payables_note'))];
+  for (const [title, all] of groups) {
+    const rows = all.filter((r) => r.slice(1).some(Boolean));
+    if (!rows.length) continue;
+    for (const r of rows) if (Math.abs(r[1] + r[2] - r[3] - r[4] - r[5]) > 0.5) off.push(r[0]);
+    const col = (i) => sum(rows, (r) => r[i]);
+    blocks.push(section(title), table([['rep.col.name'], ['rep.col.before', 'money'], ['rep.col.new', 'money'], ['rep.col.paid', 'money'], ['rep.col.other', 'money'], ['rep.col.after', 'money']],
+      rows, [t('rep.col.total'), ...[1, 2, 3, 4, 5].map(col)]));
+  }
+  blocks.push(note(off.length ? t('rep.payables_off', { names: off.join(', ') }) : t('rep.payables_ok')));
+  return { title: 'rep.title.payables', sub: [rangeText(from, to)], blocks };
+}
+
+const BUILD = {
+  daily, monthly, shareholders, salary, loans, dues, all_money: allMoney, books_monthly: booksMonthly, publisher_statement: publisherStatement,
+  tracker, vendors, vendor_statement: vendorStatement, payables,
+};
 
 // What each report is asked for; left out, a sensible default.
 function inputs(db, report, input) {
@@ -282,15 +473,28 @@ function inputs(db, report, input) {
   const to = input.to || today;
   const from = input.from || `${to.slice(0, 7)}-01`;
   if (from > to) throw new AppError('VALIDATION', {}, { to: { code: 'val.date_order', params: {} } });
-  return { from, to };
+  if (kind === 'range') return { from, to };
+  // A publisher's or vendor's: the one asked for, else the first.
+  const party = PARTY[kind];
+  const chosen = input.party_id ? db.get('Suppliers', input.party_id) : suppliersOf(db, party).find((x) => x.status === 'active');
+  if (chosen && chosen.kind !== party) throw new AppError('NOT_FOUND');
+  return { party_id: chosen ? chosen.id : '', from, to };
 }
+
+const PARTY = { publisher: 'publisher', vendor: 'vendor' };
+const TITLES_EMPTY = { publisher: 'rep.title.publisher_statement', vendor: 'rep.title.vendor_statement' };
 
 function get(ctx, input) {
   const spec = REPORTS[input.report];
   if (!ctx.can(spec.perm)) throw new AppError('FORBIDDEN');
   const asked = inputs(ctx.db, input.report, input);
-  const model = BUILD[input.report](ctx.db, asked);
-  return { report: input.report, input: asked, model: { ...model, title: label(model.title) } };
+  const party = PARTY[spec.input];
+  // A statement with no publisher or vendor yet says so.
+  const model = party && !asked.party_id ? { title: TITLES_EMPTY[party], sub: [], blocks: [note(t('rep.no_party'))] } : BUILD[input.report](ctx.db, asked);
+  return {
+    report: input.report, input: asked, model: { ...model, title: label(model.title) },
+    choices: party ? suppliersOf(ctx.db, party).map((x) => ({ id: x.id, name: x.name })) : [],
+  };
 }
 
 export const REPORT_HANDLERS = {

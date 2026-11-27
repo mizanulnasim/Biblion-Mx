@@ -15,17 +15,23 @@ import { xlsx } from '../../../shared/lib/xlsx.js';
 
 const TITLES = {
   daily: 'rep.title.daily', monthly: 'month.report', shareholders: 'rep.title.shareholders', salary: 'rep.title.salary',
-  loans: 'rep.title.loans', dues: 'rep.title.dues', all_money: 'rep.title.all_money',
+  loans: 'rep.title.loans', dues: 'rep.title.dues', all_money: 'rep.title.all_money', books_monthly: 'rep.title.books_monthly',
+  publisher_statement: 'rep.title.publisher_statement', tracker: 'rep.title.tracker', vendors: 'rep.title.vendors',
+  vendor_statement: 'rep.title.vendor_statement', payables: 'rep.title.payables',
 };
 // What each kind of report is asked for, as query keys.
-const KEYS = { date: ['date'], month: ['month'], range: ['from', 'to'] };
+const KEYS = { date: ['date'], month: ['month'], range: ['from', 'to'], publisher: ['party_id', 'from', 'to'], vendor: ['party_id', 'from', 'to'] };
 
-function inputsView(report, input) {
+function inputsView(report, input, choices) {
   const kind = REPORTS[report].input;
+  const range = html`<label class="field-inline">${t('rep.from')} <input type="date" data-key="from" value="${input.from}"></label>
+    <label class="field-inline">${t('rep.to')} <input type="date" data-key="to" value="${input.to}"></label>`;
+  if (kind === 'publisher' || kind === 'vendor') {
+    return html`<label class="field-inline">${t('rep.party')} <select data-key="party_id">${choices.map((c) => html`<option value="${c.id}" ${c.id === input.party_id ? 'selected' : ''}>${c.name}</option>`)}</select></label>${range}`;
+  }
   if (kind === 'date') return html`<label class="field-inline">${t('rep.date')} <input type="date" data-key="date" value="${input.date}"></label>`;
   if (kind === 'month') return html`<label class="field-inline">${t('hr.month')} <input type="month" data-key="month" value="${input.month}"></label>`;
-  return html`<label class="field-inline">${t('rep.from')} <input type="date" data-key="from" value="${input.from}"></label>
-    <label class="field-inline">${t('rep.to')} <input type="date" data-key="to" value="${input.to}"></label>`;
+  return range;
 }
 
 export const reportsPage = {
@@ -47,7 +53,7 @@ export const reportsPage = {
         data = (await read('reports.get', { report, ...asked })).data;
         render(el, html`<div class="list-bar no-print">
             <label class="field-inline">${t('rep.choose')} <select data-role="report">${mine.map((id) => html`<option value="${id}" ${id === report ? 'selected' : ''}>${t(TITLES[id])}</option>`)}</select></label>
-            ${inputsView(report, data.input)}
+            ${inputsView(report, data.input, data.choices)}
             <button type="button" class="btn" data-act="excel">${t('rep.download')}</button>
             <button type="button" class="btn btn-primary" data-act="print">${t('pay.print')}</button>
           </div>
@@ -60,7 +66,7 @@ export const reportsPage = {
     const onChange = (e) => {
       if (e.target.dataset.role === 'report') {
         const keep = { ...query };
-        for (const k of ['date', 'month', 'from', 'to']) delete keep[k];
+        for (const k of ['date', 'month', 'from', 'to', 'party_id']) delete keep[k];
         location.hash = `#/reports?${new URLSearchParams({ ...keep, report: e.target.value })}`;
       } else if (e.target.dataset.key && e.target.value) {
         go({ report, [e.target.dataset.key]: e.target.value });

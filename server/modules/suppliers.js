@@ -55,7 +55,7 @@ function bookDueLines(db) {
     if (onDelivery && m.kind === 'receive') amount = m.qty * m.unit_cost;
     else if (onDelivery && m.kind === 'returned') amount = m.qty * (m.unit_cost || costs.get(m.book_id));
     else if (!onDelivery && m.kind === 'sale') amount = -m.qty * costs.get(m.book_id);
-    if (amount) lines.push({ supplier_id: publisher.id, date: m.date, amount: round(amount), kind: m.kind, book: book.title, qty: Math.abs(m.qty), id: m.id });
+    if (amount) lines.push({ supplier_id: publisher.id, date: m.date, amount: round(amount), kind: m.kind, book: book.title, book_id: book.id, qty: Math.abs(m.qty), id: m.id });
   }
   return lines;
 }
@@ -107,21 +107,31 @@ function save(ctx, input) {
   return saved(row.id, pick(row, supplierBalances(db)));
 }
 
+// Every line that changed what is owed a supplier, oldest first: money
+// entries (kind, amount owed added or taken off) and, for a publisher, book
+// movements (kind book_receive, book_returned or book_sale).
+export function supplierLines(db, id) {
+  const lines = [];
+  for (const e of db.all('Transactions')) {
+    if (e.status === 'active' && e.party_id === id && payableEffect(e)) {
+      lines.push({
+        date: e.date, kind: e.kind, amount: payableEffect(e), ref: e.ref, note: e.note || '', account_id: e.account_id,
+        covers_up_to: e.covers_up_to, id: e.id, created_at: e.created_at,
+      });
+    }
+  }
+  for (const l of bookDueLines(db)) {
+    if (l.supplier_id === id) lines.push({ date: l.date, kind: `book_${l.kind}`, amount: l.amount, book: l.book, book_id: l.book_id, qty: l.qty, id: l.id, created_at: '' });
+  }
+  return lines.sort((a, b) => (a.date === b.date ? (a.created_at < b.created_at ? -1 : 1) : a.date < b.date ? -1 : 1));
+}
+
 // Every line that changed what is owed, oldest first, with a running total.
 function statement(ctx, { id }) {
   const { db } = ctx;
   const supplier = db.get('Suppliers', id);
   if (!supplier) throw new AppError('NOT_FOUND');
-  const lines = [];
-  for (const e of db.all('Transactions')) {
-    if (e.status === 'active' && e.party_id === id && payableEffect(e)) {
-      lines.push({ date: e.date, kind: e.kind, amount: payableEffect(e), ref: e.ref, covers_up_to: e.covers_up_to, id: e.id, created_at: e.created_at });
-    }
-  }
-  for (const l of bookDueLines(db)) {
-    if (l.supplier_id === id) lines.push({ date: l.date, kind: `book_${l.kind}`, amount: l.amount, book: l.book, qty: l.qty, id: l.id, created_at: '' });
-  }
-  lines.sort((a, b) => (a.date === b.date ? (a.created_at < b.created_at ? -1 : 1) : a.date < b.date ? -1 : 1));
+  const lines = supplierLines(db, id);
   let running = supplier.opening_due || 0;
   for (const l of lines) {
     running = round(running + l.amount);

@@ -49,3 +49,28 @@ test('who may see a report, and the figures in two of them', () => {
   assert.deepEqual(dues.blocks[0].rows.map((r) => [r[0], r[2]]), [['Rahim', 300]]);
   assert.equal(s.call(s.owner, 'reports.get', { report: 'all_money', from: today(), to: '2000-01-01' }).error.code, 'VALIDATION');
 });
+
+test('publisher and vendor reports: statement, vendors and payables add up', () => {
+  const s = shop();
+  const id = (r) => r.data.record_id;
+  const pub = id(s.call(s.owner, 'setup.supplier.save', { kind: 'publisher', name: 'Sheba', commission: 25, sell_discount: 0, pays_on: 'sale', opening_due: 1000, status: 'active' }));
+  const vendor = id(s.call(s.owner, 'setup.supplier.save', { kind: 'vendor', name: 'Milk Vita', opening_due: 200, status: 'active' }));
+  const book = id(s.call(s.owner, 'books.save', { title: 'Nodi', publisher_id: pub, printed_price: 400, status: 'active' }));
+  s.call(s.owner, 'books.delivery.save', { date: today(), publisher_id: pub, lines: [{ book_id: book, printed_price: 400, qty: 5 }] });
+  s.call(s.owner, 'books.sales.save', { date: today(), lines: [{ book_id: book, qty: 2, amount: 800 }] });
+  s.call(s.owner, 'money.save', { kind: 'publisher_payment', date: today(), amount: 500, account_id: s.ids.cash, party_id: pub });
+  s.call(s.owner, 'money.save', { kind: 'vendor_purchase_credit', date: today(), amount: 900, party_id: vendor, ref: 'B-7' });
+  s.call(s.owner, 'money.save', { kind: 'vendor_payment', date: today(), amount: 600, account_id: s.ids.cash, party_id: vendor });
+  const get = (report, more = {}) => s.call(s.owner, 'reports.get', { report, from: today(), to: today(), ...more }).data;
+  // Sheba: 1,000 before; 2 copies sold at 300 each add 600; 500 paid.
+  const st = get('publisher_statement', { party_id: pub }).model;
+  const account = st.blocks.find((b) => b.kind === 'kv').rows.map((r) => r.value);
+  assert.deepEqual(account, [1000, 600, -500, 0, 1100]);
+  // Milk Vita: 200 before, 900 on credit, 600 paid.
+  const v = get('vendors').model.blocks[0].rows[0];
+  assert.deepEqual([v[0], v[1], v[2], v[5], v[6], v[7]], ['Milk Vita', 200, 900, 600, 500, 900]);
+  const pay = get('payables').model;
+  assert.deepEqual(pay.blocks[pay.blocks.length - 1].text, { t: 'rep.payables_ok', p: {} });
+  // A statement names the vendor asked for; a publisher id isn't a vendor.
+  assert.equal(s.call(s.owner, 'reports.get', { report: 'vendor_statement', party_id: pub }).error.code, 'NOT_FOUND');
+});

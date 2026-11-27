@@ -811,7 +811,7 @@ export const ACTIONS = Object.freeze({
   'reports.get': {
     schema: {
       report: { type: 'enum', required: true, values: Object.keys(REPORTS) },
-      date: { type: 'date' }, month: { type: 'month' }, from: { type: 'date' }, to: { type: 'date' },
+      date: { type: 'date' }, month: { type: 'month' }, from: { type: 'date' }, to: { type: 'date' }, party_id: { type: 'id' },
     },
   },
   // A photo for a task: before, after, a receipt, or a checklist item's.

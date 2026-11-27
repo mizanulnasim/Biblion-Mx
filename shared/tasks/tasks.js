@@ -44,7 +44,9 @@ export const PRIORITIES = Object.freeze(['low', 'normal', 'high', 'urgent']);
 // chosen; the person still needs the permission to use it.
 const PRINT_LABELS = {
   daily: 'rep.print.daily', monthly: 'rep.print.monthly', shareholders: 'rep.print.shareholders', salary: 'rep.print.salary',
-  loans: 'rep.print.loans', dues: 'rep.print.dues', all_money: 'rep.print.all_money',
+  loans: 'rep.print.loans', dues: 'rep.print.dues', all_money: 'rep.print.all_money', books_monthly: 'rep.print.books_monthly',
+  publisher_statement: 'rep.print.publisher_statement', tracker: 'rep.print.tracker', vendors: 'rep.print.vendors',
+  vendor_statement: 'rep.print.vendor_statement', payables: 'rep.print.payables',
 };
 const entry = (kind) => ({ table: 'Transactions', counts: (r) => r.kind === kind && r.status === 'active' });
 const notCancelled = (table) => ({ table, counts: (r) => r.status !== 'cancelled' });
