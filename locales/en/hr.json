@@ -334,5 +334,12 @@
   "hr.plan.half_first": "first half on leave",
   "hr.plan.half_second": "second half on leave",
   "val.no_half_days": "This kind of leave can't be taken as a half day.",
-  "val.half_one_day": "A half day is for one date: the end date must be the same."
+  "val.half_one_day": "A half day is for one date: the end date must be the same.",
+  "hr.short": "{time} short",
+  "hr.overtime": "{time} overtime",
+  "hr.totals_hours": "Hours short {short} · overtime {overtime} (counted separately, never set against each other)",
+  "hr.flex": "Hours short or over within (minutes) aren't counted",
+  "hr.flex_help": "A day this close to its expected hours counts as neither short nor overtime. 0: every minute counts.",
+  "hr.overtime_rate": "Overtime pay (Tk an hour)",
+  "hr.overtime_rate_help": "Leave empty if overtime isn't paid to this person. Overtime is still shown either way."
 }

@@ -32,10 +32,11 @@ function slipDialog(row, month, onDone) {
     ${row.paid ? html`<p class="muted">${t('pay.paid_for_month', { amount: money(row.paid) })}</p>` : ''}
     ${issuing ? formView({
       submit: t('pay.issue'),
-      values: { unpaid_absent_days: '0', unpaid_leave_days: String(s.leave_days) },
+      values: { unpaid_absent_days: '0', unpaid_leave_days: String(s.leave_days), overtime_hours: String(s.overtime_hours) },
       fields: [
         ...(s.leave_days ? [{ name: 'unpaid_leave_days', label: t('pay.unpaid_leave'), inputmode: 'decimal', required: true, help: t('pay.unpaid_leave_help', { count: s.leave_days }) }] : []),
         { name: 'unpaid_absent_days', label: t('pay.unpaid_absent'), inputmode: 'numeric', required: true, help: t('pay.unpaid_absent_help', { count: s.absent_days }) },
+        ...(s.overtime_rate ? [{ name: 'overtime_hours', label: t('pay.overtime_hours'), inputmode: 'decimal', required: true, help: t('pay.overtime_hours_help', { hours: s.overtime_hours, rate: money(s.overtime_rate) }) }] : []),
         { name: 'note', label: t('pay.note'), type: 'textarea' },
       ],
     }) : actions}`;
@@ -44,7 +45,7 @@ function slipDialog(row, month, onDone) {
     bindForm(dialog.querySelector('form.form'), {
       schema: ACTIONS['payroll.issue'].schema,
       busyLabel: t('common.saving'),
-      mapValues: (v) => ({ ...v, unpaid_leave_days: v.unpaid_leave_days ?? 0, staff_id: row.staff.id, month }),
+      mapValues: (v) => ({ ...v, unpaid_leave_days: v.unpaid_leave_days ?? 0, overtime_hours: v.overtime_hours ?? 0, staff_id: row.staff.id, month }),
       onSubmit: (v) => write('payroll.issue', v),
       onSaved: () => {
         dialog.close();

@@ -55,6 +55,9 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   // shareholder turns it on (owner decision).
   'attendance.device_enabled': false,
   // The shop's hours: a punch outside them waits for a manager's check.
+  // Hours short or overtime within this many minutes of a day's expected
+  // hours are not counted.
+  'attendance.flex_min': 0,
   'attendance.shop_open': '11:00',
   'attendance.shop_close': '23:00',
   // Public holidays: the shop 'closed' (nobody is expected) or open, with

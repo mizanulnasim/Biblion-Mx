@@ -22,7 +22,7 @@ const PRIVATE = Object.freeze({
   'staff.identity': ['nid', 'birth_date', 'address'],
   'staff.emergency': ['emergency'],
   'staff.family': ['family'],
-  'salary.view': ['salary'],
+  'salary.view': ['salary', 'overtime_rate'],
 });
 
 function pinFields(pin) {
@@ -109,11 +109,11 @@ function save(ctx, input) {
   if (ctx.can('staff.identity')) Object.assign(patch, { nid: input.nid || '', birth_date: input.birth_date || '', address: input.address || '' });
   if (ctx.can('staff.emergency')) patch.emergency = input.emergency.filter((e) => e.name || e.phone);
   if (ctx.can('staff.family')) patch.family = input.family || '';
-  if (ctx.can('salary.edit')) patch.salary = input.salary || 0;
+  if (ctx.can('salary.edit')) Object.assign(patch, { salary: input.salary || 0, overtime_rate: input.overtime_rate || 0 });
   if (input.pin) Object.assign(patch, pinFields(input.pin));
   let row;
   if (!current) {
-    const base = { nid: '', birth_date: '', address: '', emergency: [], family: '', salary: 0, pin_hash: '', pin_salt: '', pin_iter: 0, pin_failed: 0, pin_locked_until: '' };
+    const base = { nid: '', birth_date: '', address: '', emergency: [], family: '', salary: 0, overtime_rate: 0, pin_hash: '', pin_salt: '', pin_iter: 0, pin_failed: 0, pin_locked_until: '' };
     row = db.insert('Staff', { ...base, ...patch, number: nextNumber(db) });
   } else {
     row = db.update('Staff', current, patch, input.version);

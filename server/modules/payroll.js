@@ -62,16 +62,23 @@ function draft(db, staff, month, p = planner(db), cut = {}) {
   const changes = salaryChanges(db, staff);
   // Unpaid leave, whole days and half days (counted 0.5).
   const unpaid = employed.map((d) => ({ date: d, plan: p.plan(staff, d) })).filter((x) => x.plan.leave_kind === 'unpaid');
-  const absent = attendanceMonth(db, staff, { from: per.from, to: per.to }).days.filter((d) => d.state === 'absent').length;
+  const att = attendanceMonth(db, staff, { from: per.from, to: per.to });
+  const absent = att.days.filter((d) => d.state === 'absent').length;
+  // Overtime is paid only to people with an hourly rate; all of it unless
+  // `cut` says how many hours.
+  const rate = staff.overtime_rate || 0;
+  const overtimeHours = rate ? (cut.overtime ?? Math.round((att.totals.overtime_min / 60) * 100) / 100) : 0;
   const leaveTaken = leaveDays(unpaid.map((x) => ({ ...p.base(staff, x.date), half: x.plan.half_leave || '' })), setting(db, 'leave.day_counting'));
   const leaveCut = cut.leave ?? leaveTaken;
   const absentCut = cut.absent ?? 0;
   return {
     month, period_from: per.from, period_to: per.to, parts: partsOn(changes, employed.length ? employed[employed.length - 1] : per.to),
     leave_days: leaveTaken, absent_days: absent, unpaid_leave_days: leaveCut, unpaid_absent_days: absentCut,
+    overtime_min: att.totals.overtime_min, overtime_hours: overtimeHours, overtime_rate: rate,
     ...payslipFigures({
       period_days: per.days, day_salaries: employed.map((d) => salaryOn(changes, d)),
       divisor_rule: setting(db, 'payroll.unpaid_divisor'), unpaid_leave_days: leaveCut, unpaid_absent_days: absentCut,
+      overtime_pay: Math.round(overtimeHours * rate),
     }),
   };
 }
@@ -124,7 +131,8 @@ const slipView = (s) => ({
   id: s.id, month: s.month, period_from: s.period_from, period_to: s.period_to, staff_id: s.staff_id, salary: s.salary, parts: s.parts || [],
   month_days: s.month_days, divisor: s.divisor, employed_days: s.employed_days, base: s.base, leave_days: s.leave_days,
   unpaid_leave_days: s.unpaid_leave_days, absent_days: s.absent_days, unpaid_absent_days: s.unpaid_absent_days,
-  unpaid_cut: s.unpaid_cut, net: s.net, note: s.note, status: s.status, cancel_reason: s.cancel_reason, issued_at: s.issued_at,
+  unpaid_cut: s.unpaid_cut, overtime_min: s.overtime_min || 0, overtime_hours: s.overtime_hours || 0, overtime_rate: s.overtime_rate || 0, overtime_pay: s.overtime_pay || 0,
+  net: s.net, note: s.note, status: s.status, cancel_reason: s.cancel_reason, issued_at: s.issued_at,
 });
 
 const paidFor = (db, staffId, month) => db.all('Transactions')
@@ -216,7 +224,9 @@ function issue(ctx, input) {
   const leave = input.unpaid_leave_days ?? found.leave_days;
   if (leave > found.leave_days) throw fieldError('unpaid_leave_days', 'val.max', { max: found.leave_days });
   if (input.unpaid_absent_days > found.absent_days) throw fieldError('unpaid_absent_days', 'val.max', { max: found.absent_days });
-  const d = draft(db, staff, input.month, planner(db), { leave, absent: input.unpaid_absent_days });
+  const overtime = input.overtime_hours ?? found.overtime_hours;
+  if (overtime > found.overtime_hours) throw fieldError('overtime_hours', 'val.max', { max: found.overtime_hours });
+  const d = draft(db, staff, input.month, planner(db), { leave, absent: input.unpaid_absent_days, overtime });
   const row = db.insert('Payslips', {
     ...d, staff_id: staff.id, note: input.note || '', status: 'issued', cancel_reason: '', issued_by: ctx.user.id, issued_at: db.nowIso,
   });

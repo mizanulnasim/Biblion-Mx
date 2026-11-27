@@ -39,7 +39,7 @@ function attendanceRules(db) {
     incomplete_after: get('attendance.incomplete_after_min'), duplicate_window_sec: get('attendance.duplicate_window_sec'),
     clock_skew_flag_min: get('attendance.clock_skew_flag_min'), offline_max_age_days: get('attendance.offline_max_age_days'),
     offline_auto_validate: get('attendance.offline_auto_validate'),
-    shop_open: get('attendance.shop_open'), shop_close: get('attendance.shop_close'),
+    shop_open: get('attendance.shop_open'), shop_close: get('attendance.shop_close'), flex: get('attendance.flex_min'),
   };
 }
 
@@ -169,9 +169,11 @@ export function attendanceMonth(db, staff, input) {
   const m = input.month || today.slice(0, 7);
   const dates = input.from ? datesBetween(input.from, input.to < today ? input.to : today).reverse() : monthDates(m, today);
   const days = daysFor(db, staff, dates.filter((d) => d >= joinedOn(staff)));
-  const totals = { worked_min: 0, late_days: 0, absent_days: 0, incomplete_days: 0, leave_days: 0 };
+  const totals = { worked_min: 0, short_min: 0, overtime_min: 0, late_days: 0, absent_days: 0, incomplete_days: 0, leave_days: 0 };
   for (const d of days) {
     totals.worked_min += d.worked_min;
+    totals.short_min += d.short_min;
+    totals.overtime_min += d.overtime_min;
     if (d.late_min) totals.late_days++;
     if (d.state === 'absent') totals.absent_days++;
     if (d.state === 'incomplete') totals.incomplete_days++;

@@ -14,7 +14,7 @@ import { currentPlace } from '../core/place.js';
 import { dateShortTime } from '../core/format.js';
 import { ACTIONS } from '../../../shared/contract/actions.js';
 
-const NUMBERS = ['radius_m', 'max_accuracy_m', 'late_grace', 'early_grace', 'incomplete_after', 'duplicate_window_sec', 'clock_skew_flag_min', 'offline_max_age_days'];
+const NUMBERS = ['radius_m', 'max_accuracy_m', 'late_grace', 'early_grace', 'incomplete_after', 'duplicate_window_sec', 'clock_skew_flag_min', 'offline_max_age_days', 'flex'];
 
 function settingsForm(data) {
   const values = { ...data };
@@ -32,6 +32,7 @@ function settingsForm(data) {
       num('late_grace', 'hr.late_grace'),
       num('early_grace', 'hr.early_grace'),
       num('incomplete_after', 'hr.incomplete_after', 'hr.incomplete_after_help'),
+      num('flex', 'hr.flex', 'hr.flex_help'),
       num('duplicate_window_sec', 'hr.duplicate_window', 'hr.duplicate_window_help'),
       num('clock_skew_flag_min', 'hr.clock_skew', 'hr.clock_skew_help'),
       num('offline_max_age_days', 'hr.offline_max_age', 'hr.offline_max_age_help'),

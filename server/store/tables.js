@@ -193,14 +193,15 @@ export const TABLES = Object.freeze({
   // nid, birth_date, address (staff.identity); emergency:j [{name, relation,
   // phone}] (staff.emergency); family (staff.family); salary (salary.view).
   // The punch PIN is kept only as a PBKDF2 hash. number: the staff number
-  // (BIB0001), given when the record is made.
+  // (BIB0001), given when the record is made. overtime_rate: taka an hour of
+  // overtime; 0 means overtime isn't paid to this person.
   Staff: {
     group: 'hr',
     prefix: 'STF',
     columns: [
       'number', 'name', 'name_bn', 'phone', 'email', 'position', 'user_id', 'joined_on', 'left_on', 'status',
       'work_start', 'work_end', 'days_off:j',
-      'nid', 'birth_date', 'address', 'emergency:j', 'family', 'salary:n',
+      'nid', 'birth_date', 'address', 'emergency:j', 'family', 'salary:n', 'overtime_rate:n',
       'pin_hash', 'pin_salt', 'pin_iter:n', 'pin_failed:n', 'pin_locked_until',
     ],
     secret: ['pin_hash', 'pin_salt', 'pin_iter'],
@@ -300,14 +301,16 @@ export const TABLES = Object.freeze({
   // accounting month (period_from to period_to); parts:j the salary's
   // parts. leave_days / absent_days: unpaid leave and absent days in the
   // month; unpaid_leave_days / unpaid_absent_days: those a shareholder
-  // chose to cut. Status: issued, or cancelled (with a reason) so it can be
+  // chose to cut. overtime_min: overtime worked in the month; overtime_hours:
+  // those a shareholder chose to pay, at overtime_rate. Status: issued, or cancelled (with a reason) so it can be
   // issued again.
   Payslips: {
     group: 'hr',
     prefix: 'PSL',
     columns: [
       'month', 'period_from', 'period_to', 'staff_id', 'salary:n', 'parts:j', 'month_days:n', 'divisor:n', 'employed_days:n', 'base:n',
-      'leave_days:n', 'unpaid_leave_days:n', 'absent_days:n', 'unpaid_absent_days:n', 'unpaid_cut:n', 'net:n', 'note',
+      'leave_days:n', 'unpaid_leave_days:n', 'absent_days:n', 'unpaid_absent_days:n', 'unpaid_cut:n',
+      'overtime_min:n', 'overtime_hours:n', 'overtime_rate:n', 'overtime_pay:n', 'net:n', 'note',
       'status', 'cancel_reason', 'issued_by', 'issued_at',
     ],
   },

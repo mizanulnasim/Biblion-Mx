@@ -181,3 +181,20 @@ test('an unpaid half day cuts half a day\'s pay', () => {
   assert.equal(slip.leave_days, 0.5);
   assert.equal(slip.unpaid_cut, Math.round((12000 * 0.5) / daysIn(month)));
 });
+
+test('overtime is paid only to people with an hourly rate, the hours chosen when issuing', () => {
+  const s = payroll();
+  const month = lastMonth();
+  // The 14th of last month: in at 10:00, out at 20:00 against 10:00–18:00.
+  let date = `${month}-14`;
+  while (new Date(`${date}T00:00:00Z`).getUTCDay() === 5) date = plus(date, 1);
+  for (const [type, time] of [['in', '10:00'], ['out', '20:00']]) s.call(s.owner, 'attendance.fix', { staff_id: s.ids.sumi, date, type, time, reason: 'Stock-take' });
+  const before = row(s, month, 'Sumi').slip;
+  assert.deepEqual([before.overtime_min, before.overtime_hours, before.overtime_pay], [120, 0, 0]);
+  const sumi = s.call(s.owner, 'staff.list', {}).data.items.find((x) => x.name === 'Sumi');
+  assert.equal(s.call(s.owner, 'staff.save', { ...sumi, days_off: sumi.days_off.map((day) => ({ day })), overtime_rate: 100, pin: null }).data.status, 'saved');
+  assert.deepEqual([row(s, month, 'Sumi').slip.overtime_hours, row(s, month, 'Sumi').slip.overtime_pay], [2, 200]);
+  assert.equal(s.call(s.owner, 'payroll.issue', { staff_id: s.ids.sumi, month, unpaid_absent_days: 0, overtime_hours: 3 }).data.error.fields.overtime_hours.code, 'val.max');
+  const issued = s.call(s.owner, 'payroll.issue', { staff_id: s.ids.sumi, month, unpaid_absent_days: 0, overtime_hours: 1.5 }).data;
+  assert.equal(issued.data.net, 12000 - Math.round((12000 * row(s, month, 'Sumi').slip.leave_days) / daysIn(month)) + 150);
+});

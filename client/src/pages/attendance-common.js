@@ -78,6 +78,8 @@ export function dayFacts(d) {
   if (d.break_min) facts.push(t('hr.on_breaks', { time: duration(d.break_min) }));
   if (d.late_min) facts.push(t('hr.late', { time: duration(d.late_min) }));
   if (d.early_min) facts.push(t('hr.early', { time: duration(d.early_min) }));
+  if (d.short_min) facts.push(t('hr.short', { time: duration(d.short_min) }));
+  if (d.overtime_min) facts.push(t('hr.overtime', { time: duration(d.overtime_min) }));
   return facts.join(' · ');
 }
 
@@ -87,6 +89,7 @@ export function monthView(data, { fixLabel = '' } = {}) {
   const { totals } = data;
   return html`
     <p class="month-totals">${t('hr.totals', { worked: duration(totals.worked_min), late: totals.late_days, absent: totals.absent_days, incomplete: totals.incomplete_days, leave: totals.leave_days })}</p>
+    ${totals.short_min || totals.overtime_min ? html`<p class="muted">${t('hr.totals_hours', { short: duration(totals.short_min), overtime: duration(totals.overtime_min) })}</p>` : ''}
     ${data.days.length ? html`<ul class="att-days">${data.days.map((d) => html`<li class="att-day">
       <div class="day-head">
         <strong>${dateShort(`${d.date}T06:00:00Z`)}</strong> ${stateChip(d.state)}

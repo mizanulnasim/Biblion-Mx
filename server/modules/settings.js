@@ -39,7 +39,7 @@ const ATTENDANCE_KEYS = Object.freeze({
   late_grace: 'attendance.late_grace_min', early_grace: 'attendance.early_grace_min', incomplete_after: 'attendance.incomplete_after_min',
   duplicate_window_sec: 'attendance.duplicate_window_sec', clock_skew_flag_min: 'attendance.clock_skew_flag_min',
   offline_max_age_days: 'attendance.offline_max_age_days', offline_auto_validate: 'attendance.offline_auto_validate',
-  device_enabled: 'attendance.device_enabled', shop_open: 'attendance.shop_open', shop_close: 'attendance.shop_close',
+  device_enabled: 'attendance.device_enabled', shop_open: 'attendance.shop_open', shop_close: 'attendance.shop_close', flex: 'attendance.flex_min',
 });
 
 function attendanceSettings(db) {

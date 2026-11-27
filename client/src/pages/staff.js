@@ -59,13 +59,18 @@ function fieldsFor(staff, users) {
     }
   }
   if (can('staff.family')) fields.push({ name: 'family', label: t('hr.family'), type: 'textarea', help: t('hr.family_help') });
-  if (can('salary.edit')) fields.push({ name: 'salary', label: t('hr.salary'), inputmode: 'decimal', help: t('hr.salary_help') });
+  if (can('salary.edit')) {
+    fields.push(
+      { name: 'salary', label: t('hr.salary'), inputmode: 'decimal', help: t('hr.salary_help') },
+      { name: 'overtime_rate', label: t('hr.overtime_rate'), inputmode: 'decimal', help: t('hr.overtime_rate_help') },
+    );
+  }
   return fields;
 }
 
 function valuesOf(staff) {
   if (!staff) return { status: 'active', off_5: true };
-  const values = { ...staff, salary: staff.salary ? String(staff.salary) : '' };
+  const values = { ...staff, salary: staff.salary ? String(staff.salary) : '', overtime_rate: staff.overtime_rate ? String(staff.overtime_rate) : '' };
   for (const day of staff.days_off) values[`off_${day}`] = true;
   (staff.emergency || []).forEach((e, i) => {
     values[`em_name_${i}`] = e.name;
@@ -92,7 +97,7 @@ function openStaff(staff, users, onSaved) {
       for (let i = 0; i < EMERGENCY_ROWS; i++) {
         if (`em_name_${i}` in v) out.emergency.push({ name: v[`em_name_${i}`], relation: v[`em_relation_${i}`], phone: v[`em_phone_${i}`] });
       }
-      for (const k of ['email', 'user_id', 'joined_on', 'left_on', 'work_start', 'work_end', 'pin', 'birth_date', 'salary']) if (out[k] === '') out[k] = null;
+      for (const k of ['email', 'user_id', 'joined_on', 'left_on', 'work_start', 'work_end', 'pin', 'birth_date', 'salary', 'overtime_rate']) if (out[k] === '') out[k] = null;
       return out;
     },
     onSubmit: (v) => write('staff.save', v),

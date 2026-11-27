@@ -29,6 +29,7 @@ export function slipLines(s) {
     ${s.leave_days ? html`<dt>${t('pay.line.unpaid_leave')}</dt><dd>${t('pay.leave_cut', { leave: s.leave_days, cut: s.unpaid_leave_days })}</dd>` : ''}
     ${s.absent_days ? html`<dt>${t('pay.line.absent')}</dt><dd>${t('pay.absent_cut', { absent: s.absent_days, cut: s.unpaid_absent_days || 0 })}</dd>` : ''}
     ${cut ? html`<dt>${t('pay.line.cut', { days: cut, divisor: s.divisor })}</dt><dd>− ${money(s.unpaid_cut)}</dd>` : ''}
+    ${s.overtime_pay ? html`<dt>${t('pay.line.overtime', { hours: s.overtime_hours, rate: money(s.overtime_rate) })}</dt><dd>+ ${money(s.overtime_pay)}</dd>` : ''}
     <dt class="slip-total">${t('pay.line.net')}</dt><dd class="slip-total">${money(s.net)}</dd>
   </dl>
   ${s.note ? html`<p class="muted">${t('hr.note', { note: s.note })}</p>` : ''}`;

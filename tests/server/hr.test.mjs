@@ -130,7 +130,7 @@ test('days before a person joined are not counted', () => {
   const s = hr();
   const sumi = s.call(s.owner, 'staff.list', {}).data.items.find((x) => x.name === 'Sumi');
   const today = new Date(Date.now() + 6 * 3600000).toISOString().slice(0, 10);
-  s.call(s.owner, 'staff.save', { ...sumi, joined_on: today, pin: null });
+  assert.equal(s.call(s.owner, 'staff.save', { ...sumi, days_off: sumi.days_off.map((day) => ({ day })), joined_on: today, pin: null }).data.status, 'saved');
   const days = s.call(s.staff, 'attendance.mine', {}).data.days;
   assert.deepEqual(days.map((d) => d.date), [today]);
 });

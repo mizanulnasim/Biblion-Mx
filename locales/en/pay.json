@@ -129,5 +129,8 @@
   "pay.sign_issued": "Issued by",
   "pay.sign_received": "Received by",
   "pay.set.start_date": "The app's records start on",
-  "pay.set.start_date_help": "Opening balances are as of this day; salaries before it aren't counted as overdue. Empty: the day the app was set up."
+  "pay.set.start_date_help": "Opening balances are as of this day; salaries before it aren't counted as overdue. Empty: the day the app was set up.",
+  "pay.overtime_hours": "Overtime hours to pay",
+  "pay.overtime_hours_help": "{hours} hours of overtime this month, at {rate} an hour. Pay all, some or none.",
+  "pay.line.overtime": "Overtime: {hours} hours × {rate}"
 }

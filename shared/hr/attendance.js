@@ -65,9 +65,14 @@ export function punchMoment(deviceMs, clientMs, serverMs) {
 //   plan: what the day was meant to be (shared/hr/plan.js): {kind: work,
 //         off, leave or holiday, start, end} (start/end empty: no set hours)
 //   punches: that day's counted punches, any order: {type, at (ms), status}
-//   nowMs: now; rules: {late_grace, early_grace, incomplete_after} minutes
+//   nowMs: now; rules: {late_grace, early_grace, incomplete_after, flex}
+//          minutes
 // state: off, leave, holiday, not_in, absent, in, out, incomplete. Someone
 // who punches on a day they were not meant to work is never late or early.
+// A finished day is compared with the hours expected (its planned start to
+// end): short_min and overtime_min, never set against each other, and
+// nothing within `flex` minutes either way. Work on a day with no hours
+// expected (a day off, a holiday) is all overtime.
 export function daySummary({ date, plan, punches, nowMs, rules }) {
   const sorted = punches.slice().sort((a, b) => a.at - b.at);
   const today = dhakaDate(nowMs);
@@ -82,7 +87,7 @@ export function daySummary({ date, plan, punches, nowMs, rules }) {
     date, state: '', plan,
     first_in: ins.length ? ins[0].at : null,
     last_out: outs.length ? outs[outs.length - 1].at : null,
-    worked_min: 0, break_min: 0, late_min: 0, early_min: 0,
+    worked_min: 0, break_min: 0, late_min: 0, early_min: 0, short_min: 0, overtime_min: 0,
     waiting: sorted.some((p) => p.status === 'check'),
   };
   // Worked time: each "in" to the next "out", breaks included (they are
@@ -122,6 +127,11 @@ export function daySummary({ date, plan, punches, nowMs, rules }) {
     const early = end - dhakaMinutes(out.last_out) - rules.early_grace;
     if (early > 0) out.early_min = early + rules.early_grace;
   }
+  const expected = start !== null && end !== null ? end - start : 0;
+  const diff = out.worked_min - expected;
+  if (!expected) out.overtime_min = out.worked_min;
+  else if (diff > (rules.flex || 0)) out.overtime_min = diff;
+  else if (-diff > (rules.flex || 0)) out.short_min = -diff;
   return out;
 }
 

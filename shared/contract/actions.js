@@ -498,6 +498,7 @@ export const ACTIONS = Object.freeze({
       emergency: { type: 'list', max: 3, of: { name: { type: 'text', max: 80 }, relation: { type: 'text', max: 40 }, phone: { type: 'text', max: 20 } } },
       family: { type: 'text', max: 500 },
       salary: { type: 'money', zero: true },
+      overtime_rate: { type: 'money', zero: true },
       pin: { type: 'pin' },
     },
   },
@@ -583,6 +584,7 @@ export const ACTIONS = Object.freeze({
       device_enabled: { type: 'bool' },
       shop_open: { type: 'time', required: true },
       shop_close: { type: 'time', required: true },
+      flex: { type: 'int', min: 0, max: 240 },
     },
   },
   // ---- Rota, holidays and leave ----
@@ -686,6 +688,8 @@ export const ACTIONS = Object.freeze({
       // The unpaid leave and absent days to cut, chosen when paying.
       unpaid_leave_days: LEAVE_DAYS,
       unpaid_absent_days: { type: 'int', required: true, min: 0, max: 31 },
+      // The overtime hours to pay (for people overtime is paid to).
+      overtime_hours: { type: 'number', min: 0, max: 744 },
       note: { type: 'text', max: 300 },
     },
   },

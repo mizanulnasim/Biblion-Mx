@@ -92,3 +92,17 @@ test('a day\'s plan: leave first, then a closed holiday, then the rota, then usu
   const onLeave = daySummary({ date: '2026-11-24', plan: dayPlan(usual, { leave: { kind: 'paid' } }), punches: [], nowMs: at('2026-11-25', '09:00'), rules: RULES });
   assert.equal(onLeave.state, 'leave');
 });
+
+test('hours short and overtime against the expected hours, never set against each other', () => {
+  const p = (type, hhmm) => ({ type, at: Date.parse(dhakaIso('2026-11-24', hhmm)), status: 'ok' });
+  const later = at('2026-11-24', '23:00');
+  // Expected 10:00–18:00 (480 minutes).
+  assert.deepEqual(['short_min', 'overtime_min'].map((k) => day('2026-11-24', [p('in', '10:00'), p('out', '20:00')], later)[k]), [0, 120]);
+  assert.deepEqual(['short_min', 'overtime_min'].map((k) => day('2026-11-24', [p('in', '10:00'), p('out', '17:00')], later)[k]), [60, 0]);
+  // Within the flex minutes: neither.
+  const flex = daySummary({ date: '2026-11-24', plan: rotaPlan(STAFF, '2026-11-24', null, new Map()), punches: [p('in', '10:00'), p('out', '18:20')], nowMs: later, rules: { ...RULES, flex: 30 } });
+  assert.deepEqual([flex.short_min, flex.overtime_min], [0, 0]);
+  // Work on a day off is all overtime.
+  const off = (type, hhmm) => ({ type, at: Date.parse(dhakaIso('2026-11-27', hhmm)), status: 'ok' });
+  assert.equal(day('2026-11-27', [off('in', '12:00'), off('out', '15:00')], at('2026-11-27', '23:00')).overtime_min, 180);
+});

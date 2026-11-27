@@ -14,7 +14,8 @@
 //                  the salary of each day employed ÷ divisor
 //   unpaid cut     salary ÷ divisor × (unpaid leave days and absent days a
 //                  shareholder chose to cut), at the period's last salary
-//   net            base − unpaid cut, never below zero
+//   overtime pay   overtime hours chosen × the person's hourly rate
+//   net            base − unpaid cut (never below zero) + overtime pay
 // Payments, deductions and bonuses are not on the payslip's net: they move
 // the person's pay account (shared/money/kinds.js, payEffect).
 
@@ -60,7 +61,7 @@ export function salaryOn(changes, date) {
 }
 
 // day_salaries: the salary on each employed day of the period, in order.
-export function payslipFigures({ period_days: periodDays, day_salaries: daySalaries, divisor_rule: rule, unpaid_leave_days: leaveDays, unpaid_absent_days: absentDays }) {
+export function payslipFigures({ period_days: periodDays, day_salaries: daySalaries, divisor_rule: rule, unpaid_leave_days: leaveDays, unpaid_absent_days: absentDays, overtime_pay: overtime = 0 }) {
   const divisor = rule === 'fixed_30' ? 30 : periodDays;
   const salary = daySalaries.length ? daySalaries[daySalaries.length - 1] : 0;
   const sum = daySalaries.reduce((s, x) => s + x, 0);
@@ -68,7 +69,7 @@ export function payslipFigures({ period_days: periodDays, day_salaries: daySalar
   if (daySalaries.length < periodDays) base = Math.round(sum / divisor);
   else base = daySalaries.every((x) => x === salary) ? salary : Math.round(sum / periodDays);
   const cut = Math.round((salary * (leaveDays + absentDays)) / divisor);
-  return { salary, month_days: periodDays, divisor, employed_days: daySalaries.length, base, unpaid_cut: Math.min(cut, base), net: Math.max(0, base - cut) };
+  return { salary, month_days: periodDays, divisor, employed_days: daySalaries.length, base, unpaid_cut: Math.min(cut, base), overtime_pay: overtime, net: Math.max(0, base - cut) + overtime };
 }
 
 // The allowance a day on `date`: the latest rate starting on or before it.
