@@ -47,6 +47,8 @@
 //   tasks.manage      repeating tasks; move or cancel anyone's task
 //   tasks.view_all    see everyone's tasks
 //   tasks.verify      check tasks that need a check
+//   separation.manage record and accept someone leaving, hand over their
+//                     tasks, complete it; issue experience and release letters
 //   acc.staffpay      staff pay kinds on the money screen (salary, food
 //                     allowance, bonus, advance, deduction)
 // Everyone works with their own punches, corrections, rota requests, leave,
@@ -62,7 +64,7 @@ const PERMISSIONS = Object.freeze([
   'staff.view', 'staff.edit', 'staff.identity', 'staff.emergency', 'staff.family', 'salary.view', 'salary.edit',
   'attendance.view', 'attendance.manage', 'schedule.view', 'schedule.manage', 'leave.approve', 'leave.adjust',
   'payroll.view', 'payroll.manage', 'acc.staffpay',
-  'tasks.create', 'tasks.manage', 'tasks.view_all', 'tasks.verify',
+  'tasks.create', 'tasks.manage', 'tasks.view_all', 'tasks.verify', 'separation.manage',
 ]);
 
 // Staff never enter money, so the Staff role has no money permission.
@@ -75,7 +77,7 @@ export const ROLES = Object.freeze([
     'cafe.view', 'cafe.count', 'cafe.order', 'cafe.approve', 'cafe.receive',
     'staff.view', 'staff.edit', 'staff.emergency', 'attendance.view', 'attendance.manage',
     'schedule.view', 'schedule.manage', 'leave.approve',
-    'tasks.create', 'tasks.manage', 'tasks.view_all', 'tasks.verify',
+    'tasks.create', 'tasks.manage', 'tasks.view_all', 'tasks.verify', 'separation.manage',
   ] },
   { id: 'ROL-STAFF', key: 'staff', name: 'role.staff', level: 1, permissions: ['books.order', 'books.view', 'cafe.count'] },
 ]);

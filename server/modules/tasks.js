@@ -56,6 +56,8 @@ export function makeTasks(db) {
     if (!staff || staff.status !== 'active') continue;
     for (const date of dates) {
       if (have.has(`${tpl.id}|${date}`) || !occursOn(tpl, date) || p.plan(staff, date).kind !== 'work') continue;
+      // Nothing after the person's last day.
+      if (staff.left_on && date > staff.left_on) continue;
       newTask(db, {
         template_id: tpl.id, title: tpl.title, details: tpl.details, staff_id: staff.id, due_date: date, due_time: tpl.due_time,
         link: tpl.link, needs_check: tpl.needs_check, created_by: 'SYSTEM',

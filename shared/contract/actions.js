@@ -12,6 +12,7 @@
 import { ROLES } from '../schema/permissions.js';
 import { KINDS, SCREEN_KINDS } from '../money/kinds.js';
 import { INTAKE_KINDS, MAX_UPLOAD_BYTES, UPLOAD_TYPES } from '../intake/kinds.js';
+import { LETTER_KINDS } from '../hr/letters.js';
 
 // Bumped whenever a request or reply changes shape. A client built for another
 // contract is told to update itself (v1 bug S10).
@@ -37,6 +38,8 @@ const PLACE = {
   accuracy: { type: 'number', min: 0, max: 100000 },
 };
 const SIGNATURE = { type: 'text', required: true, max: 64 };
+const LEAVE_DAYS = { type: 'number', min: 0, max: 365 };
+const LETTER_TEXT = { type: 'text', required: true, max: 4000 };
 const TASK_FIELDS = {
   title: { type: 'text', required: true, max: 120 },
   details: { type: 'text', max: 1000 },
@@ -692,6 +695,41 @@ export const ACTIONS = Object.freeze({
       start_date: { type: 'date', required: true },
       end_date: { type: 'date' },
       status: { type: 'enum', required: true, values: ['active', 'paused', 'ended'] },
+    },
+  },
+  // ---- Leaving and letters ----
+  'separation.list': { perm: 'separation.manage' },
+  'separation.mine': {},
+  'separation.submit': {
+    write: true, area: 'hr',
+    schema: {
+      staff_id: { type: 'id' },
+      kind: { type: 'enum', required: true, values: ['resignation', 'termination'] },
+      notice_date: { type: 'date' },
+      last_day: { type: 'date', required: true },
+      reason: { type: 'text', required: true, max: 500 },
+    },
+  },
+  'separation.accept': { write: true, perm: 'separation.manage', area: 'hr', schema: { id: { type: 'id', required: true }, last_day: { type: 'date' } } },
+  'separation.withdraw': { write: true, area: 'hr', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 200 } } },
+  'separation.handover': { write: true, perm: 'separation.manage', area: 'hr', schema: { id: { type: 'id', required: true }, to_staff_id: { type: 'id', required: true } } },
+  'separation.settlement': { perm: 'payroll.view', schema: { id: { type: 'id', required: true }, leave_days: LEAVE_DAYS } },
+  'separation.confirm': { write: true, perm: 'payroll.manage', area: 'hr', schema: { id: { type: 'id', required: true }, leave_days: LEAVE_DAYS } },
+  'separation.reopen': { write: true, perm: 'payroll.manage', area: 'hr', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 200 } } },
+  'separation.complete': { write: true, perm: 'separation.manage', area: 'hr', schema: { id: { type: 'id', required: true } } },
+  'letters.list': { perm: 'staff.view', schema: { staff_id: { type: 'id', required: true } } },
+  'letters.issue': {
+    write: true, area: 'hr',
+    schema: { staff_id: { type: 'id', required: true }, kind: { type: 'enum', required: true, values: LETTER_KINDS } },
+  },
+  'letters.get': { cache: true, schema: { id: { type: 'id', required: true } } },
+  'settings.letters': { perm: 'settings.manage' },
+  'settings.letters.save': {
+    write: true, perm: 'settings.manage', area: 'hr',
+    schema: {
+      offer: LETTER_TEXT, appointment: LETTER_TEXT, experience: LETTER_TEXT, release: LETTER_TEXT,
+      conduct: { type: 'text', max: 500 },
+      shop_address: { type: 'text', max: 300 },
     },
   },
 });

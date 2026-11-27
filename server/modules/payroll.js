@@ -63,7 +63,11 @@ export function payAccount(db, staff, p = planner(db)) {
   const slips = db.all('Payslips').filter((s) => s.staff_id === staff.id && s.status === 'issued');
   const entries = db.all('Transactions').filter((e) => counts(e) && e.party_id === staff.id);
   const food = foodEarned(setting(db, 'food.rates'), foodDates(db, staff, p));
-  let owed = (opening.owed || 0) + slips.reduce((t, s) => t + s.net, 0) + food;
+  // A confirmed final settlement adds unused leave paid out and takes off
+  // notice short (server/modules/separation.js).
+  const settled = db.all('Separations').filter((x) => x.staff_id === staff.id && (x.status === 'settled' || x.status === 'completed'))
+    .reduce((t, x) => t + x.settlement.leave_pay - x.settlement.notice_cut, 0);
+  let owed = (opening.owed || 0) + slips.reduce((t, s) => t + s.net, 0) + food + settled;
   let advance = opening.advance || 0;
   for (const e of entries) {
     const effect = payEffect(e);
@@ -72,7 +76,7 @@ export function payAccount(db, staff, p = planner(db)) {
   }
   const sum = (kind) => entries.filter((e) => e.kind === kind).reduce((t, e) => t + e.amount, 0);
   return {
-    opening_owed: opening.owed || 0, opening_advance: opening.advance || 0, payslips: slips.reduce((t, s) => t + s.net, 0), food_earned: food,
+    opening_owed: opening.owed || 0, opening_advance: opening.advance || 0, payslips: slips.reduce((t, s) => t + s.net, 0), food_earned: food, settlement: settled,
     salary_paid: sum('salary_paid'), food_paid: sum('food_paid'), deductions: sum('staff_deduction'), advances: sum('staff_advance'), bonuses: sum('bonus_paid'),
     owed: Math.round(owed), advance: Math.round(advance),
   };

@@ -30,7 +30,7 @@ function leaveRules(db) {
   };
 }
 
-function balanceOf(db, staff) {
+export function balanceOf(db, staff) {
   const rules = leaveRules(db);
   const joined = joinedOn(staff);
   const earned = earnedLeave({ joined_on: joined, as_of: dhakaDate(db.now.getTime()), ...rules });

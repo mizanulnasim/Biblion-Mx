@@ -281,3 +281,25 @@ These are working choices made while building. Each is easy to change.
   - Home shows the person's tasks due today or overdue, and managers see "N tasks wait for your check".
   - Day closing gains a tasks step: open tasks are a warning, not a block.
 - **Not yet:** reminders by notification or email (Home shows what is due and overdue), and printed task reports.
+
+## Milestone 12: staff leaving and letters (assumptions to confirm)
+- **Who records leaving:** a staff member resigns themselves (My settings → Resigning), giving their notice date and last day. A manager accepts it (a shareholder for a manager's). A manager can also record a resignation or a termination for someone, which is accepted at once.
+- **Accepting sets the last day:** their pay then counts days up to it. Withdrawing clears it.
+- **Handover:** moves every open task and repeating task of the person to one colleague in one step. Tasks are never made after someone's last day.
+- **Final settlement:**
+  - What the shop owes them now (their pay account)
+  - \+ unused leave paid at a day's pay (all, none, or the days a shareholder chooses; "ask" is the default)
+  - − notice short of 30 days, for a resignation (a setting)
+  - − the advance still owed.
+- **Confirming the settlement:**
+  - It can only be confirmed once every payslip up to the last day is issued.
+  - Once confirmed, the leave pay and notice cut join the pay account.
+  - It is paid with the usual staff pay kinds: a deduction for the advance, then "Salary paid". The page offers both buttons filled in.
+  - A shareholder can reopen it with a reason.
+- **Completing:** after the last day, the person is marked "Left", their sign-in is turned off, and anything still open of theirs is skipped or ended.
+- **The four letters** (offer, appointment, experience, release) are plain-text templates in Settings → Letters:
+  - The first line is the title, with a blank line between paragraphs.
+  - Placeholders such as `{{name}}` are filled from the record, and a misspelt placeholder is refused when saving.
+  - Letters are in English. A letter keeps its words as issued and prints on the letterhead with the shop's address.
+  - Offer and appointment letters need `staff.edit`; experience and release letters need `separation.manage` and a last day.
+- **Not yet:** uploading the signed resignation letter (comes with staff papers in uploads part 2), and Bangla letter templates (one template per letter for now; the owner can write it in Bangla).

@@ -323,6 +323,25 @@ export const TABLES = Object.freeze({
       'note', 'done_at', 'done_by', 'checked_by', 'checked_at', 'check_note', 'skip_reason', 'moved_from', 'comments:j', 'created_by',
     ],
   },
+  // Someone leaving. kind: resignation or termination. notice_date: when
+  // notice was given; last_day: the last day worked. Status: requested (a
+  // resignation waiting to be accepted), accepted, settled (final pay
+  // worked out and confirmed), completed (the person has left), withdrawn.
+  // settlement:j: the confirmed figures.
+  Separations: {
+    group: 'hr',
+    prefix: 'SEP',
+    columns: [
+      'staff_id', 'kind', 'notice_date', 'last_day', 'reason', 'status', 'settlement:j',
+      'accepted_by', 'accepted_at', 'settled_by', 'settled_at', 'completed_by', 'completed_at', 'asked_by',
+    ],
+  },
+  // Letters as issued: the text is kept as it was printed.
+  Letters: {
+    group: 'hr',
+    prefix: 'LTR',
+    columns: ['staff_id', 'kind', 'title', 'paragraphs:j', 'issued_by', 'issued_at'],
+  },
   // One row per closed date; reopening keeps the row with its reason.
   Day_Closings: {
     group: 'accounts',

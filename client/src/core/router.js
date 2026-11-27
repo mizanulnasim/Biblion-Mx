@@ -32,9 +32,13 @@ function show() {
   const page = routes.find((r) => r.path === path) || routes.find((r) => r.path === '*');
   if (current && current.cleanup) current.cleanup();
   dirtyForms.clear();
-  outlet.replaceChildren();
+  // Each page draws into a box of its own, so a page that finishes loading
+  // after the person has moved on draws into a box no longer shown.
+  const box = document.createElement('div');
+  box.className = 'page';
+  outlet.replaceChildren(box);
   outlet.scrollTo(0, 0);
-  current = { page, cleanup: page.mount(outlet, { query }) || null };
+  current = { page, cleanup: page.mount(box, { query }) || null };
   onChange(page, path);
 }
 

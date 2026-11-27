@@ -80,6 +80,20 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   'food.unpaid_rule': 'every_day',
   // Repeating tasks are made this many days ahead (besides today).
   'tasks.days_ahead': 1,
+  // Leaving: the notice expected (days), whether notice short of it is
+  // taken from the final pay, and whether unused leave is paid out
+  // ('always', 'never', or 'ask': a shareholder decides each time).
+  'separation.notice_days': 30,
+  'separation.notice_deduct': true,
+  'separation.leave_encash': 'ask',
+  // Letters (shared/hr/letters.js): the shop's address on the letterhead,
+  // and the four templates. The owner edits them in Settings → Letters.
+  'shop.address': '',
+  'letters.offer': 'Offer of employment\n\nDate: {{today}}\n\nDear {{name}},\n\nWe are pleased to offer you the position of {{position}} at Biblion, starting on {{joined_on}}, at a monthly salary of {{salary}}. Your working hours will be {{hours}}.\n\nThe first three months are a probation period.\n\nPlease sign and return a copy of this letter to accept the offer.\n\nFor Biblion',
+  'letters.appointment': 'Appointment letter\n\nDate: {{today}}\n\nTo {{name}}\n{{address}}\n\nYou are appointed as {{position}} at Biblion from {{joined_on}}. Your monthly salary is {{salary}}, and your working hours are {{hours}}, with the weekly day off set in the rota.\n\nLeave is earned and taken as set out in the shop\'s rules. Either side may end this appointment with written notice.\n\nFor Biblion',
+  'letters.experience': 'Experience certificate\n\nDate: {{today}}\n\nThis is to certify that {{name}} worked at Biblion as {{position}} from {{joined_on}} to {{left_on}}.\n\n{{conduct}}\n\nWe wish them every success.\n\nFor Biblion',
+  'letters.experience_conduct': 'During this time, their conduct was satisfactory.',
+  'letters.release': 'Release letter\n\nDate: {{today}}\n\nTo {{name}}\n\nThis is to confirm that you are released from your work as {{position}} at Biblion with effect from {{left_on}}. Your dues have been settled.\n\nThank you for your work with us.\n\nFor Biblion',
 });
 
 const BRAND_ACCENT = '#4f46e5';

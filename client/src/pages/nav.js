@@ -37,6 +37,7 @@ export const NAV = Object.freeze([
   { path: '/staff', group: 'people', title: 'nav.staff', hint: 'nav.staff_hint', icon: 'badge', perm: 'staff.view' },
   { path: '/attendance', group: 'people', title: 'nav.attendance', hint: 'nav.attendance_hint', icon: 'clock', perm: 'attendance.view' },
   { path: '/payroll', group: 'people', title: 'nav.payroll', hint: 'nav.payroll_hint', icon: 'wallet', perm: 'payroll.view' },
+  { path: '/leaving', group: 'people', title: 'nav.leaving', hint: 'nav.leaving_hint', icon: 'signout', perm: 'separation.manage' },
   { path: '/users', group: 'people', title: 'nav.users', hint: 'nav.users_hint', icon: 'users', perm: 'users.manage' },
   { path: '/activity', group: 'people', title: 'nav.activity', hint: 'nav.activity_hint', icon: 'log', perm: 'audit.view' },
   { path: '/settings/intake', group: 'settings', title: 'nav.settings_intake', hint: 'nav.settings_intake_hint', icon: 'settings', perm: 'settings.manage' },
@@ -45,6 +46,8 @@ export const NAV = Object.freeze([
   { path: '/settings/attendance', group: 'settings', title: 'nav.settings_attendance', hint: 'nav.settings_attendance_hint', icon: 'settings', perm: 'settings.manage' },
   { path: '/settings/leave', group: 'settings', title: 'nav.settings_leave', hint: 'nav.settings_leave_hint', icon: 'settings', perm: 'settings.manage' },
   { path: '/settings/payroll', group: 'settings', title: 'nav.settings_payroll', hint: 'nav.settings_payroll_hint', icon: 'settings', perm: 'settings.manage' },
+  { path: '/settings/letters', group: 'settings', title: 'nav.settings_letters', hint: 'nav.settings_letters_hint', icon: 'settings', perm: 'settings.manage' },
   { path: '/settings/approvals', group: 'settings', title: 'nav.approvals', hint: 'nav.approvals_hint', icon: 'check', perm: 'settings.manage' },
+  { path: '/me/leaving', group: 'settings', title: 'nav.my_leaving', hint: 'nav.my_leaving_hint', icon: 'signout', perm: 'self.staff' },
   { path: '/me', group: 'settings', title: 'nav.me', hint: 'nav.me_hint', icon: 'settings' },
 ]);

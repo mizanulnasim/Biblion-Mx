@@ -468,3 +468,7 @@ fieldset.panel legend { padding: 0 var(--space-2); margin-left: calc(-1 * var(--
   .doc { max-width: none; border: 0; padding: 0; }
   .doc-logo { filter: none; }
 }
+
+/* Letters */
+.doc-address { margin: 0; white-space: pre-line; }
+.letter-text { white-space: pre-line; line-height: 1.6; }

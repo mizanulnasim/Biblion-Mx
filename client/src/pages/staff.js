@@ -75,6 +75,7 @@ function openStaff(staff, users, onSaved) {
     submit: staff ? t('common.save') : t('hr.add_staff'),
     values: valuesOf(staff),
     fields: fieldsFor(staff, users),
+    extra: staff ? html`<p><a href="#/staff/letters?id=${staff.id}">${t('nav.letters')}</a></p>` : '',
   }));
   bindForm(dialog.querySelector('form.form'), {
     schema: ACTIONS['staff.save'].schema,
