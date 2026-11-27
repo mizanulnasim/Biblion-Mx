@@ -13,7 +13,7 @@ import { onArea } from '../core/live.js';
 import { dateShort, timeOf, today } from '../core/format.js';
 import { ACTIONS } from '../../../shared/contract/actions.js';
 import { errorMessageId } from '../../../shared/contract/errors.js';
-import { TYPE, dayFacts, fixesView, flagsText, hoursText, monthView, openFix, stateChip, thisMonth } from './attendance-common.js';
+import { TYPE, dayFacts, fixesView, flagsText, hoursText, monthView, openFix, planText, stateChip, thisMonth } from './attendance-common.js';
 
 function boardView(board) {
   const counts = {};
@@ -26,7 +26,7 @@ function boardView(board) {
         <td data-label="${t('users.name')}"><span><strong>${r.staff.name}</strong></span></td>
         <td data-label="${t('users.status')}" class="nowrap"><span>${stateChip(r.state)} ${r.waiting ? chip(t('hr.punch.check'), 'warn') : ''}</span></td>
         <td data-label="${t('hr.day')}"><span>${dayFacts(r) || '—'}</span></td>
-        <td data-label="${t('hr.hours_label')}" class="nowrap"><span class="muted">${hoursText(r.staff)}</span></td>
+        <td data-label="${t('hr.hours_label')}" class="nowrap"><span class="muted">${planText(r.plan)}</span></td>
       </tr>`)}</tbody></table></div>` : emptyState(t('hr.no_staff_yet'))}
   </section>`;
 }

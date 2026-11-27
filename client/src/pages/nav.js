@@ -18,6 +18,8 @@ export const NAV = Object.freeze([
   { path: '/daily', group: 'today', title: 'nav.daily', hint: 'nav.daily_hint', icon: 'daily', perm: 'acc.daily', bottom: true },
   { path: '/cafe/count', group: 'today', title: 'nav.cafe_count', hint: 'nav.cafe_count_hint', icon: 'cup', perm: 'cafe.count', bottom: true },
   { path: '/me/attendance', group: 'today', title: 'nav.my_attendance', hint: 'nav.my_attendance_hint', icon: 'clock', perm: 'self.staff' },
+  { path: '/rota', group: 'today', title: 'nav.rota', hint: 'nav.rota_hint', icon: 'daily', perm: 'schedule.view|self.staff' },
+  { path: '/leave', group: 'today', title: 'nav.leave', hint: 'nav.leave_hint', icon: 'badge', perm: 'leave.approve|self.staff' },
   { path: '/closing', group: 'today', title: 'nav.closing', hint: 'nav.closing_hint', icon: 'lock', perm: 'closing.day' },
   { path: '/saved', group: 'today', title: 'nav.saved', hint: 'nav.saved_hint', icon: 'phone' },
   { path: '/money', group: 'money', title: 'nav.money', hint: 'nav.money_hint', icon: 'money', perm: 'acc.entry', bottom: true },
@@ -38,6 +40,7 @@ export const NAV = Object.freeze([
   { path: '/settings/cafe', group: 'settings', title: 'nav.settings_cafe', hint: 'nav.settings_cafe_hint', icon: 'settings', perm: 'settings.manage' },
   { path: '/settings/books', group: 'settings', title: 'nav.settings_books', hint: 'nav.settings_books_hint', icon: 'settings', perm: 'settings.books' },
   { path: '/settings/attendance', group: 'settings', title: 'nav.settings_attendance', hint: 'nav.settings_attendance_hint', icon: 'settings', perm: 'settings.manage' },
+  { path: '/settings/leave', group: 'settings', title: 'nav.settings_leave', hint: 'nav.settings_leave_hint', icon: 'settings', perm: 'settings.manage' },
   { path: '/settings/approvals', group: 'settings', title: 'nav.approvals', hint: 'nav.approvals_hint', icon: 'check', perm: 'settings.manage' },
   { path: '/me', group: 'settings', title: 'nav.me', hint: 'nav.me_hint', icon: 'settings' },
 ]);

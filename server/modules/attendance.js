@@ -16,7 +16,9 @@ import {
 import { BUSINESS_DEFAULTS } from '../../shared/schema/settings.js';
 import { setting } from '../kernel/settings.js';
 import { newToken, sameHex, signHex } from '../kernel/crypto.js';
-import { staffLevel, staffOfUser } from './staff.js';
+import { joinedOn, mayDecideFor, staffOfUser } from './staff.js';
+import { planner, rotaWaiting } from './rota.js';
+import { leaveWaiting } from './leave.js';
 
 const DAY_MS = 86400000;
 const MINUTE_MS = 60000;
@@ -40,7 +42,6 @@ function attendanceRules(db) {
   };
 }
 
-const hoursOf = (s) => ({ start: s.work_start, end: s.work_end, days_off: s.days_off || [] });
 const counted = (p) => COUNTED.includes(p.status);
 const asMoment = (p) => ({ type: p.type, at: Date.parse(p.at), status: p.status });
 
@@ -105,11 +106,7 @@ function ownStaff(ctx) {
   return mine;
 }
 
-// Whether the signed-in person may decide a check or correction for `staff`.
-function mayDecide(ctx, staff) {
-  if (!ctx.can('attendance.manage') || staff.user_id === ctx.user.id) return false;
-  return staffLevel(ctx.db, staff) < 2 || ctx.level === 3;
-}
+const mayDecide = (ctx, staff) => mayDecideFor(ctx, staff, 'attendance.manage');
 
 function punchView(p) {
   return {
@@ -119,14 +116,14 @@ function punchView(p) {
 }
 
 // Day summaries of one person for the dates given.
-function daysFor(db, staff, dates) {
+function daysFor(db, staff, dates, p = planner(db)) {
   const rules = attendanceRules(db);
   const now = db.now.getTime();
   const byDate = new Map(dates.map((d) => [d, []]));
   for (const p of db.all('Punches')) if (p.staff_id === staff.id && byDate.has(p.date)) byDate.get(p.date).push(p);
   return dates.map((date) => {
     const punches = byDate.get(date).sort((a, b) => (a.at < b.at ? -1 : 1));
-    const summary = daySummary({ date, hours: hoursOf(staff), punches: punches.filter(counted).map(asMoment), nowMs: now, rules });
+    const summary = daySummary({ date, plan: p.plan(staff, date), punches: punches.filter(counted).map(asMoment), nowMs: now, rules });
     return { ...summary, first_in: summary.first_in && new Date(summary.first_in).toISOString(), last_out: summary.last_out && new Date(summary.last_out).toISOString(), punches: punches.map(punchView) };
   });
 }
@@ -153,20 +150,17 @@ function fixView(db, f) {
   };
 }
 
-// The first day that counts for a person: when they joined, or else when
-// their record was made.
-const firstDay = (s) => s.joined_on || dhakaDate(Date.parse(s.created_at));
-
 function month(db, staff, input) {
   const today = dhakaDate(db.now.getTime());
   const m = input.month || today.slice(0, 7);
-  const days = daysFor(db, staff, monthDates(m, today).filter((d) => d >= firstDay(staff)));
-  const totals = { worked_min: 0, late_days: 0, absent_days: 0, incomplete_days: 0 };
+  const days = daysFor(db, staff, monthDates(m, today).filter((d) => d >= joinedOn(staff)));
+  const totals = { worked_min: 0, late_days: 0, absent_days: 0, incomplete_days: 0, leave_days: 0 };
   for (const d of days) {
     totals.worked_min += d.worked_min;
     if (d.late_min) totals.late_days++;
     if (d.state === 'absent') totals.absent_days++;
     if (d.state === 'incomplete') totals.incomplete_days++;
+    if (d.state === 'leave') totals.leave_days++;
   }
   const fixes = db.all('Attendance_Fixes').filter((f) => f.staff_id === staff.id && f.date.slice(0, 7) === m).map((f) => fixView(db, f));
   return { staff: staffHeader(staff), month: m, days, totals, fixes };
@@ -176,18 +170,22 @@ function today(ctx) {
   const { db } = ctx;
   const mine = staffOfUser(db, ctx.user.id);
   const checks = ctx.can('attendance.manage') ? waitingChecks(ctx) : null;
-  if (!mine) return { staff: null, checks: checks ? checks.punches.length + checks.fixes.length : 0 };
+  // What waits for this person: attendance checks, rota requests (to agree
+  // to or decide) and leave to decide.
+  const waiting = { checks: checks ? checks.punches.length + checks.fixes.length : 0, rota: rotaWaiting(ctx), leave: leaveWaiting(ctx) };
+  if (!mine) return { staff: null, ...waiting };
   const [day] = daysFor(db, mine, [dhakaDate(db.now.getTime())]);
   const todays = day.punches.filter(counted).map((p) => ({ type: p.type, at: Date.parse(p.at) }));
-  return { staff: staffHeader(mine), day, next: nextType(todays), checks: checks ? checks.punches.length + checks.fixes.length : 0 };
+  return { staff: staffHeader(mine), day, next: nextType(todays), ...waiting };
 }
 
 function board(ctx, { date }) {
   const { db } = ctx;
   const day = date || dhakaDate(db.now.getTime());
-  const rows = db.all('Staff').filter((s) => s.status === 'active' && firstDay(s) <= day)
+  const p = planner(db);
+  const rows = db.all('Staff').filter((s) => s.status === 'active' && joinedOn(s) <= day)
     .sort((a, b) => a.name.localeCompare(b.name))
-    .map((s) => ({ staff: staffHeader(s), ...daysFor(db, s, [day])[0] }));
+    .map((s) => ({ staff: staffHeader(s), ...daysFor(db, s, [day], p)[0] }));
   return { date: day, rows };
 }
 

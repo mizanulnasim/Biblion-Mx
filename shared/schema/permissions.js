@@ -36,7 +36,13 @@
 //   attendance.view   everyone's attendance
 //   attendance.manage check punches, decide corrections, add missing punches,
 //                     and set up shop punch devices
-// Everyone works with their own punches and corrections without a permission.
+//   schedule.view     everyone's rota
+//   schedule.manage   set the rota and shifts; decide shift choices, swaps
+//                     and day-off moves; public holidays
+//   leave.approve     decide leave and record leave for someone
+//   leave.adjust      change someone's leave balance, with a reason
+// Everyone works with their own punches, corrections, rota requests and
+// leave without a permission.
 const PERMISSIONS = Object.freeze([
   'users.manage', 'audit.view', 'settings.manage',
   'acc.entry', 'acc.expense', 'acc.income', 'acc.dues', 'acc.loans', 'acc.transfer', 'acc.shareholders',
@@ -46,7 +52,7 @@ const PERMISSIONS = Object.freeze([
   'books.requisition', 'books.order', 'books.orders', 'settings.books', 'intake.upload',
   'cafe.view', 'cafe.count', 'cafe.order', 'cafe.approve', 'cafe.receive', 'cafe.setup',
   'staff.view', 'staff.edit', 'staff.identity', 'staff.emergency', 'staff.family', 'salary.view', 'salary.edit',
-  'attendance.view', 'attendance.manage',
+  'attendance.view', 'attendance.manage', 'schedule.view', 'schedule.manage', 'leave.approve', 'leave.adjust',
 ]);
 
 // Staff never enter money, so the Staff role has no money permission.
@@ -58,6 +64,7 @@ export const ROLES = Object.freeze([
     'books.requisition', 'books.order', 'books.orders', 'intake.upload',
     'cafe.view', 'cafe.count', 'cafe.order', 'cafe.approve', 'cafe.receive',
     'staff.view', 'staff.edit', 'staff.emergency', 'attendance.view', 'attendance.manage',
+    'schedule.view', 'schedule.manage', 'leave.approve',
   ] },
   { id: 'ROL-STAFF', key: 'staff', name: 'role.staff', level: 1, permissions: ['books.order', 'books.view', 'cafe.count'] },
 ]);

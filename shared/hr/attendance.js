@@ -24,7 +24,7 @@ export function dhakaMinutes(ms) {
   return d.getUTCHours() * 60 + d.getUTCMinutes();
 }
 
-function timeMinutes(hhmm) {
+export function timeMinutes(hhmm) {
   const [h, m] = hhmm.split(':').map(Number);
   return h * 60 + m;
 }
@@ -32,11 +32,6 @@ function timeMinutes(hhmm) {
 // A date and "HH:MM" in Bangladesh, as an ISO time.
 export function dhakaIso(date, hhmm) {
   return new Date(Date.parse(`${date}T${hhmm}:00Z`) - DHAKA_OFFSET_MS).toISOString();
-}
-
-// Day of the week of a date: 0 Sunday … 6 Saturday.
-function weekday(date) {
-  return new Date(`${date}T00:00:00Z`).getUTCDay();
 }
 
 // Metres between two points (haversine).
@@ -64,22 +59,24 @@ export function punchMoment(deviceMs, clientMs, serverMs) {
 }
 
 // A day for one person.
-//   hours: {start, end, days_off} (start/end may be empty: no set hours)
+//   plan: what the day was meant to be (shared/hr/plan.js): {kind: work,
+//         off, leave or holiday, start, end} (start/end empty: no set hours)
 //   punches: that day's counted punches, any order: {type, at (ms), status}
 //   nowMs: now; rules: {late_grace, early_grace, incomplete_after} minutes
-// state: off, not_in, absent, in, out, incomplete; minutes are whole numbers.
-export function daySummary({ date, hours, punches, nowMs, rules }) {
+// state: off, leave, holiday, not_in, absent, in, out, incomplete. Someone
+// who punches on a day they were not meant to work is never late or early.
+export function daySummary({ date, plan, punches, nowMs, rules }) {
   const sorted = punches.slice().sort((a, b) => a.at - b.at);
   const today = dhakaDate(nowMs);
   const past = date < today;
   const nowMin = date === today ? dhakaMinutes(nowMs) : 24 * 60;
-  const dayOff = Boolean(hours && (hours.days_off || []).includes(weekday(date)));
-  const start = hours && hours.start ? timeMinutes(hours.start) : null;
-  const end = hours && hours.end ? timeMinutes(hours.end) : null;
+  const working = plan.kind === 'work';
+  const start = working && plan.start ? timeMinutes(plan.start) : null;
+  const end = working && plan.end ? timeMinutes(plan.end) : null;
   const ins = sorted.filter((p) => p.type === 'in');
   const outs = sorted.filter((p) => p.type === 'out');
   const out = {
-    date, state: '', day_off: dayOff,
+    date, state: '', plan,
     first_in: ins.length ? ins[0].at : null,
     last_out: outs.length ? outs[outs.length - 1].at : null,
     worked_min: 0, late_min: 0, early_min: 0,
@@ -95,11 +92,12 @@ export function daySummary({ date, hours, punches, nowMs, rules }) {
     }
   }
   if (!sorted.length) {
-    if (dayOff || start === null) out.state = dayOff ? 'off' : (past ? 'absent' : 'not_in');
+    if (!working) out.state = plan.kind;
+    else if (start === null) out.state = past ? 'absent' : 'not_in';
     else out.state = past || (end !== null && nowMin > end) ? 'absent' : 'not_in';
     return out;
   }
-  if (start !== null && !dayOff) {
+  if (start !== null) {
     const late = dhakaMinutes(out.first_in) - start - rules.late_grace;
     if (late > 0) out.late_min = late + rules.late_grace;
   }
@@ -109,7 +107,7 @@ export function daySummary({ date, hours, punches, nowMs, rules }) {
     return out;
   }
   out.state = 'out';
-  if (end !== null && !dayOff && out.last_out !== null) {
+  if (end !== null && out.last_out !== null) {
     const early = end - dhakaMinutes(out.last_out) - rules.early_grace;
     if (early > 0) out.early_min = early + rules.early_grace;
   }

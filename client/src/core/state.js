@@ -25,8 +25,10 @@ export function subscribe(fn) {
 
 // 'self.staff' is not a permission: it means the person has a staff record
 // of their own (to punch, see their attendance and ask for corrections).
+// 'a|b' is either one.
 export function can(permission) {
   if (!state.meta) return false;
+  if (permission.includes('|')) return permission.split('|').some(can);
   if (permission === 'self.staff') return Boolean(state.meta.staff);
   return state.meta.permissions.includes(permission);
 }

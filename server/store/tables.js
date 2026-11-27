@@ -230,6 +230,53 @@ export const TABLES = Object.freeze({
     columns: ['name', 'secret', 'status'],
     secret: ['secret'],
   },
+  // Named shifts for the rota. self_confirm: a person who chooses this
+  // shift for a coming day gets it without a manager.
+  Shifts: {
+    group: 'hr',
+    prefix: 'SHF',
+    columns: ['name', 'name_bn', 'start', 'end', 'self_confirm:b', 'status'],
+  },
+  // The rota: one row per person and date where the day differs from (or
+  // is set back to) their usual hours. mode: usual, off, or hours (start,
+  // end, and the shift they came from, if any). source: manager, choice,
+  // swap or dayoff.
+  Rota: {
+    group: 'hr',
+    prefix: 'ROT',
+    columns: ['date', 'staff_id', 'mode', 'start', 'end', 'shift_id', 'source', 'request_id'],
+  },
+  // Requests about the rota. kind: shift (choose a shift for a coming day),
+  // swap (swap the day with a colleague, who agrees first) or dayoff (move
+  // the weekly day off from `date` to `other_date`). Status: partner (waits
+  // for the colleague), waiting (for a manager), approved, declined,
+  // withdrawn.
+  Rota_Requests: {
+    group: 'hr',
+    prefix: 'RRQ',
+    columns: [
+      'kind', 'staff_id', 'date', 'other_date', 'partner_id', 'shift_id', 'reason', 'status',
+      'partner_at', 'decided_by', 'decided_at', 'decide_note', 'asked_by',
+    ],
+  },
+  Holidays: {
+    group: 'hr',
+    prefix: 'HOL',
+    columns: ['date', 'name', 'name_bn', 'status'],
+  },
+  // Leave. kind: paid (from the balance) or unpaid. days: how many days it
+  // takes, counted when asked. Status: waiting, approved, declined, cancelled.
+  Leaves: {
+    group: 'hr',
+    prefix: 'LEV',
+    columns: ['staff_id', 'kind', 'from', 'to', 'days:n', 'reason', 'status', 'decided_by', 'decided_at', 'decide_note', 'cancel_reason', 'asked_by'],
+  },
+  // A shareholder's change to someone's leave balance, with a reason.
+  Leave_Adjustments: {
+    group: 'hr',
+    prefix: 'LAD',
+    columns: ['staff_id', 'date', 'days:n', 'reason'],
+  },
   // One row per closed date; reopening keeps the row with its reason.
   Day_Closings: {
     group: 'accounts',

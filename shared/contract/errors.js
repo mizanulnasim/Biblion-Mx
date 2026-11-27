@@ -26,6 +26,11 @@ const ERRORS = Object.freeze({
   PIN_WRONG: 'err.pin_wrong',
   PIN_LOCKED: 'err.pin_locked',
   DEVICE: 'err.device',
+  LEAVE_BALANCE: 'err.leave_balance',
+  OVERLAP: 'err.overlap',
+  NOTICE: 'err.notice',
+  REST: 'err.rest',
+  NO_DAYS: 'err.no_days',
 });
 
 export class AppError extends Error {

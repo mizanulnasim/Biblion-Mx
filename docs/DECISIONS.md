@@ -210,3 +210,29 @@ These are working choices made while building. Each is easy to change.
   - A missing punch-out shows as "No punch out" 2 hours after work ends.
   - Days before someone joined are not counted.
 - **Not yet:** night shifts across midnight, half days, and attendance in payroll (HR part 3).
+
+## Milestone 9: HR, part 2 — rota, leave and holidays (assumptions to confirm)
+- **What a day is meant to be,** most important first:
+  1. approved leave;
+  2. a public holiday when the shop closes;
+  3. the rota for that date;
+  4. the person's usual hours and weekly days off.
+
+  Attendance uses this, so leave and closed holidays no longer show as absent. Someone who works on a day off is never marked late.
+- **Shifts** are named hours, such as "Morning 08:00–14:00". A manager puts a shift, a day off, or usual hours on any person's date. The week starts on Saturday.
+- **Rota requests from staff,** each decided by a manager (or a shareholder when a manager is involved). Nobody decides their own.
+  - **Choose a shift** for a day from tomorrow up to 7 days ahead, with at least 8 hours' rest between days. A shift can be marked "no manager needed". This replaces v1's next-day selection reminder and automatic confirmation, and staff can be stopped from choosing in Settings.
+  - **Swap a day** with a colleague: the colleague agrees first, then a manager. Both people's days are swapped.
+  - **Move the weekly day off** to a working day in the same week, asked at least 1 day ahead.
+- **Public holidays** are a list per year in Settings → Leave and rota. By default the shop stays open on them and the people on the rota work. With "closed", nobody is expected and leave doesn't count those days.
+- **Leave:**
+  - Two kinds: paid (from the balance) and unpaid.
+  - Earning starts when probation ends (3 months), at 1.5 days a month: per full month of service, or per full calendar month with the first part month prorated (settings). The month running now never counts.
+  - The balance is worked out when shown (earned + adjustments − approved paid leave), so there is no monthly earning job.
+  - Leave is counted in working days by default, so days off and closed holidays don't count.
+  - Paid leave can't go below what is left after waiting requests (a setting can allow it).
+  - Leave for the same dates as other leave is refused.
+  - People can cancel their own leave until it starts. After that only someone who may decide it can cancel it.
+  - A manager can record leave for someone directly.
+  - Only shareholders adjust a balance, always with a reason, and never their own.
+- **Not yet:** moving tasks when leave is approved (comes with tasks), cashing in unused leave when someone leaves (comes with staff leaving), reminders, and making an inactive shift active again (add it again instead).

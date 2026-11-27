@@ -3,11 +3,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { daySummary, dhakaIso, distanceM, nextType, punchMoment } from '../../shared/hr/attendance.js';
+import { dayPlan, rotaPlan } from '../../shared/hr/plan.js';
 
 const RULES = { late_grace: 5, early_grace: 0, incomplete_after: 120 };
-const HOURS = { start: '10:00', end: '18:00', days_off: [5] };
+const STAFF = { id: 'STF-1', work_start: '10:00', work_end: '18:00', days_off: [5] };
 const at = (date, hhmm) => Date.parse(dhakaIso(date, hhmm));
-const day = (date, punches, now) => daySummary({ date, hours: HOURS, punches, nowMs: now, rules: RULES });
+const day = (date, punches, now) => daySummary({ date, plan: rotaPlan(STAFF, date, null, new Map()), punches, nowMs: now, rules: RULES });
 
 test('distance between two points in metres', () => {
   assert.equal(distanceM({ lat: 23.7808, lng: 90.4106 }, { lat: 23.7808, lng: 90.4106 }), 0);
@@ -50,4 +51,22 @@ test('the next punch is out after an in', () => {
   assert.equal(nextType([]), 'in');
   assert.equal(nextType([{ type: 'out', at: 2 }, { type: 'in', at: 1 }]), 'in');
   assert.equal(nextType([{ type: 'in', at: 1 }]), 'out');
+});
+
+test('a day\'s plan: leave first, then a closed holiday, then the rota, then usual hours', () => {
+  const shifts = new Map([['SHF-1', { name: 'Morning' }]]);
+  const usual = rotaPlan(STAFF, '2026-11-24', null, shifts);
+  assert.deepEqual([usual.kind, usual.start, usual.end], ['work', '10:00', '18:00']);
+  assert.equal(rotaPlan(STAFF, '2026-11-27', null, shifts).kind, 'off');
+  const morning = rotaPlan(STAFF, '2026-11-27', { mode: 'hours', start: '08:00', end: '14:00', shift_id: 'SHF-1' }, shifts);
+  assert.deepEqual([morning.kind, morning.shift, morning.start], ['work', 'Morning', '08:00']);
+  assert.equal(rotaPlan(STAFF, '2026-11-24', { mode: 'off' }, shifts).kind, 'off');
+  assert.equal(rotaPlan(STAFF, '2026-11-27', { mode: 'usual' }, shifts).kind, 'off');
+  const holiday = { name: 'Victory Day' };
+  assert.equal(dayPlan(usual, { holiday, closed: false }).kind, 'work');
+  assert.equal(dayPlan(usual, { holiday, closed: false }).holiday, 'Victory Day');
+  assert.equal(dayPlan(usual, { holiday, closed: true }).kind, 'holiday');
+  assert.equal(dayPlan(usual, { leave: { kind: 'paid' }, holiday, closed: true }).kind, 'leave');
+  const onLeave = daySummary({ date: '2026-11-24', plan: dayPlan(usual, { leave: { kind: 'paid' } }), punches: [], nowMs: at('2026-11-25', '09:00'), rules: RULES });
+  assert.equal(onLeave.state, 'leave');
 });

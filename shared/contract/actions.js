@@ -37,6 +37,11 @@ const PLACE = {
   accuracy: { type: 'number', min: 0, max: 100000 },
 };
 const SIGNATURE = { type: 'text', required: true, max: 64 };
+const DECISION = {
+  id: { type: 'id', required: true },
+  decision: { type: 'enum', required: true, values: ['accept', 'reject'] },
+  note: { type: 'text', max: 200 },
+};
 
 export const ACTIONS = Object.freeze({
   'ping': { public: true },
@@ -544,6 +549,81 @@ export const ACTIONS = Object.freeze({
       clock_skew_flag_min: { type: 'int', required: true, min: 1, max: 1440 },
       offline_max_age_days: { type: 'int', required: true, min: 1, max: 60 },
       offline_auto_validate: { type: 'bool' },
+    },
+  },
+  // ---- Rota, holidays and leave ----
+  'rota.week': { cache: true, schema: { from: { type: 'date' } } },
+  'rota.set': {
+    write: true, perm: 'schedule.manage', area: 'hr',
+    // value: 'usual', 'off', or a shift's id
+    schema: { staff_id: { type: 'id', required: true }, date: { type: 'date', required: true }, value: { type: 'text', required: true, max: 30 } },
+  },
+  'rota.shift.save': {
+    write: true, perm: 'schedule.manage', area: 'hr',
+    schema: {
+      id: { type: 'id' },
+      version: { type: 'int', min: 1 },
+      name: NAME,
+      name_bn: { type: 'text', max: 80 },
+      start: { type: 'time', required: true },
+      end: { type: 'time', required: true },
+      self_confirm: { type: 'bool' },
+      status: STATUS,
+    },
+  },
+  'rota.request': {
+    write: true, area: 'hr',
+    schema: {
+      kind: { type: 'enum', required: true, values: ['shift', 'swap', 'dayoff'] },
+      date: { type: 'date', required: true },
+      other_date: { type: 'date' },
+      partner_id: { type: 'id' },
+      shift_id: { type: 'id' },
+      reason: { type: 'text', max: 200 },
+    },
+  },
+  'rota.answer': { write: true, area: 'hr', schema: { id: { type: 'id', required: true }, answer: { type: 'enum', required: true, values: ['accept', 'decline'] } } },
+  'rota.decide': { write: true, perm: 'schedule.manage', area: 'hr', schema: DECISION },
+  'rota.withdraw': { write: true, area: 'hr', schema: { id: { type: 'id', required: true } } },
+  'holidays.list': { perm: 'settings.manage', schema: { year: { type: 'int', min: 2000, max: 2100 } } },
+  'holidays.save': {
+    write: true, perm: 'settings.manage', area: 'hr',
+    schema: { id: { type: 'id' }, version: { type: 'int', min: 1 }, date: { type: 'date', required: true }, name: NAME, name_bn: { type: 'text', max: 80 }, status: STATUS },
+  },
+  'leave.mine': { cache: true },
+  'leave.preview': { schema: { staff_id: { type: 'id' }, from: { type: 'date', required: true }, to: { type: 'date', required: true } } },
+  'leave.apply': {
+    write: true, area: 'hr',
+    schema: {
+      staff_id: { type: 'id' },
+      kind: { type: 'enum', required: true, values: ['paid', 'unpaid'] },
+      from: { type: 'date', required: true },
+      to: { type: 'date', required: true },
+      reason: { type: 'text', required: true, max: 300 },
+    },
+  },
+  'leave.decide': { write: true, perm: 'leave.approve', area: 'hr', schema: DECISION },
+  'leave.cancel': { write: true, area: 'hr', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 200 } } },
+  'leave.overview': { perm: 'leave.approve' },
+  'leave.adjust': {
+    write: true, perm: 'leave.adjust', area: 'hr',
+    schema: { staff_id: { type: 'id', required: true }, days: { type: 'number', required: true, min: -365, max: 365 }, reason: { type: 'text', required: true, max: 200 } },
+  },
+  'settings.leave': { perm: 'settings.manage' },
+  'settings.leave.save': {
+    write: true, perm: 'settings.manage', area: 'hr',
+    schema: {
+      probation_months: { type: 'int', required: true, min: 0, max: 24 },
+      rate: { type: 'number', required: true, min: 0, max: 10 },
+      timing: { type: 'enum', required: true, values: ['service_month', 'calendar_month'] },
+      partial: { type: 'enum', required: true, values: ['prorate_days', 'none'] },
+      day_counting: { type: 'enum', required: true, values: ['working', 'calendar'] },
+      allow_negative: { type: 'bool' },
+      holidays: { type: 'enum', required: true, values: ['open_scheduled', 'closed'] },
+      self_select: { type: 'bool' },
+      advance_days: { type: 'int', required: true, min: 1, max: 60 },
+      min_rest_hours: { type: 'int', required: true, min: 0, max: 24 },
+      min_notice_days: { type: 'int', required: true, min: 0, max: 30 },
     },
   },
 });

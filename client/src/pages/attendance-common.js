@@ -21,6 +21,8 @@ const STATE = {
   in: ['hr.state.in', 'ok'],
   out: ['hr.state.out', 'ok'],
   incomplete: ['hr.state.incomplete', 'warn'],
+  leave: ['hr.state.leave', 'muted'],
+  holiday: ['hr.state.holiday', 'muted'],
 };
 const PUNCH_STATUS = { ok: '', check: ['hr.punch.check', 'warn'], rejected: ['hr.punch.rejected', 'danger'], replaced: ['hr.punch.replaced', 'muted'] };
 const FIX_STATUS = { waiting: ['hr.fix.waiting', 'warn'], approved: ['hr.fix.approved', 'ok'], declined: ['hr.fix.declined', 'danger'], withdrawn: ['hr.fix.withdrawn', 'muted'] };
@@ -52,6 +54,18 @@ function punchLine(p) {
 }
 
 // The numbers of a day: in, out, worked, late, early.
+// What a day was meant to be, in a few words: "Morning 07:00–13:00",
+// "10:00–18:00", "Day off", "On leave", "Victory Day".
+export function planText(plan) {
+  const named = plan.holiday ? ` · ${plan.holiday}` : '';
+  if (plan.kind === 'leave') return t(plan.leave_kind === 'unpaid' ? 'hr.plan.unpaid' : 'hr.plan.leave') + named;
+  if (plan.kind === 'holiday') return plan.holiday;
+  if (plan.kind === 'off') return t('hr.state.off') + named;
+  if (!plan.start) return t('hr.no_hours') + named;
+  const hours = t('hr.hours', { start: plan.start, end: plan.end });
+  return (plan.shift ? `${plan.shift} ${hours}` : hours) + named;
+}
+
 export function dayFacts(d) {
   const facts = [];
   if (d.first_in) facts.push(t('hr.in_at', { time: timeOf(d.first_in) }));
@@ -67,12 +81,12 @@ export function dayFacts(d) {
 export function monthView(data, { fixLabel = '' } = {}) {
   const { totals } = data;
   return html`
-    <p class="month-totals">${t('hr.totals', { worked: duration(totals.worked_min), late: totals.late_days, absent: totals.absent_days, incomplete: totals.incomplete_days })}</p>
+    <p class="month-totals">${t('hr.totals', { worked: duration(totals.worked_min), late: totals.late_days, absent: totals.absent_days, incomplete: totals.incomplete_days, leave: totals.leave_days })}</p>
     ${data.days.length ? html`<ul class="att-days">${data.days.map((d) => html`<li class="att-day">
       <div class="day-head">
         <strong>${dateShort(`${d.date}T06:00:00Z`)}</strong> ${stateChip(d.state)}
         ${d.waiting ? chip(t('hr.punch.check'), 'warn') : ''}
-        <span class="muted">${dayFacts(d)}</span>
+        <span class="muted">${dayFacts(d) || planText(d.plan)}</span>
         ${fixLabel ? html`<button type="button" class="btn btn-small" data-act="fix" data-date="${d.date}">${fixLabel}</button>` : ''}
       </div>
       ${d.punches.length ? html`<ul class="punches">${d.punches.map(punchLine)}</ul>` : ''}
@@ -165,7 +179,7 @@ export function punchCard(todayData) {
   return html`<section class="panel punch-card">
     <div class="punch-state">
       ${stateChip(day.state)}
-      <span class="muted">${dayFacts(day) || hoursText(todayData.staff)}</span>
+      <span class="muted">${dayFacts(day) || planText(day.plan)}</span>
     </div>
     <button type="button" class="btn btn-primary btn-large" data-act="punch" data-type="${next}">
       ${t(next === 'in' ? 'hr.punch_in' : 'hr.punch_out')}</button>

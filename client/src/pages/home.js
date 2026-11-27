@@ -44,7 +44,9 @@ function attendanceView(att) {
   if (!att) return '';
   if (att.error) return errorBox(att.error);
   return html`${att.staff && att.day ? punchCard(att) : ''}
-    ${att.checks ? html`<a class="notice notice-warn" href="#/attendance">${icon('clock')}<span>${t('home.attendance_checks', { count: att.checks })}</span></a>` : ''}`;
+    ${att.checks ? html`<a class="notice notice-warn" href="#/attendance">${icon('clock')}<span>${t('home.attendance_checks', { count: att.checks })}</span></a>` : ''}
+    ${att.rota ? html`<a class="notice notice-warn" href="#/rota">${icon('daily')}<span>${t('home.rota_waiting', { count: att.rota })}</span></a>` : ''}
+    ${att.leave ? html`<a class="notice notice-warn" href="#/leave">${icon('badge')}<span>${t('home.leave_waiting', { count: att.leave })}</span></a>` : ''}`;
 }
 
 function view(state, home, att) {
@@ -79,7 +81,7 @@ export const homePage = {
     let att = null;
     const draw = () => render(el, view(getState(), home, att));
     const loadAttendance = async () => {
-      if (!can('self.staff') && !can('attendance.manage')) return;
+      if (!can('self.staff|attendance.manage|schedule.manage|leave.approve')) return;
       try {
         att = (await read('attendance.today')).data;
       } catch (err) {

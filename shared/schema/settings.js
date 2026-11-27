@@ -51,6 +51,25 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   // checked by a manager unless this is true.
   'attendance.offline_max_age_days': 7,
   'attendance.offline_auto_validate': false,
+  // Public holidays: the shop 'closed' (nobody is expected) or open, with
+  // the people on the rota working ('open_scheduled').
+  'holidays.treatment': 'open_scheduled',
+  // Rota requests: choosing a shift up to this many days ahead (if people
+  // may choose at all), with at least this many hours' rest between days;
+  // a day-off move asked at least this many days before.
+  'rota.self_select': true,
+  'selection.advance_days': 7,
+  'selection.min_rest_hours': 8,
+  'exchange.min_notice_days': 1,
+  // Leave is earned after probation: `rate` days a month, by month of
+  // service or calendar month (part first month prorated or not), and
+  // counted in working days or calendar days.
+  'leave.probation_months': 3,
+  'leave.rate': 1.5,
+  'leave.timing': 'service_month',
+  'leave.partial': 'prorate_days',
+  'leave.day_counting': 'working',
+  'leave.allow_negative': false,
 });
 
 const BRAND_ACCENT = '#4f46e5';

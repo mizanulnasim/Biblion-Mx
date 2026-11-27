@@ -71,7 +71,7 @@ function seed(server, state) {
   // the shop device, PIN 1111); the shop at the preview position; a week of
   // past days entered as corrections.
   const userIds = new Map(call(server, 'users.list', {}, token).data.items.map((u) => [u.username, u.id]));
-  const staff = (fields) => call(server, 'staff.save', { status: 'active', joined_on: day(10), work_start: '10:00', work_end: '18:00', days_off: [{ day: 5 }], ...fields }, token).data.record_id;
+  const staff = (fields) => call(server, 'staff.save', { status: 'active', joined_on: day(200), work_start: '10:00', work_end: '18:00', days_off: [{ day: 5 }], ...fields }, token).data.record_id;
   const people = [
     staff({ name: 'Preview Owner', user_id: userIds.get('owner'), position: 'Shareholder', work_start: null, work_end: null }),
     staff({ name: 'Preview Manager', user_id: userIds.get('manager'), position: 'Manager', pin: '2222' }),
@@ -79,6 +79,13 @@ function seed(server, state) {
     staff({ name: 'Kamal', position: 'Books', pin: '1111', salary: 11000 }),
   ];
   call(server, 'settings.attendance.save', { ...call(server, 'settings.attendance', {}, token).data, lat: PREVIEW_PLACE.lat, lng: PREVIEW_PLACE.lng }, token);
+  // Rota: two shifts, a public holiday next week, and one person's approved
+  // leave.
+  const morning = call(server, 'rota.shift.save', { name: 'Morning', name_bn: 'সকাল', start: '08:00', end: '14:00', status: 'active' }, token).data.record_id;
+  call(server, 'rota.shift.save', { name: 'Evening', name_bn: 'সন্ধ্যা', start: '14:00', end: '21:00', self_confirm: true, status: 'active' }, token);
+  call(server, 'rota.set', { staff_id: people[3], date: day(-2), value: morning }, token);
+  call(server, 'holidays.save', { date: day(-5), name: 'Sample holiday', name_bn: 'নমুনা ছুটি', status: 'active' }, token);
+  call(server, 'leave.apply', { staff_id: people[3], kind: 'paid', from: day(-8), to: day(-9), reason: 'Preview sample' }, token);
   for (let n = 7; n >= 1; n--) {
     const date = day(n);
     if (new Date(`${date}T00:00:00Z`).getUTCDay() === 5) continue;

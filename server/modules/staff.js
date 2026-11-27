@@ -9,6 +9,7 @@ import { saved } from '../../shared/contract/reply.js';
 import { roleById } from '../../shared/schema/permissions.js';
 import { page } from '../kernel/paging.js';
 import { KDF_ITERATIONS, hashPassword, newSalt } from '../kernel/crypto.js';
+import { dhakaDate } from '../../shared/hr/attendance.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
 
@@ -25,13 +26,27 @@ function pinFields(pin) {
   return { pin_hash: hashPassword(pin, salt, KDF_ITERATIONS), pin_salt: salt, pin_iter: KDF_ITERATIONS, pin_failed: 0, pin_locked_until: '' };
 }
 
+// The first day that counts for a person: when they joined, or else when
+// their record was made.
+export function joinedOn(s) {
+  return s.joined_on || dhakaDate(Date.parse(s.created_at));
+}
+
 // The staff record linked to a sign-in, if any.
 export function staffOfUser(db, userId) {
   return db.all('Staff').find((s) => s.user_id === userId && s.status === 'active') || null;
 }
 
+// Whether the signed-in person may decide something (a check, a correction,
+// leave, a rota request) for `staff` with permission `perm`: never their
+// own, and a manager's only as a shareholder.
+export function mayDecideFor(ctx, staff, perm) {
+  if (!ctx.can(perm) || staff.user_id === ctx.user.id) return false;
+  return staffLevel(ctx.db, staff) < 2 || ctx.level === 3;
+}
+
 // Role level of the person a staff record belongs to (1 when they have no sign-in).
-export function staffLevel(db, staff) {
+function staffLevel(db, staff) {
   const user = staff.user_id ? db.get('Users', staff.user_id) : null;
   const role = user ? roleById(user.role_id) : null;
   return role ? role.level : 1;

@@ -22,6 +22,8 @@ import { STOCKTAKE_HANDLERS } from './stocktake.js';
 import { SUPPLIER_HANDLERS } from './suppliers.js';
 import { SETUP_HANDLERS } from './setup.js';
 import { STAFF_HANDLERS } from './staff.js';
+import { ROTA_HANDLERS } from './rota.js';
+import { LEAVE_HANDLERS } from './leave.js';
 import { USER_HANDLERS } from './users.js';
 
 export const HANDLERS = Object.freeze({
@@ -45,5 +47,7 @@ export const HANDLERS = Object.freeze({
   ...CAFE_ORDER_HANDLERS,
   ...STAFF_HANDLERS,
   ...ATTENDANCE_HANDLERS,
+  ...ROTA_HANDLERS,
+  ...LEAVE_HANDLERS,
   'sync.version': () => ({ areas: areaVersions() }),
 });
