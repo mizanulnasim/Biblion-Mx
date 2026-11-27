@@ -199,5 +199,15 @@
   "rep.status.no_schedule": "সময়সূচি নেই",
   "rep.status.nothing_owed": "কিছু পাওনা নেই",
   "rep.status.overdue": "বকেয়া",
-  "rep.status.due": "এখনো সময় আছে"
+  "rep.status.due": "এখনো সময় আছে",
+  "rep.by_area_profit": "বিভাগ অনুযায়ী লাভ",
+  "rep.area.books_sales": "বই: বিক্রি",
+  "rep.area.books_costs": "বই: নিজস্ব খরচ ও বিক্রি হওয়া বইয়ের কেনা দাম",
+  "rep.area.books_profit": "বই: যৌথ খরচের আগে লাভ",
+  "rep.area.cafe_sales": "ক্যাফে: বিক্রি",
+  "rep.area.cafe_costs": "ক্যাফে: নিজস্ব খরচ",
+  "rep.area.cafe_profit": "ক্যাফে: যৌথ খরচের আগে লাভ",
+  "rep.area.shared_income": "যৌথ: অন্যান্য আয়, সুদ ও ড্রয়ারের কম-বেশি",
+  "rep.area.shared_costs": "যৌথ: যৌথ খরচ, বেতন, খাবার ভাতা, বোনাস, মালিকের বেতন ও সুদ",
+  "suppliers.area_help": "বিভাগ অনুযায়ী লাভের জন্য এই ভেন্ডরের বিল কার খরচ। যৌথ: বই বা ক্যাফের নিজস্ব নয়।"
 }

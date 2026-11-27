@@ -255,6 +255,7 @@ export const ACTIONS = Object.freeze({
       sell_discount: { type: 'int', min: 0, max: 100 },
       pays_on: { type: 'enum', values: ['sale', 'delivery'] },
       pay_every: { type: 'int', min: 0, max: 24 },
+      area: { type: 'enum', values: ['books', 'cafe', 'shared'] },
       opening_due: { type: 'int', min: 0 },
     },
   },

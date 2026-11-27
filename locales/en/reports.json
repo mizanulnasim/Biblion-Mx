@@ -199,5 +199,15 @@
   "rep.status.no_schedule": "No schedule",
   "rep.status.nothing_owed": "Nothing owed",
   "rep.status.overdue": "Overdue",
-  "rep.status.due": "Not yet due"
+  "rep.status.due": "Not yet due",
+  "rep.by_area_profit": "Profit by area",
+  "rep.area.books_sales": "Books: sales",
+  "rep.area.books_costs": "Books: own costs and the cost of books sold",
+  "rep.area.books_profit": "Books: profit before shared costs",
+  "rep.area.cafe_sales": "Café: sales",
+  "rep.area.cafe_costs": "Café: own costs",
+  "rep.area.cafe_profit": "Café: profit before shared costs",
+  "rep.area.shared_income": "Shared: other income, interest and the drawer's over/short",
+  "rep.area.shared_costs": "Shared: shared expenses, salaries, food allowance, bonuses, owner salaries and interest",
+  "suppliers.area_help": "Whose cost this vendor's bills are, for profit by area. Shared: not books' or café's own."
 }

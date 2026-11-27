@@ -433,3 +433,7 @@ Built exactly as v1: net sales + other income + interest on loans shareholders t
 ### Notifications (28 Nov 2026)
 - **Shareholders' daily warnings email:** sent only on days with something to say, one hour after the shop closes (the hour is a setting). It lists money overdue (salaries, profit shares, publisher payments), what waits for a shareholder's approval, the day's shift missing or the day not closed, and the drawer short or over. Each shareholder adds their own address in My settings and can turn the email off there. Sent through the Google account the app runs on (free).
 - **Messages on Home:** a message stays on the person's Home until they dismiss it, for: a task moved to an earlier day (giver and doer); their leave or shift request decided; their money entry or task sent back; their payslip issued and salary paid; their contact-detail change decided. No email or phone notifications for these.
+
+### Profit by area (28 Nov 2026)
+- In the monthly report, after the profit: books' and café's own profit, then what is shared, then the month's profit. Shared costs are not split between the areas.
+- An area's own: its sales (the shift's books sales; the rest is café), expenses in categories of that area, vendor bills from vendors marked with that area (a new setting on each vendor; unmarked is shared), and for books the cost of books sold or written off. Shared: other income and interest, the drawer's over/short, salaries, food allowance, bonuses, owner salaries and interest owed.

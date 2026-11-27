@@ -99,3 +99,21 @@ test('loan interest: day by day on the balance, at the loan\'s yearly rate', () 
   assert.equal(f.interest_owed, days * 10);
   assert.equal(s.call(s.owner, 'shareholders.view').data.loans[0].number, 'L001');
 });
+
+test('profit by area: each area\'s own sales and costs, the rest shared, adding up to the profit', () => {
+  const s = books();
+  const month = lastMonth();
+  const day = `${month}-05`;
+  const cafeVendor = s.call(s.owner, 'setup.supplier.save', { kind: 'vendor', name: 'Milk Vita', area: 'cafe', status: 'active' }).data.record_id;
+  save(s, { kind: 'expense', date: day, amount: 700, category_id: s.ids.milk });
+  save(s, { kind: 'expense', date: day, amount: 6000, category_id: s.ids.cat });
+  save(s, { kind: 'vendor_purchase_paid', date: day, amount: 1200, party_id: cafeVendor });
+  save(s, { kind: 'income', date: day, amount: 2000, note: 'Hall hire' });
+  const f = s.call(s.owner, 'month.view', { month }).data.figures;
+  // Café: Milk 700 and Milk Vita 1,200 of its own; Hall hire costs are shared.
+  assert.deepEqual(f.areas.cafe, { sales: 0, costs: 1900, profit: -1900 });
+  assert.equal(f.areas.shared.income, 2000);
+  // Shared costs: 6,000 and Nadia's owner salary of 5,000.
+  assert.equal(f.areas.shared.costs, 11000);
+  assert.equal(Math.round(f.areas.books.profit + f.areas.cafe.profit + f.areas.shared.income - f.areas.shared.costs), f.profit);
+});

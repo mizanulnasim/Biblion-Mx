@@ -113,6 +113,14 @@ function monthFigures(db, month) {
   for (const e of entries.filter((x) => x.kind === 'expense')) byCategory.set(e.category_id, r2((byCategory.get(e.category_id) || 0) + e.amount));
   const expenses = r2([...byCategory.values()].reduce((t, v) => t + v, 0));
   const vendorCosts = r2(sum(['vendor_purchase_credit', 'vendor_purchase_paid']) - sum(['vendor_credit_note']));
+  // Each area's own costs (owner decision): expenses by their category's
+  // area, vendor bills by the vendor's area (unmarked: shared).
+  const vendorArea = new Map(db.all('Suppliers').map((v) => [v.id, v.area || 'shared']));
+  const own = (area) => r2(entries.reduce((t, e) => {
+    if (e.kind === 'expense') return t + (((categories.get(e.category_id) || {}).area || 'shared') === area ? e.amount : 0);
+    const sign = { vendor_purchase_credit: 1, vendor_purchase_paid: 1, vendor_credit_note: -1 }[e.kind];
+    return t + (sign && vendorArea.get(e.party_id) === area ? sign * e.amount : 0);
+  }, 0));
   // Books: copies sold and written off, at their cost.
   const costs = bookCosts(db);
   const bookCost = r2(db.all('Stock_Movements').filter((m) => m.status === 'active' && m.qty < 0 && m.kind !== 'returned' && m.date >= per.from && m.date <= per.to)
@@ -128,12 +136,20 @@ function monthFigures(db, month) {
   const income = r2(net + otherIncome + interestFrom);
   const opex = r2(expenses + vendorCosts + bookCost);
   const profit = r2(income - opex - staffSalaries - food - bonuses - ownerSalaries - interestOwed + drawer);
+  // Profit by area: books' and café's own, then what is shared (not split).
+  const booksOwn = r2(own('books') + bookCost);
+  const cafeOwn = own('cafe');
+  const areas = {
+    books: { sales: books, costs: booksOwn, profit: r2(books - booksOwn) },
+    cafe: { sales: r2(net - books), costs: cafeOwn, profit: r2(net - books - cafeOwn) },
+    shared: { income: r2(otherIncome + interestFrom + drawer), costs: r2(own('shared') + staffSalaries + food + bonuses + ownerSalaries + interestOwed) },
+  };
   return {
     month, period_from: per.from, period_to: per.to,
     net, books, cafe: r2(net - books), other_income: otherIncome, interest_from: interestFrom, income,
     categories: [...byCategory.entries()].map(([id, amount]) => ({ id, name: (categories.get(id) || {}).name || '', area: (categories.get(id) || {}).area || '', amount })),
     expenses, vendor_costs: vendorCosts, book_cost: bookCost, opex,
-    staff_salaries: staffSalaries, food, bonuses, owner_salaries: ownerSalaries, interest_owed: interestOwed, drawer, profit,
+    staff_salaries: staffSalaries, food, bonuses, owner_salaries: ownerSalaries, interest_owed: interestOwed, drawer, profit, areas,
     loans: loans.map((l) => ({ id: l.id, number: l.number, shareholder_id: l.shareholder_id, direction: l.direction, rate: l.rate, interest: loanInterest(db, l, per.from, per.to) })),
   };
 }

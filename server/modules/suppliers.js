@@ -76,7 +76,7 @@ export function supplierBalances(db) {
 function pick(s, owed) {
   return {
     id: s.id, version: s.version, kind: s.kind, name: s.name, phone: s.phone, commission: s.commission || 0,
-    sell_discount: s.sell_discount || 0, pays_on: s.pays_on || 'sale', pay_every: s.pay_every || 0, opening_due: s.opening_due || 0, status: s.status, owed: owed.get(s.id) || 0,
+    sell_discount: s.sell_discount || 0, pays_on: s.pays_on || 'sale', pay_every: s.pay_every || 0, area: s.area || 'shared', opening_due: s.opening_due || 0, status: s.status, owed: owed.get(s.id) || 0,
   };
 }
 
@@ -95,6 +95,7 @@ function save(ctx, input) {
     sell_discount: input.kind === 'publisher' ? input.sell_discount || 0 : 0,
     pays_on: input.kind === 'publisher' ? input.pays_on || 'sale' : '',
     pay_every: input.kind === 'publisher' ? input.pay_every || 0 : 0,
+    area: input.kind === 'vendor' ? input.area || 'shared' : '',
     opening_due: input.opening_due || 0,
   };
   let row;

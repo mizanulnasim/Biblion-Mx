@@ -15,6 +15,7 @@ import { onArea } from '../core/live.js';
 import { ACTIONS } from '../../../shared/contract/actions.js';
 import { KINDS } from '../../../shared/money/kinds.js';
 
+const AREAS = { books: 'setup.area.books', cafe: 'setup.area.cafe', shared: 'setup.area.shared' };
 const PAYS_ON = { sale: 'suppliers.pays_on_sale', delivery: 'suppliers.pays_on_delivery' };
 const LINE_KINDS = { book_receive: 'suppliers.line.receive', book_returned: 'suppliers.line.returned', book_sale: 'suppliers.line.sale' };
 
@@ -23,6 +24,9 @@ function fields(kind) {
     { name: 'name', label: t('users.name'), required: true },
     { name: 'phone', label: t('setup.phone'), inputmode: 'tel' },
   ];
+  const vendor = kind === 'vendor' ? [
+    { name: 'area', label: t('setup.area'), type: 'select', required: true, options: ['books', 'cafe', 'shared'].map((v) => ({ value: v, label: t(AREAS[v]) })), help: t('suppliers.area_help') },
+  ] : [];
   const publisher = kind === 'publisher' ? [
     { name: 'commission', label: t('suppliers.commission'), inputmode: 'numeric', help: t('suppliers.commission_help') },
     { name: 'sell_discount', label: t('suppliers.sell_discount'), inputmode: 'numeric', help: t('suppliers.sell_discount_help') },
@@ -30,7 +34,7 @@ function fields(kind) {
     { name: 'pay_every', label: t('suppliers.pay_every'), inputmode: 'numeric', help: t('suppliers.pay_every_help') },
   ] : [];
   return [
-    ...base, ...publisher,
+    ...base, ...vendor, ...publisher,
     { name: 'opening_due', label: t('suppliers.opening_due'), inputmode: 'numeric', help: t('suppliers.opening_due_help') },
     { name: 'status', label: t('users.status'), type: 'select', required: true, options: [{ value: 'active', label: t('users.active') }, { value: 'inactive', label: t('users.inactive') }] },
   ];
@@ -39,7 +43,7 @@ function fields(kind) {
 function edit(kind, supplier, onSaved) {
   const values = supplier
     ? { ...supplier, commission: String(supplier.commission), sell_discount: String(supplier.sell_discount), opening_due: String(supplier.opening_due), pay_every: supplier.pay_every ? String(supplier.pay_every) : '' }
-    : { status: 'active', pays_on: 'sale' };
+    : { status: 'active', pays_on: 'sale', area: 'shared' };
   const dialog = formDialog(t(kind === 'vendor' ? 'suppliers.vendor' : 'suppliers.publisher'), formView({ fields: fields(kind), values, submit: t('common.save') }));
   bindForm(dialog.querySelector('form.form'), {
     schema: ACTIONS['setup.supplier.save'].schema,

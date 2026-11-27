@@ -116,6 +116,12 @@ function monthly(db, { month }) {
       kv([['month.staff_salaries', f.staff_salaries], ['month.food', f.food], ['month.bonuses', f.bonuses], ['month.owner_salaries', f.owner_salaries],
         ['month.interest_owed', f.interest_owed], ['month.drawer', f.drawer]]),
       kv([['month.profit', f.profit, true], ['month.loss_before', f.loss_before], ['month.shareable', f.shareable, true], ['month.loss_after', f.loss_after]]),
+      // Months closed before areas were worked out don't have them.
+      ...(f.areas ? [section('rep.by_area_profit'), kv([
+        ['rep.area.books_sales', f.areas.books.sales], ['rep.area.books_costs', -f.areas.books.costs], ['rep.area.books_profit', f.areas.books.profit, true],
+        ['rep.area.cafe_sales', f.areas.cafe.sales], ['rep.area.cafe_costs', -f.areas.cafe.costs], ['rep.area.cafe_profit', f.areas.cafe.profit, true],
+        ['rep.area.shared_income', f.areas.shared.income], ['rep.area.shared_costs', -f.areas.shared.costs], ['month.profit', f.profit, true],
+      ])] : []),
       section('month.shares'),
       f.shares.length ? table([['rep.col.shareholder'], ['rep.col.percent', 'percent'], ['rep.col.amount', 'money']], f.shares.map((x) => [x.name, x.percent, x.amount]))
         : note(t('month.no_shares')),
