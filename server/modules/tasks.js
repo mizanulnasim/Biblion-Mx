@@ -16,7 +16,7 @@ import { saved } from '../../shared/contract/reply.js';
 import { roleById } from '../../shared/schema/permissions.js';
 import { dhakaDate } from '../../shared/hr/attendance.js';
 import { addDays, datesBetween } from '../../shared/hr/plan.js';
-import { TASK_LINKS, occursOn } from '../../shared/tasks/tasks.js';
+import { REPORTS, TASK_LINKS, occursOn } from '../../shared/tasks/tasks.js';
 import { setting } from '../kernel/settings.js';
 import { planner } from './rota.js';
 import { mayDecideFor, staffOfUser } from './staff.js';
@@ -317,6 +317,13 @@ function taskRecords(ctx, { id }) {
   };
 }
 
+// A report was printed (or saved as PDF), by someone who may see it.
+function reportPrinted(ctx, { report, ref }) {
+  if (!ctx.can(REPORTS[report].perm)) throw new AppError('FORBIDDEN');
+  const row = ctx.db.insert('Report_Prints', { report, ref: ref || '', printed_by: ctx.user.id });
+  return saved(row.id);
+}
+
 function complete(ctx, { id, note, answers: list, record_id: recordId }) {
   const { db } = ctx;
   const { t, me } = ownTask(ctx, id);
@@ -518,6 +525,7 @@ export const TASK_HANDLERS = {
   'tasks.complete': complete,
   'tasks.attach': attach,
   'tasks.record': linkRecord,
+  'reports.printed': reportPrinted,
   'tasks.records': taskRecords,
   'tasks.not_done': notDone,
   'tasks.comment': comment,

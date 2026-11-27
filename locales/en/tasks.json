@@ -135,5 +135,7 @@
   "err.shares_missing": "Set the shareholders' shares (adding up to 100%) before closing a month.",
   "err.month_order": "Months close and reopen in order: see {month} first.",
   "val.shares_total": "The shares add up to {total}%; they must make 100%.",
-  "val.month_closed": "That reaches into a closed month (to {date})."
+  "val.month_closed": "That reaches into a closed month (to {date}).",
+  "tasks.link.month_closing": "Close the month",
+  "tasks.link.report_month": "Print the monthly report"
 }

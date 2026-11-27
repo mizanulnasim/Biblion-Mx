@@ -76,7 +76,12 @@ export const monthClosingPage = {
         schema: ACTIONS[action].schema,
         busyLabel: t('common.saving'),
         mapValues: (v) => ({ ...v, month }),
-        onSubmit: (v) => write(action, v),
+        onSubmit: async (v) => {
+          const reply = await write(action, v);
+          // Closing the month from a task is what the task is done with.
+          if (action === 'month.close' && query.task && reply.status === 'saved') await write('tasks.record', { id: query.task, record_id: reply.record_id });
+          return reply;
+        },
         onSaved: () => {
           dialog.close();
           toast(done);
@@ -85,7 +90,12 @@ export const monthClosingPage = {
       });
     };
     const offClick = on(el, 'click', {
-      print: () => window.print(),
+      // Printing is noted, so a report-printing task can be done with it.
+      print: async () => {
+        window.print();
+        const reply = await write('reports.printed', { report: 'month', ref: month });
+        if (query.task && reply.status === 'saved') await write('tasks.record', { id: query.task, record_id: reply.record_id });
+      },
       close: () => ask(t('month.close'), { name: 'note', label: t('pay.note'), type: 'textarea' }, 'month.close', t('month.closed_done')),
       reopen: () => ask(t('month.reopen'), { name: 'reason', label: t('hr.fix_reason'), type: 'textarea', required: true }, 'month.reopen', t('month.reopened')),
     });

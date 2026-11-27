@@ -53,7 +53,14 @@ export const TASK_LINKS = Object.freeze({
   'page:requisitions': { path: '/books/reqs', perm: 'books.requisition', label: 'tasks.link.requisitions', record: notCancelled('Requisitions') },
   'page:stocktake': { path: '/books/stocktake', perm: 'books.adjust', label: 'tasks.link.stocktake', record: notCancelled('Stock_Takes') },
   'page:closing': { path: '/closing', perm: 'closing.day', label: 'tasks.link.closing', record: { table: 'Day_Closings', counts: (r) => r.status === 'closed' } },
+  'page:month_closing': { path: '/closing/month', perm: 'closing.month', label: 'tasks.link.month_closing', record: { table: 'Month_Closings', counts: (r) => r.status === 'closed' } },
+  // Printing a report (owner decision: scheduled report printing): done once
+  // it is printed or saved as PDF from the task.
+  'report:month': { path: '/closing/month', perm: 'closing.month', label: 'tasks.link.report_month', record: { table: 'Report_Prints', counts: (r) => r.report === 'month' } },
 });
+
+// The reports a task can have printed, with who may print each.
+export const REPORTS = Object.freeze({ month: { perm: 'closing.month' } });
 
 // The roles a task can be given to (anyone with that role may do it).
 export const TASK_ROLES = Object.freeze(['manager', 'staff']);

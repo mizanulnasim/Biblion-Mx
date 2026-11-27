@@ -478,6 +478,13 @@ export const TABLES = Object.freeze({
     prefix: 'ONB',
     columns: ['staff_id', 'steps:j', 'status', 'done_at'],
   },
+  // A report printed (or saved as PDF): which report, and of what (ref,
+  // such as the month). A report-printing task is done with one.
+  Report_Prints: {
+    group: 'accounts',
+    prefix: 'RPP',
+    columns: ['report', 'ref', 'printed_by'],
+  },
   // One row per closed date; reopening keeps the row with its reason.
   Day_Closings: {
     group: 'accounts',
