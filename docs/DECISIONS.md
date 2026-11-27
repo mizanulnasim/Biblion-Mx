@@ -402,3 +402,16 @@ The v1 package (requirements audit, build notes, guides) was compared with v2; w
     - leave in the first part month counts by days (the new default);
     - passwords are set and reset by shareholders, and a person changes their own only if a shareholder allows it.
 12. **Short or over:** the daily shift shows Loyverse's expected cash beside the app's drawer figure and any gap between them; the short/over booked is from the app's figure.
+
+## Owner decisions after comparing with the v1 code (27 Nov 2026)
+The v1 server and screen code was compared with v2 for what v2 has built; where they differed, the owner decided:
+1. **Short rest between shifts:** a warning only, never a block (as v1).
+2. **Out from a break:** someone on a break can punch out; that ends the break.
+3. **Salary overdue:** 7 days after the accounting month ends (as v1; the same date will apply to profit shares). This replaces "7 days after the payslip" in decision 8 above.
+4. **Leave types:** Paid and Unpaid exist from the start; shareholders can add types (for example sick or casual) and choose for each: paid or unpaid, taken from the earned balance or not, half days allowed or not. Half-day leave is the first or second half of one day, counts 0.5 and halves the hours expected.
+5. **Hours short and overtime:** each day's worked time is compared with the hours expected; hours short and overtime are shown separately, never set against each other, and never cut pay. Overtime is paid only for people a shareholder switches it on for, at a rate in their salary.
+6. **Who may work a shift:** places per shift (a full shift refuses more); staff mark days or weekdays they can't work (then a choice needs a manager's OK); shifts can be limited to positions; each person can have their own list of shifts (others need a manager).
+7. **Task extras:** checklists inside a task (tick, number, text or photo; some required); before/after photos or a note required; priority; more repeat patterns (every N days, fortnightly, last day of the month, specific dates, custom); teams and positions, with one shared task or a copy for each person.
+8. **Linked tasks:** the form is filled in from inside the task and the task is tied to that exact record; payments, deliveries and bills also need the receipt or bill attached (as v1). This replaces "a task can't be done until its record exists" in decision 7 above.
+9. **Letterhead:** as v1, on letters, payslips and reports: logo, the shop's name and description, address, phone and email; signature lines on reports; every report downloadable as PDF or Excel, and can be emailed.
+10. **Self-service and staff numbers:** people can change their own phone, email and address (a setting, on by default); the change waits until a manager approves it (a shareholder, for a manager's own). Each staff member gets a number such as BIB0001, given automatically (prefix and digits in Settings).
