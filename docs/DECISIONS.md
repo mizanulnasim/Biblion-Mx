@@ -303,3 +303,22 @@ These are working choices made while building. Each is easy to change.
   - Letters are in English. A letter keeps its words as issued and prints on the letterhead with the shop's address.
   - Offer and appointment letters need `staff.edit`; experience and release letters need `separation.manage` and a last day.
 - **Not yet:** uploading the signed resignation letter (comes with staff papers in uploads part 2), and Bangla letter templates (one template per letter for now; the owner can write it in Bangla).
+
+## Milestone 13: announcements, procedures and reviews (assumptions to confirm)
+- **Announcements** (`announcements.manage`, managers):
+  - For everyone, staff only, managers and shareholders only, or chosen people.
+  - They can ask people to acknowledge them, and can stay pinned on Home until a date.
+  - Opening one marks it read. Managers see read or acknowledged counts, and who hasn't yet.
+- **Job descriptions and procedures (SOPs)** (`responsibilities.manage`):
+  - Written the same way, for everyone or chosen people.
+  - Always acknowledged ("I have read and understood this").
+  - Changing the title or text makes a new version, which everyone acknowledges again.
+  - Each person reads theirs under Notices.
+- **Performance reviews** (`performance.manage`):
+  - A manager starts one for a person and a period. If set (on by default), the person first scores themselves.
+  - The manager scores each point 1–5 with notes and a summary, beside facts for the period: days worked, late, absent, on leave, and tasks done, not done and missed.
+  - Sharing keeps the facts as they were, and then it can't be changed. The person sees the manager's scores only once shared, and acknowledges with a comment.
+  - Nobody reviews themselves, and a manager's review is a shareholder's.
+  - The points (Punctuality, Task completion, Work quality, Teamwork, Customer care) were written fresh and are edited in Settings → Reviews.
+- **Home** shows reviews waiting, pinned announcements, unread announcements, and anything waiting for an acknowledgement. All of these "waiting for you" counts now come from one place (`people.waiting`).
+- **Not yet:** recruitment (stages and applicants) and onboarding, and email notifications.

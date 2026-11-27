@@ -107,8 +107,8 @@ test('leave: counted in working days, waits for a manager, then uses the balance
   assert.equal(s.call(s.staff, 'leave.apply', { kind: 'unpaid', from: plus(thu, 1), to: plus(thu, 3), reason: 'x' }).data.error.code, 'OVERLAP');
   // 2 waiting + 3 more is over 4.5.
   assert.equal(s.call(s.staff, 'leave.apply', { kind: 'paid', from: monday, to: plus(monday, 2), reason: 'x' }).data.error.code, 'LEAVE_BALANCE');
-  assert.equal(s.call(s.staff, 'attendance.today').data.leave, 0);
-  assert.equal(s.call(s.manager, 'attendance.today').data.leave, 1);
+  assert.equal(s.call(s.staff, 'people.waiting').data.leave, 0);
+  assert.equal(s.call(s.manager, 'people.waiting').data.leave, 1);
   assert.equal(s.call(s.manager, 'leave.decide', { id: asked.record_id, decision: 'accept' }).data.status, 'saved');
   const after = s.call(s.staff, 'leave.mine').data.balance;
   assert.deepEqual([after.used, after.balance], [2, 2.5]);

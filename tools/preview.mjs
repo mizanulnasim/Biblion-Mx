@@ -93,6 +93,12 @@ function seed(server, state) {
   task({ title: 'Dust the shelves', staff_id: people[3], repeat: 'weekly', days: [0, 1, 2, 3, 4, 6].map((d) => ({ day: d })), needs_check: true });
   task({ title: 'Pay the electricity bill', staff_id: people[1], repeat: 'monthly', day_of_month: Number(day(0).slice(8)), link: 'money:expense' });
   call(server, 'tasks.create', { title: 'Put up the new poetry display', details: 'Use the front table.', staff_id: people[2], due_date: day(0), needs_check: true }, token);
+  // Notices and a review.
+  const doc = (fields) => call(server, 'docs.save', { audience: 'everyone', status: 'active', staff_ids: [], ...fields }, token);
+  doc({ kind: 'announcement', title: 'New café menu from Saturday', body: 'Cold coffee and lemon tea are added.\n\nPrices are on the board by the till.', needs_ack: true, show_until: day(-5) });
+  doc({ kind: 'sop', title: 'Opening the shop', body: 'Unlock the front door and switch on the lights.\n\nCount the till float and turn on the coffee machine.\n\nOpen the shutters at 10:00.' });
+  doc({ kind: 'jd', title: 'Café assistant', body: 'Makes and serves drinks, keeps the café clean, and does the daily café count.', audience: 'people', staff_ids: [{ id: people[2] }] });
+  call(server, 'reviews.start', { staff_id: people[2], from: day(30), to: day(1) }, token);
   for (let n = 7; n >= 1; n--) {
     const date = day(n);
     if (new Date(`${date}T00:00:00Z`).getUTCDay() === 5) continue;

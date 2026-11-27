@@ -342,6 +342,33 @@ export const TABLES = Object.freeze({
     prefix: 'LTR',
     columns: ['staff_id', 'kind', 'title', 'paragraphs:j', 'issued_by', 'issued_at'],
   },
+  // Announcements, job descriptions and procedures (SOPs). audience:
+  // everyone, staff, managers, or people (staff_ids:j). version_no goes up
+  // when the words change, so everyone acknowledges again. show_until: an
+  // announcement stays on Home until then. Status: active, archived.
+  Docs: {
+    group: 'hr',
+    prefix: 'DOC',
+    columns: ['kind', 'title', 'body', 'audience', 'staff_ids:j', 'needs_ack:b', 'version_no:n', 'show_until', 'status', 'published_at'],
+  },
+  // Who read and who acknowledged which version of a document.
+  Doc_Reads: {
+    group: 'hr',
+    prefix: 'DRD',
+    columns: ['doc_id', 'user_id', 'version_no:n', 'read_at', 'acked_at'],
+  },
+  // Performance reviews for a period. criteria:j and self:j: [{name, score
+  // (1–5), note}]. facts:j: attendance and tasks in the period, kept when
+  // shared. Status: self (waits for the person's own view), draft, shared,
+  // acknowledged.
+  Reviews: {
+    group: 'hr',
+    prefix: 'REV',
+    columns: [
+      'staff_id', 'from', 'to', 'status', 'criteria:j', 'self:j', 'summary', 'facts:j', 'staff_comment',
+      'started_by', 'shared_by', 'shared_at', 'acked_at',
+    ],
+  },
   // One row per closed date; reopening keeps the row with its reason.
   Day_Closings: {
     group: 'accounts',

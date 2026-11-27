@@ -17,9 +17,7 @@ import { BUSINESS_DEFAULTS } from '../../shared/schema/settings.js';
 import { setting } from '../kernel/settings.js';
 import { newToken, sameHex, signHex } from '../kernel/crypto.js';
 import { joinedOn, mayDecideFor, staffOfUser } from './staff.js';
-import { planner, rotaWaiting } from './rota.js';
-import { leaveWaiting } from './leave.js';
-import { tasksToCheck } from './tasks.js';
+import { planner } from './rota.js';
 
 const DAY_MS = 86400000;
 const MINUTE_MS = 60000;
@@ -171,14 +169,10 @@ export function attendanceMonth(db, staff, input) {
 function today(ctx) {
   const { db } = ctx;
   const mine = staffOfUser(db, ctx.user.id);
-  const checks = ctx.can('attendance.manage') ? waitingChecks(ctx) : null;
-  // What waits for this person: attendance checks, rota requests (to agree
-  // to or decide), leave to decide and tasks to check.
-  const waiting = { checks: checks ? checks.punches.length + checks.fixes.length : 0, rota: rotaWaiting(ctx), leave: leaveWaiting(ctx), tasks: tasksToCheck(ctx) };
-  if (!mine) return { staff: null, ...waiting };
+  if (!mine) return { staff: null };
   const [day] = daysFor(db, mine, [dhakaDate(db.now.getTime())]);
   const todays = day.punches.filter(counted).map((p) => ({ type: p.type, at: Date.parse(p.at) }));
-  return { staff: staffHeader(mine), day, next: nextType(todays), ...waiting };
+  return { staff: staffHeader(mine), day, next: nextType(todays) };
 }
 
 function board(ctx, { date }) {
@@ -191,7 +185,7 @@ function board(ctx, { date }) {
   return { date: day, rows };
 }
 
-function waitingChecks(ctx) {
+export function waitingChecks(ctx) {
   const { db } = ctx;
   const staff = new Map(db.all('Staff').map((s) => [s.id, s]));
   const allowed = (id) => staff.has(id) && mayDecide(ctx, staff.get(id));

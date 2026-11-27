@@ -49,10 +49,15 @@
 //   tasks.verify      check tasks that need a check
 //   separation.manage record and accept someone leaving, hand over their
 //                     tasks, complete it; issue experience and release letters
+//   announcements.manage  write announcements and see who read them
+//   responsibilities.manage  job descriptions and procedures, and who
+//                     acknowledged them
+//   performance.manage  performance reviews (a manager's are a shareholder's)
 //   acc.staffpay      staff pay kinds on the money screen (salary, food
 //                     allowance, bonus, advance, deduction)
 // Everyone works with their own punches, corrections, rota requests, leave,
-// payslips and tasks without a permission.
+// payslips, tasks, reviews, and reading what is addressed to them without a
+// permission.
 const PERMISSIONS = Object.freeze([
   'users.manage', 'audit.view', 'settings.manage',
   'acc.entry', 'acc.expense', 'acc.income', 'acc.dues', 'acc.loans', 'acc.transfer', 'acc.shareholders',
@@ -65,6 +70,7 @@ const PERMISSIONS = Object.freeze([
   'attendance.view', 'attendance.manage', 'schedule.view', 'schedule.manage', 'leave.approve', 'leave.adjust',
   'payroll.view', 'payroll.manage', 'acc.staffpay',
   'tasks.create', 'tasks.manage', 'tasks.view_all', 'tasks.verify', 'separation.manage',
+  'announcements.manage', 'responsibilities.manage', 'performance.manage',
 ]);
 
 // Staff never enter money, so the Staff role has no money permission.
@@ -78,6 +84,7 @@ export const ROLES = Object.freeze([
     'staff.view', 'staff.edit', 'staff.emergency', 'attendance.view', 'attendance.manage',
     'schedule.view', 'schedule.manage', 'leave.approve',
     'tasks.create', 'tasks.manage', 'tasks.view_all', 'tasks.verify', 'separation.manage',
+    'announcements.manage', 'responsibilities.manage', 'performance.manage',
   ] },
   { id: 'ROL-STAFF', key: 'staff', name: 'role.staff', level: 1, permissions: ['books.order', 'books.view', 'cafe.count'] },
 ]);

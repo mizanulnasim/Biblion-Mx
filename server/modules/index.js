@@ -27,6 +27,9 @@ import { LEAVE_HANDLERS } from './leave.js';
 import { PAYROLL_HANDLERS } from './payroll.js';
 import { TASK_HANDLERS } from './tasks.js';
 import { SEPARATION_HANDLERS } from './separation.js';
+import { DOC_HANDLERS } from './docs.js';
+import { PERFORMANCE_HANDLERS } from './performance.js';
+import { WAITING_HANDLERS } from './waiting.js';
 import { USER_HANDLERS } from './users.js';
 
 export const HANDLERS = Object.freeze({
@@ -55,5 +58,8 @@ export const HANDLERS = Object.freeze({
   ...PAYROLL_HANDLERS,
   ...TASK_HANDLERS,
   ...SEPARATION_HANDLERS,
+  ...DOC_HANDLERS,
+  ...PERFORMANCE_HANDLERS,
+  ...WAITING_HANDLERS,
   'sync.version': () => ({ areas: areaVersions() }),
 });

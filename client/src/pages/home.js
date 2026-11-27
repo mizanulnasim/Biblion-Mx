@@ -48,7 +48,12 @@ function attendanceView(att) {
     ${att.checks ? html`<a class="notice notice-warn" href="#/attendance">${icon('clock')}<span>${t('home.attendance_checks', { count: att.checks })}</span></a>` : ''}
     ${att.rota ? html`<a class="notice notice-warn" href="#/rota">${icon('daily')}<span>${t('home.rota_waiting', { count: att.rota })}</span></a>` : ''}
     ${att.leave ? html`<a class="notice notice-warn" href="#/leave">${icon('badge')}<span>${t('home.leave_waiting', { count: att.leave })}</span></a>` : ''}
-    ${att.tasks ? html`<a class="notice notice-warn" href="#/tasks">${icon('check')}<span>${t('home.tasks_to_check', { count: att.tasks })}</span></a>` : ''}`;
+    ${att.tasks ? html`<a class="notice notice-warn" href="#/tasks">${icon('check')}<span>${t('home.tasks_to_check', { count: att.tasks })}</span></a>` : ''}
+    ${att.reviews ? html`<a class="notice notice-warn" href="#/reviews">${icon('badge')}<span>${t('home.reviews_waiting', { count: att.reviews })}</span></a>` : ''}
+    ${att.docs ? html`
+      ${att.docs.pinned.map((d) => html`<a class="notice ${d.read ? '' : 'notice-warn'}" href="#/notices">${icon('log')}<span><strong>${d.title}</strong></span></a>`)}
+      ${att.docs.unread ? html`<a class="notice" href="#/notices">${icon('log')}<span>${t('home.unread', { count: att.docs.unread })}</span></a>` : ''}
+      ${att.docs.to_ack ? html`<a class="notice notice-warn" href="#/notices">${icon('check')}<span>${t('home.to_ack', { count: att.docs.to_ack })}</span></a>` : ''}` : ''}`;
 }
 
 // The person's open tasks up to today.
@@ -103,10 +108,14 @@ export const homePage = {
       }
       draw();
     };
+    // The punch card (for people with a staff record) and what waits for them.
     const loadAttendance = async () => {
-      if (!can('self.staff|attendance.manage|schedule.manage|leave.approve')) return;
       try {
-        att = (await read('attendance.today')).data;
+        const [today, waiting] = await Promise.all([
+          can('self.staff') ? read('attendance.today').then((r) => r.data) : {},
+          read('people.waiting').then((r) => r.data),
+        ]);
+        att = { ...today, ...waiting };
       } catch (err) {
         att = { error: errorText(err) };
       }

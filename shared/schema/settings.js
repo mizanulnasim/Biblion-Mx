@@ -83,6 +83,10 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   // Leaving: the notice expected (days), whether notice short of it is
   // taken from the final pay, and whether unused leave is paid out
   // ('always', 'never', or 'ask': a shareholder decides each time).
+  // Performance reviews: what each person is scored on (1–5), and whether
+  // they give their own view first.
+  'performance.criteria': ['Punctuality', 'Task completion', 'Work quality', 'Teamwork', 'Customer care'],
+  'performance.self_assessment': true,
   'separation.notice_days': 30,
   'separation.notice_deduct': true,
   'separation.leave_encash': 'ask',

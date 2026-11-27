@@ -38,6 +38,7 @@ const PLACE = {
   accuracy: { type: 'number', min: 0, max: 100000 },
 };
 const SIGNATURE = { type: 'text', required: true, max: 64 };
+const SCORE_LINES = { type: 'list', max: 12, of: { score: { type: 'int', min: 1, max: 5 }, note: { type: 'text', max: 500 } } };
 const LEAVE_DAYS = { type: 'number', min: 0, max: 365 };
 const LETTER_TEXT = { type: 'text', required: true, max: 4000 };
 const TASK_FIELDS = {
@@ -731,5 +732,41 @@ export const ACTIONS = Object.freeze({
       conduct: { type: 'text', max: 500 },
       shop_address: { type: 'text', max: 300 },
     },
+  },
+  // ---- Announcements, procedures, reviews ----
+  'docs.mine': { cache: true },
+  'docs.mark': { write: true, area: 'hr', schema: { id: { type: 'id', required: true }, ack: { type: 'bool' } } },
+  'docs.manage': { schema: { kind: { type: 'enum', required: true, values: ['announcement', 'procedures'] } } },
+  'docs.save': {
+    write: true, area: 'hr',
+    schema: {
+      id: { type: 'id' },
+      version: { type: 'int', min: 1 },
+      kind: { type: 'enum', required: true, values: ['announcement', 'jd', 'sop'] },
+      title: { type: 'text', required: true, max: 150 },
+      body: { type: 'text', required: true, max: 8000 },
+      audience: { type: 'enum', required: true, values: ['everyone', 'staff', 'managers', 'people'] },
+      staff_ids: { type: 'list', max: 100, of: { id: { type: 'id', required: true } } },
+      needs_ack: { type: 'bool' },
+      show_until: { type: 'date' },
+      status: { type: 'enum', required: true, values: ['active', 'archived'] },
+    },
+  },
+  'reviews.list': {},
+  'people.waiting': { cache: true },
+  'reviews.start': {
+    write: true, perm: 'performance.manage', area: 'hr',
+    schema: { staff_id: { type: 'id', required: true }, from: { type: 'date', required: true }, to: { type: 'date', required: true } },
+  },
+  'reviews.self': { write: true, area: 'hr', schema: { id: { type: 'id', required: true }, lines: SCORE_LINES } },
+  'reviews.score': {
+    write: true, perm: 'performance.manage', area: 'hr',
+    schema: { id: { type: 'id', required: true }, version: { type: 'int', min: 1 }, lines: SCORE_LINES, summary: { type: 'text', max: 2000 }, share: { type: 'bool' } },
+  },
+  'reviews.ack': { write: true, area: 'hr', schema: { id: { type: 'id', required: true }, comment: { type: 'text', max: 1000 } } },
+  'settings.reviews': { perm: 'settings.manage' },
+  'settings.reviews.save': {
+    write: true, perm: 'settings.manage', area: 'hr',
+    schema: { criteria: { type: 'list', max: 12, of: { name: { type: 'text', max: 60 } } }, self_assessment: { type: 'bool' } },
   },
 });

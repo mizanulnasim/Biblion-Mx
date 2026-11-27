@@ -50,7 +50,7 @@ test('done, checked, sent back; nobody checks their own', () => {
   const id = s.call(s.manager, 'tasks.create', { title: 'Shelve new arrivals', staff_id: s.ids.sumi, due_date: today(), needs_check: true }).data.record_id;
   assert.equal(s.call(s.manager, 'tasks.complete', { id }).data.error.code, 'NOT_FOUND');
   assert.equal(s.call(s.staff, 'tasks.complete', { id, note: 'All on the new shelf' }).data.data.status, 'to_check');
-  assert.equal(s.call(s.manager, 'attendance.today').data.tasks, 1);
+  assert.equal(s.call(s.manager, 'people.waiting').data.tasks, 1);
   assert.equal(s.call(s.manager, 'tasks.verify', { id, decision: 'reject' }).data.error.fields.note.code, 'val.required');
   s.call(s.manager, 'tasks.verify', { id, decision: 'reject', note: 'Poetry is on the wrong shelf' });
   const back = mine(s, s.staff).find((t) => t.id === id);
