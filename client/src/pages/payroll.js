@@ -155,13 +155,13 @@ function monthTable(data) {
     <thead><tr><th scope="col">${t('users.name')}</th><th scope="col">${t('hr.salary')}</th><th scope="col">${t('pay.days')}</th><th scope="col">${t('pay.unpaid_days')}</th><th scope="col">${t('pay.net')}</th><th scope="col">${t('pay.paid')}</th><th scope="col">${t('pay.to_pay')}</th></tr></thead>
     <tbody>${data.rows.map((r) => html`<tr data-act="slip" data-id="${r.staff.id}" tabindex="0">
       <td data-label="${t('users.name')}"><span><strong>${r.staff.name}</strong> ${r.issued ? chip(t('pay.issued_chip'), 'ok') : chip(t('pay.draft'), 'muted')}
-        ${r.overdue ? chip(t('pay.overdue'), 'danger') : ''}</span></td>
+        ${r.overdue ? chip(t(r.issued ? 'pay.overdue' : 'pay.overdue_not_issued'), 'danger') : ''}</span></td>
       <td data-label="${t('hr.salary')}" class="num"><span>${money(r.slip.salary)}</span></td>
       <td data-label="${t('pay.days')}" class="num"><span>${t('pay.days_of', { days: r.slip.employed_days, of: r.slip.month_days })}</span></td>
       <td data-label="${t('pay.unpaid_days')}" class="num"><span>${t('pay.unpaid_summary', { leave: r.slip.unpaid_leave_days, absent: r.slip.absent_days })}</span></td>
       <td data-label="${t('pay.net')}" class="num"><span><strong>${money(r.slip.net)}</strong></span></td>
       <td data-label="${t('pay.paid')}" class="num"><span>${money(r.paid)}</span></td>
-      <td data-label="${t('pay.to_pay')}" class="num"><span>${r.issued ? money(r.to_pay) : '—'}</span></td>
+      <td data-label="${t('pay.to_pay')}" class="num"><span>${r.issued || r.overdue ? money(r.to_pay) : '—'}</span></td>
     </tr>`)}</tbody></table></div>`;
 }
 
@@ -196,7 +196,7 @@ export const payrollPage = {
         month = data.month;
         render(el, html`<div class="list-bar"><label class="field-inline">${t('hr.month')} <input type="month" data-role="month" value="${month}" max="${data.current}"></label></div>
           <section class="panel"><h2 class="section-title">${t('pay.payslips', { month: monthName(month) })}</h2>
-            <p class="help">${periodText(data)} · ${t('pay.payslips_help')}</p>${monthTable(data)}</section>
+            <p class="help">${periodText(data)} · ${t('pay.due_by', { date: dateShort(`${data.due_by}T06:00:00Z`) })} · ${t('pay.payslips_help')}</p>${monthTable(data)}</section>
           <section class="panel"><h2 class="section-title">${t('pay.accounts')}</h2><p class="help">${t('pay.accounts_help')}</p>${data.rows.length ? accountsTable(data) : emptyState(t('pay.nobody'))}</section>`);
       } catch (err) {
         render(el, errorBox(errorText(err)));

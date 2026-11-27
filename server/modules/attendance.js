@@ -11,7 +11,7 @@
 import { AppError } from '../../shared/contract/errors.js';
 import { saved } from '../../shared/contract/reply.js';
 import {
-  COUNTED, OFFLINE_AFTER_MS, daySummary, dhakaDate, dhakaIso, dhakaMinutes, distanceM, nextTypes, outsideHours, punchMoment, punchText,
+  COUNTED, OFFLINE_AFTER_MS, daySummary, dhakaDate, dhakaIso, dhakaMinutes, distanceM, nextTypes, outsideHours, punchMoment, punchText, timeMinutes,
 } from '../../shared/hr/attendance.js';
 import { BUSINESS_DEFAULTS } from '../../shared/schema/settings.js';
 import { setting } from '../kernel/settings.js';
@@ -96,7 +96,14 @@ function recordPunch(ctx, staff, p, source, deviceId) {
   if (Math.abs(skewMs) > rules.clock_skew_flag_min * MINUTE_MS) flags.push('skew');
   // Outside the shop's hours: a manager checks it.
   if (outsideHours(at, rules.shop_open, rules.shop_close)) flags.push('hours');
-  const check = flags.includes('outside') || flags.includes('no_location') || flags.includes('hours') || (offline && !rules.offline_auto_validate);
+  // Out straight from a break before the shift's end: a manager checks it.
+  if (p.type === 'out') {
+    const before = mine.filter((x) => x.date === date && Date.parse(x.at) <= at).sort((a, b) => (a.at < b.at ? -1 : 1));
+    const plan = planner(db).plan(staff, date);
+    const early = plan.kind === 'work' && plan.end && dhakaMinutes(at) < timeMinutes(plan.end);
+    if (before.length && before[before.length - 1].type === 'break' && early) flags.push('break_out');
+  }
+  const check = ['outside', 'no_location', 'hours', 'break_out'].some((f) => flags.includes(f)) || (offline && !rules.offline_auto_validate);
   const row = db.insert('Punches', {
     staff_id: staff.id, date, type: p.type, at: new Date(at).toISOString(), device_ts: p.device_ts, source, device_id: deviceId || '',
     lat: p.lat, lng: p.lng, accuracy: p.accuracy, distance_m: distance, flags, reason: p.reason || '', status: check ? 'check' : 'ok',

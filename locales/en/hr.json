@@ -184,7 +184,6 @@
   "err.leave_balance": "Not enough leave: {balance} days left after waiting requests, and this needs {days}. Ask for unpaid leave instead.",
   "err.overlap": "There is already a request or leave for these dates.",
   "err.notice": "This needs to be asked at least {days, plural, one {# day} other {# days}} ahead.",
-  "err.rest": "That leaves less than {hours} hours' rest between days.",
   "err.no_days": "There are no working days in this to change.",
   "val.date_order": "The last day can't be before the first.",
   "val.days_ahead": "Choose a day from tomorrow up to {days} days ahead.",
@@ -307,9 +306,12 @@
   "hr.punch_back": "Back from break",
   "hr.flag.hours": "Outside shop hours",
   "hr.on_breaks": "Breaks {time}",
-  "err.on_break": "You're on a break since {time}. Tap \"Back from break\" first.",
+  "err.on_break": "You're on a break since {time}. Tap \"Back from break\" or \"Punch out\".",
   "err.not_on_break": "You're not on a break.",
   "hr.shop_open": "Shop opens",
   "hr.shop_close": "Shop closes",
-  "hr.shop_hours_help": "A punch outside these hours waits for a manager's check."
+  "hr.shop_hours_help": "A punch outside these hours waits for a manager's check.",
+  "rota.rest_before": "Only {hours} hours' rest after the shift on {date}.",
+  "rota.rest_after": "Only {hours} hours' rest before the shift on {date}.",
+  "hr.flag.break_out": "Left from a break before the shift's end"
 }

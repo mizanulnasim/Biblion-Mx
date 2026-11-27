@@ -31,9 +31,10 @@ async function loadStaff(kiosk) {
 }
 
 function pinDialog(person, onPunch) {
-  // The usual punches, and "in" or "out" too: the list may be behind when
-  // the device was offline.
-  const types = [...person.next, ...(person.next.includes('in') ? ['out'] : ['in'])];
+  // The usual punches, and "in" or "out" too (the list may be behind when
+  // the device was offline); on a break, just back or out.
+  const extra = person.next.includes('in') ? 'out' : 'in';
+  const types = [...person.next, ...(person.next.includes('back') ? [] : [extra])];
   const dialog = formDialog(person.name, html`<form class="form kiosk-pin" novalidate>
     <div class="field"><label for="f-pin">${t('hr.pin')}</label>
       <input id="f-pin" name="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="6" required autofocus></div>

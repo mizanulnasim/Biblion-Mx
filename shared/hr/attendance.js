@@ -86,7 +86,8 @@ export function daySummary({ date, plan, punches, nowMs, rules }) {
     waiting: sorted.some((p) => p.status === 'check'),
   };
   // Worked time: each "in" to the next "out", breaks included (they are
-  // paid); break time: each "break" to the next "back" (or "out").
+  // paid); break time: each "break" to the next "back" or "out". A break
+  // never ended is not counted.
   let openAt = null;
   let breakAt = null;
   for (const p of sorted) {
@@ -125,10 +126,11 @@ export function daySummary({ date, plan, punches, nowMs, rules }) {
 }
 
 // The punches that may come after one of `type` (none yet: ''), the usual
-// one first: in; then out or a break; after a break, back.
+// one first: in; then out or a break; after a break, back or out (which ends
+// the break: owner decision).
 export function typesAfter(type) {
   if (type === 'in' || type === 'back') return ['out', 'break'];
-  if (type === 'break') return ['back'];
+  if (type === 'break') return ['back', 'out'];
   return ['in'];
 }
 

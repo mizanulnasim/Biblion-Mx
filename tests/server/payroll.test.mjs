@@ -27,16 +27,6 @@ function payroll() {
   return s;
 }
 
-// Sets a stored value, as if the row were written earlier.
-function ageRow(s, table, id, column, value) {
-  for (const book of Object.values(s.state.books)) {
-    const sheet = book.sheets[table];
-    if (!sheet) continue;
-    const head = sheet.cells[0];
-    for (const r of sheet.cells.slice(1)) if (r[head.indexOf('id')] === id) r[head.indexOf(column)] = value;
-  }
-}
-
 const pay = (s, fields) => s.call(s.owner, 'money.save', { date: today(), account_id: s.ids.cash, party_id: s.ids.sumi, ...fields }).data;
 const row = (s, month, name) => s.call(s.owner, 'payroll.month', { month }).data.rows.find((r) => r.staff.name === name);
 
@@ -157,12 +147,20 @@ test('unpaid leave cut is chosen when paying; an unpaid month is overdue after t
   const issued = s.call(s.owner, 'payroll.issue', { staff_id: s.ids.sumi, month, unpaid_leave_days: 0, unpaid_absent_days: 0, note: 'Leave agreed as paid' }).data;
   assert.equal(issued.data.net, 12000);
   const sumi = row(s, month, 'Sumi');
-  assert.deepEqual([sumi.slip.leave_days, sumi.slip.unpaid_leave_days, sumi.overdue], [1, 0, false]);
-  // Issued 8 days ago and not paid: overdue after the default 7 days.
-  ageRow(s, 'Payslips', issued.record_id, 'issued_at', new Date(Date.now() - 8 * DAY).toISOString());
+  assert.deepEqual([sumi.slip.leave_days, sumi.slip.unpaid_leave_days], [1, 0]);
+  // Last calendar month ended before today; with 0 days allowed it is overdue,
+  // with the amount left, for payroll and for the person.
+  s.call(s.owner, 'settings.payroll.save', { ...s.call(s.owner, 'settings.payroll').data, overdue_days: 0 });
   assert.equal(row(s, month, 'Sumi').overdue, true);
+  const mine = s.call(s.staff, 'payroll.mine').data.overdue;
+  assert.deepEqual(mine.find((o) => o.month === month), { month, due_by: `${month}-${String(daysIn(month)).padStart(2, '0')}`, left: 12000, issued: true });
+  // Not issued (Rafi's): overdue all the same.
+  assert.equal(row(s, month, 'Rafi').overdue, true);
   assert.equal(s.call(s.owner, 'people.waiting').data.salary >= 1, true);
-  pay(s, { kind: 'salary_paid', amount: 12000, period: month });
+  pay(s, { kind: 'salary_paid', amount: 10000, period: month });
+  assert.equal(row(s, month, 'Sumi').to_pay, 2000);
+  assert.equal(row(s, month, 'Sumi').overdue, true);
+  pay(s, { kind: 'salary_paid', amount: 2000, period: month });
   assert.equal(row(s, month, 'Sumi').overdue, false);
 });
 

@@ -32,7 +32,6 @@ const ERRORS = Object.freeze({
   LEAVE_BALANCE: 'err.leave_balance',
   OVERLAP: 'err.overlap',
   NOTICE: 'err.notice',
-  REST: 'err.rest',
   NO_DAYS: 'err.no_days',
   PAYSLIPS_MISSING: 'err.payslips_missing',
 });

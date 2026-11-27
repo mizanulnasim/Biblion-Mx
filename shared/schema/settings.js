@@ -80,8 +80,8 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   // Payroll, payslips and month reports follow it.
   'accounting.month_start_day': 11,
   // Payroll: a day's pay is the salary ÷ the days in that accounting month
-  // ('period_days') or ÷ 30 ('fixed_30'). A payslip not paid this many
-  // days after it is issued is overdue.
+  // ('period_days') or ÷ 30 ('fixed_30'). A month's salary not paid this
+  // many days after the month ends is overdue, issued or not.
   'payroll.unpaid_divisor': 'period_days',
   'payroll.overdue_days': 7,
   // Food allowance a day, from each date on; earned on every day employed

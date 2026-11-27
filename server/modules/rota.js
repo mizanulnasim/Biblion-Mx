@@ -6,8 +6,8 @@
 
 import { AppError } from '../../shared/contract/errors.js';
 import { saved } from '../../shared/contract/reply.js';
-import { addDays, datesBetween, dayPlan, restHours, rotaPlan } from '../../shared/hr/plan.js';
-import { dhakaDate } from '../../shared/hr/attendance.js';
+import { addDays, datesBetween, dayPlan, rotaPlan } from '../../shared/hr/plan.js';
+import { COUNTED, dhakaDate, dhakaIso } from '../../shared/hr/attendance.js';
 import { setting } from '../kernel/settings.js';
 import { mayDecideFor, staffOfUser } from './staff.js';
 
@@ -56,12 +56,65 @@ function asRow(plan) {
   return { mode: 'hours', start: plan.start, end: plan.end, shift_id: plan.shift_id || '' };
 }
 
-function requestView(db, r, names) {
+// Too little rest around working `start`–`end` on `date` (a warning, never a
+// block: owner decision): after the day before ends (its last punch out, else
+// its planned end) and before the day after starts (its first punch in, else
+// its planned start). [{side: before|after, date, hours}]
+const HOUR_MS = 3600000;
+function shortRest(db, staff, date, start, end, p = planner(db)) {
+  const rest = setting(db, 'selection.min_rest_hours');
+  const punches = db.all('Punches').filter((x) => x.staff_id === staff.id && COUNTED.includes(x.status));
+  const at = (d, type, pick) => {
+    const times = punches.filter((x) => x.date === d && x.type === type).map((x) => Date.parse(x.at));
+    return times.length ? pick(...times) : null;
+  };
+  const planned = (d, field) => {
+    const plan = p.plan(staff, d);
+    return plan.kind === 'work' && plan[field] ? Date.parse(dhakaIso(d, plan[field])) : null;
+  };
+  const out = [];
+  const before = addDays(date, -1);
+  const prevEnd = at(before, 'out', Math.max) ?? planned(before, 'end');
+  if (prevEnd !== null) {
+    const hours = (Date.parse(dhakaIso(date, start)) - prevEnd) / HOUR_MS;
+    if (hours < rest) out.push({ side: 'before', date: before, hours: Math.round(hours * 10) / 10 });
+  }
+  const after = addDays(date, 1);
+  const nextStart = at(after, 'in', Math.min) ?? planned(after, 'start');
+  if (nextStart !== null) {
+    const hours = (nextStart - Date.parse(dhakaIso(date, end))) / HOUR_MS;
+    if (hours < rest) out.push({ side: 'after', date: after, hours: Math.round(hours * 10) / 10 });
+  }
+  return out;
+}
+
+function requestView(db, r, names, p) {
+  const shift = r.shift_id ? db.get('Shifts', r.shift_id) : null;
   return {
     id: r.id, kind: r.kind, staff_id: r.staff_id, staff_name: names.get(r.staff_id) || '', date: r.date, other_date: r.other_date,
-    partner_id: r.partner_id, partner_name: names.get(r.partner_id) || '', shift: r.shift_id ? (db.get('Shifts', r.shift_id) || {}).name : '',
+    partner_id: r.partner_id, partner_name: names.get(r.partner_id) || '', shift: shift ? shift.name : '',
     reason: r.reason, status: r.status, decide_note: r.decide_note, created_at: r.created_at,
+    rest: shift && r.status === 'waiting' ? shortRest(db, db.get('Staff', r.staff_id), r.date, shift.start, shift.end, p) : [],
   };
+}
+
+// The rest warnings a day's setting would bring, before it is saved. value:
+// 'usual', 'off' or a shift's id. Staff may ask only about themselves.
+function restPreview(ctx, { staff_id: staffId, date, value }) {
+  const { db } = ctx;
+  const mine = staffOfUser(db, ctx.user.id);
+  const staff = staffId ? db.get('Staff', staffId) : mine;
+  if (!staff || (staff !== mine && !ctx.can('schedule.manage'))) throw new AppError('NOT_FOUND');
+  const hours = dayHours(db, staff, value);
+  return { rest: hours ? shortRest(db, staff, date, hours.start, hours.end) : [] };
+}
+
+// The hours a value gives: a shift's, or the person's usual ones; none for a day off.
+function dayHours(db, staff, value) {
+  if (value === 'off') return null;
+  if (value === 'usual') return staff.work_start ? { start: staff.work_start, end: staff.work_end } : null;
+  const shift = db.get('Shifts', value);
+  return shift ? { start: shift.start, end: shift.end } : null;
 }
 
 function week(ctx, input) {
@@ -86,7 +139,7 @@ function week(ctx, input) {
     // Colleagues to swap with: everyone working, by name only.
     colleagues: mine ? db.all('Staff').filter((s) => s.status === 'active' && s.id !== mine.id).map((s) => ({ id: s.id, name: s.name })) : [],
     rows: people.map((s) => ({ staff: { id: s.id, name: s.name, work_start: s.work_start, work_end: s.work_end }, days: dates.map((d) => ({ date: d, ...p.plan(s, d) })) })),
-    requests: requests.map((r) => requestView(db, r, names)),
+    requests: requests.map((r) => requestView(db, r, names, p)),
     rules: { self_select: setting(db, 'rota.self_select'), advance_days: setting(db, 'selection.advance_days'), min_notice_days: setting(db, 'exchange.min_notice_days') },
   };
 }
@@ -97,12 +150,13 @@ function setDay(ctx, { staff_id: staffId, date, value }) {
   if (!db.get('Staff', staffId)) throw new AppError('NOT_FOUND');
   if (value === 'usual' || value === 'off') {
     setRow(db, staffId, date, { mode: value, source: 'manager' });
-    return saved(null);
+  } else {
+    const shift = db.get('Shifts', value);
+    if (!shift || shift.status !== 'active') throw fieldError('value', 'val.not_found');
+    setRow(db, staffId, date, { mode: 'hours', start: shift.start, end: shift.end, shift_id: shift.id, source: 'manager' });
   }
-  const shift = db.get('Shifts', value);
-  if (!shift || shift.status !== 'active') throw fieldError('value', 'val.not_found');
-  setRow(db, staffId, date, { mode: 'hours', start: shift.start, end: shift.end, shift_id: shift.id, source: 'manager' });
-  return saved(null);
+  const hours = dayHours(db, db.get('Staff', staffId), value);
+  return saved(null, { rest: hours ? shortRest(db, db.get('Staff', staffId), date, hours.start, hours.end) : [] });
 }
 
 function saveShift(ctx, input) {
@@ -156,16 +210,10 @@ function ask(ctx, input) {
     if (input.date <= now || input.date > addDays(now, ahead)) throw fieldError('date', 'val.days_ahead', { days: ahead });
     const shift = input.shift_id ? db.get('Shifts', input.shift_id) : null;
     if (!shift || shift.status !== 'active') throw fieldError('shift_id', 'val.required');
-    // Enough rest after the day before and before the day after.
-    const rest = setting(db, 'selection.min_rest_hours');
-    const before = p.plan(me, addDays(input.date, -1));
-    const after = p.plan(me, addDays(input.date, 1));
-    const short = (before.kind === 'work' && before.end && restHours(before.end, shift.start) < rest)
-      || (after.kind === 'work' && after.start && restHours(shift.end, after.start) < rest);
-    if (short) throw new AppError('REST', { hours: rest });
-    // Every choice waits for a manager or a shareholder (owner decision).
+    // Every choice waits for a manager or a shareholder (owner decision);
+    // too little rest is only a warning, shown to both.
     const row = db.insert('Rota_Requests', { ...base, shift_id: shift.id, status: 'waiting' });
-    return saved(row.id, { final: false });
+    return saved(row.id, { final: false, rest: shortRest(db, me, input.date, shift.start, shift.end, p) });
   }
 
   if (input.kind === 'swap') {
@@ -262,6 +310,7 @@ function saveHoliday(ctx, input) {
 export const ROTA_HANDLERS = {
   'rota.week': week,
   'rota.set': setDay,
+  'rota.rest': restPreview,
   'rota.shift.save': saveShift,
   'rota.request': ask,
   'rota.answer': answer,

@@ -120,7 +120,10 @@
   "val.payslip_issued": "The payslip for {month} is already issued. Cancel it first to change the salary from then.",
   "pay.set.month_start": "The accounting month starts on day",
   "pay.set.month_start_help": "Payroll, payslips and month reports run from this day to the day before it next month. 1 is the calendar month.",
-  "pay.set.overdue_days": "A salary is overdue this many days after its payslip is issued",
+  "pay.set.overdue_days": "A salary is overdue this many days after the month ends",
   "money.field.instalment": "Repaid in instalments of (Tk a month)",
-  "money.instalment_help": "Leave empty to take it back all at once. Each month the instalment is suggested as a deduction."
+  "money.instalment_help": "Leave empty to take it back all at once. Each month the instalment is suggested as a deduction.",
+  "pay.overdue_mine": "Your salary for {month} is late: {amount} still to be paid (due by {date}).",
+  "pay.overdue_not_issued": "Overdue: the payslip isn't issued yet",
+  "pay.due_by": "Due by {date}"
 }

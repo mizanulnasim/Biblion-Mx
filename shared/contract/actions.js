@@ -583,6 +583,8 @@ export const ACTIONS = Object.freeze({
     // value: 'usual', 'off', or a shift's id
     schema: { staff_id: { type: 'id', required: true }, date: { type: 'date', required: true }, value: { type: 'text', required: true, max: 30 } },
   },
+  // The short-rest warnings a day's setting would bring (staff: only their own).
+  'rota.rest': { schema: { staff_id: { type: 'id' }, date: { type: 'date', required: true }, value: { type: 'text', required: true, max: 30 } } },
   'rota.shift.save': {
     write: true, perm: 'schedule.manage', area: 'hr',
     schema: {

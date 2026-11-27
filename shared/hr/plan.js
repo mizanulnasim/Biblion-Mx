@@ -5,7 +5,6 @@
 //   4. their usual hours and weekly days off
 // A holiday when the shop stays open keeps the rota; it is only named.
 
-import { timeMinutes } from './attendance.js';
 
 // Day of the week of a date: 0 Sunday … 6 Saturday.
 function weekday(date) {
@@ -46,9 +45,4 @@ export function dayPlan(rota, { leave = null, holiday = null, closed = false } =
   if (leave) return { ...rota, ...named, kind: 'leave', leave_kind: leave.kind };
   if (holiday && closed) return { ...rota, ...named, kind: 'holiday' };
   return { ...rota, ...named };
-}
-
-// Hours between one day's end and the next day's start.
-export function restHours(prevEnd, nextStart) {
-  return (24 * 60 - timeMinutes(prevEnd) + timeMinutes(nextStart)) / 60;
 }

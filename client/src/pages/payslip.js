@@ -85,6 +85,7 @@ export const myPayPage = {
         render(el, html`${staleNotice(cachedAt)}
           <section class="panel">
             <h2 class="section-title">${t('pay.my_account')}</h2>
+            ${data.overdue.map((o) => html`<p class="notice notice-warn">${t('pay.overdue_mine', { month: monthName(o.month), amount: money(o.left), date: dateShort(`${o.due_by}T06:00:00Z`) })}</p>`)}
             <p class="leave-left"><strong>${t('pay.owed_to_you', { amount: money(a.owed) })}</strong></p>
             ${a.advance ? html`<p>${t('pay.advance_to_return', { amount: money(a.advance) })}</p>` : ''}
             <p class="muted">${t('pay.account_parts', { payslips: money(a.payslips), food: money(a.food_earned), salary: money(a.salary_paid), food_paid: money(a.food_paid), deductions: money(a.deductions) })}</p>

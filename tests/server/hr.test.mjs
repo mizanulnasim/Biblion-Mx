@@ -83,20 +83,34 @@ test('in, out, then in again moments later is a new punch, not a double tap', ()
   assert.deepEqual(s.call(s.staff, 'attendance.today').data.next, ['out', 'break']);
 });
 
-test('a break and back are recorded; out waits for back; a break is paid time', () => {
+test('a break and back are recorded; a break is paid time', () => {
   const s = hr();
   // Within the last two minutes, so none counts as kept on a phone.
   punch(s, s.staff, { device_ts: ago(1.9) });
   assert.equal(punch(s, s.staff, { type: 'back', device_ts: ago(1.7) }).error.code, 'NOT_ON_BREAK');
   assert.equal(punch(s, s.staff, { type: 'break', device_ts: ago(1.6) }).data.status, 'ok');
-  assert.deepEqual(s.call(s.staff, 'attendance.today').data.next, ['back']);
+  assert.deepEqual(s.call(s.staff, 'attendance.today').data.next, ['back', 'out']);
   assert.equal(s.call(s.staff, 'attendance.today').data.day.state, 'break');
-  assert.equal(punch(s, s.staff, { type: 'out', device_ts: ago(1) }).error.code, 'ON_BREAK');
+  assert.equal(punch(s, s.staff, { type: 'in', device_ts: ago(1) }).error.code, 'ON_BREAK');
   punch(s, s.staff, { type: 'back', device_ts: ago(0.9) });
   punch(s, s.staff, { type: 'out', device_ts: ago(0.5) });
   // In 1.9 to out 0.5 minutes ago: 1.4 minutes worked; break 0.7.
   const day = s.call(s.staff, 'attendance.today').data.day;
   assert.deepEqual([day.state, day.worked_min, day.break_min], ['out', 1, 1]);
+});
+
+test('out straight from a break ends it; before the shift\'s end a manager checks it', () => {
+  const s = hr();
+  // Today's hours run to 23:59, so leaving now is before the end.
+  const allDay = s.call(s.manager, 'rota.shift.save', { name: 'All day', start: '00:00', end: '23:59', status: 'active' }).data.record_id;
+  s.call(s.manager, 'rota.set', { staff_id: s.ids.staff_rec, date: new Date(Date.now() + 6 * 3600000).toISOString().slice(0, 10), value: allDay });
+  punch(s, s.staff, { device_ts: ago(1.5) });
+  punch(s, s.staff, { type: 'break', device_ts: ago(1) });
+  const out = punch(s, s.staff, { type: 'out', device_ts: ago(0.5) });
+  assert.equal(out.data.status, 'check');
+  assert.deepEqual(s.call(s.manager, 'attendance.checks').data.punches[0].flags, ['break_out']);
+  const day = s.call(s.staff, 'attendance.today').data.day;
+  assert.deepEqual([day.state, day.break_min], ['out', 1]);
 });
 
 test('a punch outside the shop\'s hours waits for a manager\'s check', () => {

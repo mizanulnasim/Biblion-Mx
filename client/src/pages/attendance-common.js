@@ -27,7 +27,7 @@ const STATE = {
 };
 const PUNCH_STATUS = { ok: '', check: ['hr.punch.check', 'warn'], rejected: ['hr.punch.rejected', 'danger'], replaced: ['hr.punch.replaced', 'muted'] };
 const FIX_STATUS = { waiting: ['hr.fix.waiting', 'warn'], approved: ['hr.fix.approved', 'ok'], declined: ['hr.fix.declined', 'danger'], withdrawn: ['hr.fix.withdrawn', 'muted'] };
-const FLAG = { outside: 'hr.flag.outside', no_location: 'hr.flag.no_location', offline: 'hr.flag.offline', skew: 'hr.flag.skew', hours: 'hr.flag.hours' };
+const FLAG = { outside: 'hr.flag.outside', no_location: 'hr.flag.no_location', offline: 'hr.flag.offline', skew: 'hr.flag.skew', hours: 'hr.flag.hours', break_out: 'hr.flag.break_out' };
 const SOURCE = { phone: 'hr.source.phone', device: 'hr.source.device', fix: 'hr.source.fix' };
 export const TYPE = { in: 'hr.type.in', break: 'hr.type.break', back: 'hr.type.back', out: 'hr.type.out' };
 // The button for each kind of punch.
@@ -185,7 +185,7 @@ export function punchCard(todayData) {
       ${stateChip(day.state)}
       <span class="muted">${dayFacts(day) || planText(day.plan)}</span>
     </div>
-    <div class="form-actions">${next.map((type, i) => html`<button type="button" class="btn ${i ? '' : 'btn-primary'} btn-large" data-act="punch" data-type="${type}">
+    <div class="form-actions">${next.map((type, i) => html`<button type="button" class="btn ${i ? '' : 'btn-primary btn-large'}" data-act="punch" data-type="${type}">
       ${t(PUNCH_BUTTON[type])}</button>`)}</div>
   </section>`;
 }

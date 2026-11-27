@@ -3,7 +3,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { earnedLeave, leaveDays } from '../../shared/hr/leave.js';
-import { restHours } from '../../shared/hr/plan.js';
 
 const RULES = { rate: 1.5, probation_months: 3 };
 
@@ -31,9 +30,4 @@ test('leave is counted in working days or calendar days', () => {
   const plans = [{ kind: 'work' }, { kind: 'off' }, { kind: 'holiday' }, { kind: 'work' }];
   assert.equal(leaveDays(plans, 'working'), 2);
   assert.equal(leaveDays(plans, 'calendar'), 4);
-});
-
-test('rest between one day\'s end and the next day\'s start', () => {
-  assert.equal(restHours('22:00', '06:00'), 8);
-  assert.equal(restHours('18:00', '10:00'), 16);
 });

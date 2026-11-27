@@ -52,7 +52,7 @@ test('a manager sets the rota; staff see only their own row', () => {
   assert.equal(s.call(s.staff, 'rota.set', { staff_id: s.ids.sumi, date: d, value: 'off' }).error.code, 'FORBIDDEN');
 });
 
-test('choosing a shift: within the days ahead, with enough rest, always confirmed by a manager', () => {
+test('choosing a shift: within the days ahead, always confirmed by a manager; short rest is only a warning', () => {
   const s = team();
   const d = nextWeekday(2, 2);
   // Every choice waits for a manager.
@@ -60,10 +60,19 @@ test('choosing a shift: within the days ahead, with enough rest, always confirme
   assert.equal(late.data.final, false);
   s.call(s.manager, 'rota.decide', { id: late.record_id, decision: 'accept' });
   assert.equal(dayOf(s, s.staff, d).shift, 'Late');
-  // Late ends at 23:00 and Morning starts at 07:00: 8 hours' rest, refused
-  // once 9 are needed.
+  // Late ends at 23:00 and Morning starts at 07:00: 8 hours' rest. With 9
+  // needed it is still sent, with a warning the person and the manager see.
   s.call(s.owner, 'settings.leave.save', { ...s.call(s.owner, 'settings.leave').data, min_rest_hours: 9 });
-  assert.equal(s.call(s.staff, 'rota.request', { kind: 'shift', date: plus(d, 1), shift_id: s.ids.morning }).data.error.code, 'REST');
+  assert.deepEqual(s.call(s.staff, 'rota.rest', { date: plus(d, 1), value: s.ids.morning }).data.rest, [{ side: 'before', date: d, hours: 8 }]);
+  const short = s.call(s.staff, 'rota.request', { kind: 'shift', date: plus(d, 1), shift_id: s.ids.morning }).data;
+  assert.deepEqual(short.data.rest, [{ side: 'before', date: d, hours: 8 }]);
+  assert.deepEqual(s.call(s.manager, 'rota.week', { from: d }).data.requests.find((r) => r.id === short.record_id).rest, [{ side: 'before', date: d, hours: 8 }]);
+  s.call(s.staff, 'rota.withdraw', { id: short.record_id });
+  // The day after is checked too: a Late shift the day before Morning.
+  s.call(s.manager, 'rota.set', { staff_id: s.ids.sumi, date: plus(d, 6), value: s.ids.morning });
+  const before = s.call(s.manager, 'rota.set', { staff_id: s.ids.sumi, date: plus(d, 5), value: s.ids.late }).data;
+  assert.deepEqual(before.data.rest, [{ side: 'after', date: plus(d, 6), hours: 8 }]);
+  assert.equal(s.call(s.staff, 'rota.rest', { staff_id: s.ids.rafi, date: d, value: s.ids.morning }).error.code, 'NOT_FOUND');
   assert.equal(s.call(s.staff, 'rota.request', { kind: 'shift', date: plus(today(), 30), shift_id: s.ids.morning }).data.error.fields.date.code, 'val.days_ahead');
   const morning = s.call(s.staff, 'rota.request', { kind: 'shift', date: plus(d, 3), shift_id: s.ids.morning }).data;
   assert.equal(morning.data.final, false);

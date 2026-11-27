@@ -28,6 +28,31 @@ const KIND_TONE = { work: '', off: 'muted', leave: 'muted', holiday: 'muted' };
 const shortDate = (date) => dateShort(`${date}T06:00:00Z`);
 const shiftLabel = (s) => `${s.name} ${t('hr.hours', { start: s.start, end: s.end })}`;
 
+// Short-rest warnings (never a block): [{side, date, hours}].
+function restNotes(rest) {
+  return rest.map((w) => html`<p class="notice notice-warn">${t(w.side === 'before' ? 'rota.rest_before' : 'rota.rest_after', { hours: w.hours, date: shortDate(w.date) })}</p>`);
+}
+
+// Shows the warnings for the form's current choice, as it changes.
+function watchRest(dialog, payload) {
+  const form = dialog.querySelector('form.form');
+  const slot = form.querySelector('.rest-notes');
+  const check = async () => {
+    const p = payload(form);
+    if (!p.date || !p.value) {
+      render(slot, '');
+      return;
+    }
+    try {
+      render(slot, restNotes((await read('rota.rest', p)).data.rest));
+    } catch {
+      render(slot, '');
+    }
+  };
+  form.addEventListener('change', check);
+  check();
+}
+
 function requestText(r) {
   if (r.kind === 'shift') return t('rota.req.shift', { name: r.staff_name, date: shortDate(r.date), shift: r.shift });
   if (r.kind === 'swap') return t('rota.req.swap', { name: r.staff_name, partner: r.partner_name, date: shortDate(r.date) });
@@ -41,6 +66,7 @@ function requestsView(week) {
     <ul class="waiting-list">${week.requests.map((r) => html`<li class="check-item">
       <span><strong>${requestText(r)}</strong> ${chip(t(REQUEST_STATUS[r.status][0]), REQUEST_STATUS[r.status][1])}</span>
       ${r.reason ? html`<span>“${r.reason}”</span>` : ''}
+      ${restNotes(r.rest)}
       ${r.decide_note ? html`<span class="muted">${t('hr.note', { note: r.decide_note })}</span>` : ''}
       <span class="check-actions">
         ${r.status === 'partner' && r.partner_id === week.me ? html`
@@ -99,6 +125,7 @@ function setDay(week, staffId, date, onDone) {
   const dialog = formDialog(t('rota.set_title', { name: row.staff.name, date: shortDate(date) }), formView({
     submit: t('common.save'),
     values: { value: current },
+    extra: html`<div class="rest-notes" aria-live="polite"></div>`,
     fields: [{
       name: 'value', label: t('rota.day'), type: 'select', required: true,
       options: [
@@ -108,6 +135,7 @@ function setDay(week, staffId, date, onDone) {
       ],
     }],
   }));
+  watchRest(dialog, (form) => ({ staff_id: staffId, date, value: form.elements.value.value }));
   saveWith(dialog, 'rota.set', {
     schema: ACTIONS['rota.set'].schema,
     mapValues: (v) => ({ ...v, staff_id: staffId, date }),
@@ -127,7 +155,11 @@ function askChange(week, kind, date, onDone) {
   if (kind === 'swap') fields.push({ name: 'partner_id', label: t('rota.partner'), type: 'select', required: true, placeholder: t('money.choose'), options: week.colleagues.map((c) => ({ value: c.id, label: c.name })), help: t('rota.swap_help') });
   if (kind === 'dayoff') fields.push({ name: 'other_date', label: t('rota.dayoff_to'), type: 'date', required: true, help: t('rota.dayoff_help', { days: week.rules.min_notice_days }) });
   fields.push({ name: 'reason', label: t('hr.fix_reason'), type: 'textarea' });
-  const dialog = formDialog(t(ASK[kind].title), formView({ submit: t('hr.send_fix'), values: { date: date || minDate(1) }, fields }));
+  const dialog = formDialog(t(ASK[kind].title), formView({
+    submit: t('hr.send_fix'), values: { date: date || minDate(1) }, fields,
+    extra: kind === 'shift' ? html`<div class="rest-notes" aria-live="polite"></div>` : '',
+  }));
+  if (kind === 'shift') watchRest(dialog, (form) => ({ date: form.elements.date.value, value: form.elements.shift_id.value }));
   saveWith(dialog, 'rota.request', {
     schema: ACTIONS['rota.request'].schema,
     mapValues: (v) => ({ kind, reason: v.reason, date: v.date, shift_id: v.shift_id || null, partner_id: v.partner_id || null, other_date: v.other_date || null }),

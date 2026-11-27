@@ -47,11 +47,11 @@ test('no punches: not in yet, absent after the end or on a past day, off on a da
   assert.equal(day('2026-11-27', [], at('2026-11-28', '09:00')).state, 'off');
 });
 
-test('the next punch: in; then out or a break; after a break, back', () => {
+test('the next punch: in; then out or a break; after a break, back or out', () => {
   assert.deepEqual(nextTypes([]), ['in']);
   assert.deepEqual(nextTypes([{ type: 'out', at: 2 }, { type: 'in', at: 1 }]), ['in']);
   assert.deepEqual(nextTypes([{ type: 'in', at: 1 }]), ['out', 'break']);
-  assert.deepEqual(nextTypes([{ type: 'in', at: 1 }, { type: 'break', at: 2 }]), ['back']);
+  assert.deepEqual(nextTypes([{ type: 'in', at: 1 }, { type: 'break', at: 2 }]), ['back', 'out']);
   assert.deepEqual(nextTypes([{ type: 'break', at: 2 }, { type: 'back', at: 3 }]), ['out', 'break']);
 });
 
@@ -67,6 +67,12 @@ test('a break is paid time and counted on its own; a break still open is "on a b
   const done = day('2026-11-24', [p('in', '10:00'), p('break', '13:00'), p('back', '13:30'), p('out', '18:00')], at('2026-11-24', '19:00'));
   assert.deepEqual([done.state, done.worked_min, done.break_min], ['out', 480, 30]);
   assert.equal(day('2026-11-24', [p('in', '10:00'), p('break', '13:00')], at('2026-11-24', '13:10')).state, 'break');
+  // Out straight from a break: the break ends there and is paid.
+  const left = day('2026-11-24', [p('in', '10:00'), p('break', '15:00'), p('out', '15:30')], at('2026-11-24', '19:00'));
+  assert.deepEqual([left.state, left.worked_min, left.break_min], ['out', 330, 30]);
+  // A break never ended: no punch out, and the open break isn't counted.
+  const open = day('2026-11-23', [p('in', '10:00'), p('break', '21:00')].map((x) => ({ ...x, at: x.at - 86400000 })), at('2026-11-24', '09:00'));
+  assert.deepEqual([open.state, open.break_min], ['incomplete', 0]);
 });
 
 test('a day\'s plan: leave first, then a closed holiday, then the rota, then usual hours', () => {

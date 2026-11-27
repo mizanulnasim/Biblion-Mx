@@ -6,7 +6,8 @@
 // and absent days a shareholder chooses to cut when paying
 // (shared/hr/pay.js). Until it is issued it is a draft that follows
 // attendance and leave; once issued its figures stay as they were. A
-// payslip not fully paid some days after it was issued is overdue.
+// month's salary not fully paid some days after the month ends is overdue,
+// issued or not (owner decision).
 // Advances may be repaid in instalments: the month's instalment is
 // suggested as a deduction. Food allowance is shown by week from Saturday.
 //
@@ -131,9 +132,13 @@ const slipView = (s) => ({
 const paidFor = (db, staffId, month) => db.all('Transactions')
   .filter((e) => counts(e) && e.kind === 'salary_paid' && e.party_id === staffId && e.period === month).reduce((t, e) => t + e.amount, 0);
 
-// Whether a payslip is overdue: some still to pay this many days after it
-// was issued.
-const overdue = (db, slip, toPay) => Boolean(slip) && toPay > 0 && today(db) > addDays(dhakaDate(Date.parse(slip.issued_at)), setting(db, 'payroll.overdue_days'));
+// The last day a month's salary may be paid: this many days after the
+// month ends (the 11 Nov – 10 Dec month is due by 17 Dec).
+const dueBy = (db, per) => addDays(per.to, setting(db, 'payroll.overdue_days'));
+// Whether a month's salary is overdue: some still to pay after it was due.
+const overdue = (db, per, toPay) => toPay > 0 && today(db) > dueBy(db, per);
+// How many accounting months back to look for overdue salaries.
+const OVERDUE_MONTHS = 12;
 
 // The month's payroll: everyone employed in it, with their draft or issued
 // payslip, what has been paid for the month (and whether it is overdue),
@@ -155,17 +160,39 @@ function monthView(ctx, input) {
       const toPay = Math.max(0, figures.net - paid);
       return {
         staff: { id: s.id, name: s.name, position: s.position, status: s.status }, issued: Boolean(slip), slip: figures,
-        paid, to_pay: toPay, overdue: overdue(db, slip, toPay), account: payAccount(db, s, p),
+        paid, to_pay: toPay, overdue: overdue(db, per, toPay), account: payAccount(db, s, p),
       };
     });
-  return { month, current: thisPeriod(db), period_from: per.from, period_to: per.to, rows };
+  return { month, current: thisPeriod(db), period_from: per.from, period_to: per.to, due_by: dueBy(db, per), rows };
 }
 
-// For Home: issued payslips whose salary is overdue.
+// The months before this one whose due date has passed, newest first.
+function pastDue(db) {
+  const startDay = setting(db, 'accounting.month_start_day');
+  const out = [];
+  let per = period(db, thisPeriod(db));
+  for (let i = 0; i < OVERDUE_MONTHS; i++) {
+    per = period(db, periodKey(addDays(per.from, -1), startDay));
+    if (today(db) > dueBy(db, per)) out.push(per);
+  }
+  return out;
+}
+
+// A person's overdue salaries: [{month, due_by, left, issued}].
+function overdueFor(db, staff, p) {
+  return pastDue(db).filter((per) => employedDates(per, joinedOn(staff), staff.left_on).length).map((per) => {
+    const slip = db.all('Payslips').find((s) => s.staff_id === staff.id && s.month === per.key && s.status === 'issued');
+    const net = slip ? slip.net : salaryChanges(db, staff).length ? draft(db, staff, per.key, p).net : 0;
+    return { month: per.key, due_by: dueBy(db, per), left: Math.max(0, net - paidFor(db, staff.id, per.key)), issued: Boolean(slip) };
+  }).filter((x) => x.left > 0);
+}
+
+// For Home: how many months' salaries are overdue, across everyone.
 export function salaryOverdue(ctx) {
   const { db } = ctx;
   if (!ctx.can('payroll.view')) return 0;
-  return db.all('Payslips').filter((s) => s.status === 'issued' && overdue(db, s, s.net - paidFor(db, s.staff_id, s.month))).length;
+  const p = planner(db);
+  return db.all('Staff').filter((s) => s.status === 'active' || s.left_on).reduce((n, s) => n + overdueFor(db, s, p).length, 0);
 }
 
 function issue(ctx, input) {
@@ -219,7 +246,7 @@ function mine(ctx) {
   const me = staffOfUser(db, ctx.user.id);
   if (!me) throw new AppError('NO_STAFF');
   const slips = db.all('Payslips').filter((s) => s.staff_id === me.id && s.status === 'issued').sort((a, b) => (a.month < b.month ? 1 : -1));
-  return { staff: { id: me.id, name: me.name }, account: payAccount(db, me), payslips: slips.map(slipView) };
+  return { staff: { id: me.id, name: me.name }, account: payAccount(db, me), payslips: slips.map(slipView), overdue: overdueFor(db, me, planner(db)) };
 }
 
 function saveOpening(ctx, input) {
