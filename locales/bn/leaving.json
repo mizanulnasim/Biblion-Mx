@@ -5,7 +5,7 @@
   "nav.my_leaving_hint": "নোটিশ দিন, বা আপনার চাকরি ছাড়ার অবস্থা দেখুন",
   "nav.letters": "চিঠি",
   "nav.settings_letters": "সেটিংস: চিঠি",
-  "nav.settings_letters_hint": "চারটি চিঠির নমুনা ও দোকানের ঠিকানা",
+  "nav.settings_letters_hint": "চারটি চিঠির নমুনা",
   "err.payslips_missing": "আগে {months}-এর বেতনপত্র জারি করুন।",
   "val.no_last_day": "এই ব্যক্তির এখনো শেষ কাজের দিন ঠিক হয়নি।",
   "val.not_yet": "এটি {date}-এর পরে করা যাবে।",
@@ -66,8 +66,15 @@
   "letters.issued": "চিঠি লেখা হয়েছে। প্রিন্ট করুন বা পিডিএফ হিসেবে রাখুন।",
   "letters.none": "এখনো কোনো চিঠি নেই।",
   "letters.help": "প্রথম লাইন শিরোনাম; অনুচ্ছেদের মাঝে একটি ফাঁকা লাইন রাখুন। এই শব্দগুলো ব্যক্তির তথ্য থেকে বসানো হয়:",
-  "letters.shop_address": "দোকানের ঠিকানা",
-  "letters.shop_address_help": "প্রতিটি চিঠিতে লোগোর নিচে ছাপা হয়।",
   "letters.conduct": "অভিজ্ঞতার সনদে আচরণ নিয়ে বাক্য",
-  "letters.conduct_help": "নমুনায় যেখানে conduct (দুই বন্ধনীতে) লেখা, সেখানে বসে।"
+  "letters.conduct_help": "নমুনায় যেখানে conduct (দুই বন্ধনীতে) লেখা, সেখানে বসে।",
+  "nav.settings_shop": "সেটিংস: দোকান",
+  "nav.settings_shop_hint": "লেটারহেডে দোকানের নাম, ঠিকানা ও যোগাযোগ",
+  "shop.name": "দোকানের নাম",
+  "shop.tagline": "বিবরণ",
+  "shop.tagline_help": "নামের নিচের একটি লাইন, যেমন \"বইয়ের দোকান, ক্যাফে ও সাংস্কৃতিক স্থান\"।",
+  "shop.address": "ঠিকানা",
+  "shop.phone": "ফোন",
+  "shop.email": "ইমেইল",
+  "shop.preview": "লেটারহেড"
 }

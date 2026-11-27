@@ -759,7 +759,18 @@ export const ACTIONS = Object.freeze({
     schema: {
       offer: LETTER_TEXT, appointment: LETTER_TEXT, experience: LETTER_TEXT, release: LETTER_TEXT,
       conduct: { type: 'text', max: 500 },
-      shop_address: { type: 'text', max: 300 },
+    },
+  },
+  // The shop's details on the letterhead.
+  'settings.shop': { perm: 'settings.manage' },
+  'settings.shop.save': {
+    write: true, perm: 'settings.manage', area: 'core',
+    schema: {
+      name: { type: 'text', required: true, max: 80 },
+      tagline: { type: 'text', max: 120 },
+      address: { type: 'text', max: 300 },
+      phone: { type: 'text', max: 40 },
+      email: { type: 'text', max: 120 },
     },
   },
   // ---- Announcements, procedures, reviews ----

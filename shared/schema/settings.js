@@ -113,7 +113,12 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   'separation.leave_encash': 'ask',
   // Letters (shared/hr/letters.js): the shop's address on the letterhead,
   // and the four templates. The owner edits them in Settings → Letters.
+  // The shop's details on the letterhead of letters, payslips and reports.
+  'shop.name': 'Biblion',
+  'shop.tagline': 'Bookstore café and cultural space',
   'shop.address': '',
+  'shop.phone': '',
+  'shop.email': '',
   'letters.offer': 'Offer of employment\n\nDate: {{today}}\n\nDear {{name}},\n\nWe are pleased to offer you the position of {{position}} at Biblion, starting on {{joined_on}}, at a monthly salary of {{salary}}. Your working hours will be {{hours}}.\n\nThe first three months are a probation period.\n\nPlease sign and return a copy of this letter to accept the offer.\n\nFor Biblion',
   'letters.appointment': 'Appointment letter\n\nDate: {{today}}\n\nTo {{name}}\n{{address}}\n\nYou are appointed as {{position}} at Biblion from {{joined_on}}. Your monthly salary is {{salary}}, and your working hours are {{hours}}, with the weekly day off set in the rota.\n\nLeave is earned and taken as set out in the shop\'s rules. Either side may end this appointment with written notice.\n\nFor Biblion',
   'letters.experience': 'Experience certificate\n\nDate: {{today}}\n\nThis is to certify that {{name}} worked at Biblion as {{position}} from {{joined_on}} to {{left_on}}.\n\n{{conduct}}\n\nWe wish them every success.\n\nFor Biblion',

@@ -4,6 +4,7 @@ import { AppError } from '../../shared/contract/errors.js';
 import { saved } from '../../shared/contract/reply.js';
 import { APPROVAL_RULES } from '../../shared/rules/approval.js';
 import { approvalSettings, saveSetting, setting } from '../kernel/settings.js';
+import { SHOP_KEYS, shopDetails } from './meta.js';
 
 function saveApprovals(ctx, input) {
   saveSetting(ctx.db, 'approve.money_limit', input.limit);
@@ -56,7 +57,15 @@ function saveAttendance(ctx, input) {
   return saved(null, attendanceSettings(ctx.db));
 }
 
+// Settings → Shop: the details on the letterhead.
+function saveShop(ctx, input) {
+  for (const [name, key] of Object.entries(SHOP_KEYS)) saveSetting(ctx.db, key, input[name] || '');
+  return saved(null, shopDetails(ctx.db));
+}
+
 export const SETTINGS_HANDLERS = {
+  'settings.shop': (ctx) => shopDetails(ctx.db),
+  'settings.shop.save': saveShop,
   'settings.attendance': (ctx) => attendanceSettings(ctx.db),
   'settings.attendance.save': saveAttendance,
   'settings.cafe': (ctx) => cafeSettings(ctx.db),

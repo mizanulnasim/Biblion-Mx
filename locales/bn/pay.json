@@ -125,5 +125,7 @@
   "money.instalment_help": "একবারে ফেরত নিতে খালি রাখুন। প্রতি মাসে কিস্তিটি কাটার জন্য দেখানো হবে।",
   "pay.overdue_mine": "আপনার {month}-এর বেতন দেরি হয়েছে: এখনো {amount} বাকি ({date}-এর মধ্যে দেওয়ার কথা)।",
   "pay.overdue_not_issued": "বাকি পড়েছে: বেতন স্লিপ এখনো দেওয়া হয়নি",
-  "pay.due_by": "{date}-এর মধ্যে দেয়"
+  "pay.due_by": "{date}-এর মধ্যে দেয়",
+  "pay.sign_issued": "প্রদানকারী",
+  "pay.sign_received": "গ্রহণকারী"
 }

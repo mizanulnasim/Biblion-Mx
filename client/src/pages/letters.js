@@ -3,6 +3,7 @@
 // on the letterhead, and Settings → Letters.
 
 import { html, on, render } from '../ui/html.js';
+import { letterhead } from '../ui/letterhead.js';
 import { emptyState, errorBox, staleNotice } from '../ui/feedback.js';
 import { bindForm, errorText, formView } from '../ui/form.js';
 import { toast } from '../ui/toast.js';
@@ -63,10 +64,7 @@ export const letterPage = {
       render(el, html`${staleNotice(cachedAt)}
         <div class="list-bar no-print"><button type="button" class="btn btn-primary" data-act="print">${t('pay.print')}</button></div>
         <article class="doc letter">
-          <header class="doc-head">
-            <img class="doc-logo" src="assets/biblion-logo.png" alt="Biblion">
-            ${data.shop_address ? html`<p class="muted doc-address">${data.shop_address}</p>` : ''}
-          </header>
+          ${letterhead()}
           <h2 class="doc-title">${data.title}</h2>
           ${data.paragraphs.map((p) => html`<p class="letter-text">${p}</p>`)}
         </article>`);
@@ -90,7 +88,6 @@ export const settingsLettersPage = {
           submit: t('common.save'),
           values: data,
           fields: [
-            { name: 'shop_address', label: t('letters.shop_address'), type: 'textarea', help: t('letters.shop_address_help') },
             text('offer', 'letters.kind.offer'),
             text('appointment', 'letters.kind.appointment'),
             text('experience', 'letters.kind.experience'),
@@ -98,7 +95,7 @@ export const settingsLettersPage = {
             text('release', 'letters.kind.release'),
           ],
         })}</section>`);
-      for (const area of el.querySelectorAll('textarea')) area.rows = area.name === 'shop_address' ? 2 : 10;
+      for (const area of el.querySelectorAll('textarea')) area.rows = 10;
       bindForm(el.querySelector('form'), {
         schema: ACTIONS['settings.letters.save'].schema,
         busyLabel: t('common.saving'),

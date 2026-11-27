@@ -5,7 +5,7 @@
   "nav.my_leaving_hint": "Give notice, or see where your leaving stands",
   "nav.letters": "Letters",
   "nav.settings_letters": "Settings: letters",
-  "nav.settings_letters_hint": "The four letter templates and the shop's address",
+  "nav.settings_letters_hint": "The four letter templates",
   "err.payslips_missing": "Issue the payslips for {months} first.",
   "val.no_last_day": "This person has no last day yet.",
   "val.not_yet": "This can be done after {date}.",
@@ -66,8 +66,15 @@
   "letters.issued": "Letter written. Print it or save it as PDF.",
   "letters.none": "No letters yet.",
   "letters.help": "The first line is the title; leave a blank line between paragraphs. These words are filled in from the person's record:",
-  "letters.shop_address": "The shop's address",
-  "letters.shop_address_help": "Printed under the logo on every letter.",
   "letters.conduct": "Conduct sentence on the experience certificate",
-  "letters.conduct_help": "Used where a template says conduct (in double braces)."
+  "letters.conduct_help": "Used where a template says conduct (in double braces).",
+  "nav.settings_shop": "Settings: shop",
+  "nav.settings_shop_hint": "The shop's name, address and contacts on the letterhead",
+  "shop.name": "Shop name",
+  "shop.tagline": "Description",
+  "shop.tagline_help": "A line under the name, for example \"Bookstore café and cultural space\".",
+  "shop.address": "Address",
+  "shop.phone": "Phone",
+  "shop.email": "Email",
+  "shop.preview": "The letterhead"
 }

@@ -5,9 +5,20 @@ import { saved } from '../../shared/contract/reply.js';
 import { CONTRACT } from '../../shared/contract/actions.js';
 import { effectivePermissions, roleById } from '../../shared/schema/permissions.js';
 import { PERSONAL_DEFAULTS } from '../../shared/schema/settings.js';
+import { setting } from '../kernel/settings.js';
 import { staffOfUser } from './staff.js';
 
-// staff: the person's own staff record, if they have one (for punching).
+// The shop's details, for the letterhead.
+export const SHOP_KEYS = Object.freeze({ name: 'shop.name', tagline: 'shop.tagline', address: 'shop.address', phone: 'shop.phone', email: 'shop.email' });
+
+export function shopDetails(db) {
+  const out = {};
+  for (const [name, key] of Object.entries(SHOP_KEYS)) out[name] = setting(db, key);
+  return out;
+}
+
+// staff: the person's own staff record, if they have one (for punching);
+// shop: the shop's details, for the letterhead.
 export function metaFor(user, db) {
   const role = roleById(user.role_id);
   const staff = staffOfUser(db, user.id);
@@ -23,6 +34,7 @@ export function metaFor(user, db) {
     staff: staff ? { id: staff.id, name: staff.name } : null,
     permissions: effectivePermissions(user),
     settings: { ...PERSONAL_DEFAULTS, ...(user.settings || {}) },
+    shop: shopDetails(db),
   };
 }
 

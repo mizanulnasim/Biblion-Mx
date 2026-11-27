@@ -455,8 +455,12 @@ fieldset.panel legend { padding: 0 var(--space-2); margin-left: calc(-1 * var(--
 .slip dt { margin: 0; }
 .slip dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .slip-total { padding-top: var(--space-2); border-top: 1px solid var(--border); font-weight: 700; }
-.doc { max-width: 640px; padding: var(--space-5); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
-.doc-head { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-4); }
+.doc { max-width: 640px; padding: var(--space-5); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--font-doc); }
+.letterhead { display: flex; align-items: center; gap: var(--space-4); padding-bottom: var(--space-3); margin-bottom: var(--space-4); border-bottom: 1px solid var(--border); font-family: var(--font-doc); }
+.letterhead-text { display: flex; flex-direction: column; gap: 2px; color: var(--text-muted); font-size: 0.9rem; }
+.letterhead-name { color: var(--text); font-size: 1.4rem; font-weight: 400; }
+.signatures { display: flex; flex-wrap: wrap; gap: var(--space-5); margin-top: var(--space-6); }
+.signature { flex: 1 1 160px; padding-top: var(--space-2); border-top: 1px solid var(--text); color: var(--text-muted); font-size: 0.9rem; }
 .doc-logo { height: 56px; filter: var(--logo-filter); }
 .doc-title { margin: 0; }
 .doc-foot { margin-top: var(--space-5); }

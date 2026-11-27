@@ -250,7 +250,7 @@ function getLetter(ctx, { id }) {
   if (!l) throw new AppError('NOT_FOUND');
   const staff = db.get('Staff', l.staff_id);
   if (staff.user_id !== ctx.user.id && !ctx.can('staff.view')) throw new AppError('FORBIDDEN');
-  return { id: l.id, kind: l.kind, title: l.title, paragraphs: l.paragraphs, issued_at: l.issued_at, shop_address: setting(db, 'shop.address'), staff_name: staff.name };
+  return { id: l.id, kind: l.kind, title: l.title, paragraphs: l.paragraphs, issued_at: l.issued_at, staff_name: staff.name };
 }
 
 function letters(ctx, { staff_id: staffId }) {
@@ -266,7 +266,7 @@ function letters(ctx, { staff_id: staffId }) {
 
 const LETTER_SETTINGS = Object.freeze({
   offer: 'letters.offer', appointment: 'letters.appointment', experience: 'letters.experience', release: 'letters.release',
-  conduct: 'letters.experience_conduct', shop_address: 'shop.address',
+  conduct: 'letters.experience_conduct',
 });
 
 function letterSettings(db) {

@@ -3,6 +3,7 @@
 // payslips. Nobody sees anyone else's payslip without payroll.view.
 
 import { html, on, render } from '../ui/html.js';
+import { letterhead, signatures } from '../ui/letterhead.js';
 import { emptyState, errorBox, staleNotice } from '../ui/feedback.js';
 import { errorText } from '../ui/form.js';
 import { t } from '../core/i18n.js';
@@ -44,10 +45,8 @@ function foodWeeksView(weeks) {
 function documentView(data) {
   const { staff, slip, entries } = data;
   return html`<article class="doc">
-    <header class="doc-head">
-      <img class="doc-logo" src="assets/biblion-logo.png" alt="Biblion">
-      <div><h2 class="doc-title">${t('pay.payslip')}</h2><p class="muted">${monthName(slip.month)} · ${periodText(slip)}</p></div>
-    </header>
+    ${letterhead()}
+    <h2 class="doc-title">${t('pay.payslip')}</h2><p class="muted">${monthName(slip.month)} · ${periodText(slip)}</p>
     <p><strong>${staff.name}</strong>${staff.position ? ` · ${staff.position}` : ''}<br>
       <span class="muted">${t('pay.joined', { date: dateShort(`${staff.joined_on}T06:00:00Z`) })}</span></p>
     ${slip.status === 'cancelled' ? html`<p class="notice notice-warn">${t('pay.slip_cancelled', { reason: slip.cancel_reason })}</p>` : ''}
@@ -56,6 +55,7 @@ function documentView(data) {
     ${entries.length ? html`<dl class="slip">${entries.map((e) => html`<dt>${kindLabel(e.kind)} <span class="muted">${dateShort(`${e.date}T06:00:00Z`)}</span></dt><dd>${money(e.amount)}</dd>`)}</dl>`
       : html`<p class="muted">${t('pay.nothing_paid')}</p>`}
     <p class="muted doc-foot">${t('pay.issued_on', { date: dateShort(slip.issued_at) })}</p>
+    ${signatures([t('pay.sign_issued'), t('pay.sign_received')])}
   </article>`;
 }
 

@@ -92,3 +92,11 @@ test('letters are filled from the record and kept as issued; templates refuse un
   assert.equal(s.call(s.staff, 'letters.get', { id }).data.title, 'Offer of employment');
   assert.equal(s.call(s.manager, 'letters.list', { staff_id: s.ids.sumi }).data.items.length, 1);
 });
+
+test('the shop\'s details for the letterhead: set by a shareholder, sent to everyone', () => {
+  const s = team();
+  assert.deepEqual(s.call(s.staff, 'meta.get').data.shop, { name: 'Biblion', tagline: 'Bookstore café and cultural space', address: '', phone: '', email: '' });
+  assert.equal(s.call(s.manager, 'settings.shop.save', { name: 'x' }).error.code, 'FORBIDDEN');
+  s.call(s.owner, 'settings.shop.save', { name: 'Biblion', tagline: '', address: 'House 1, Road 2, Dhaka', phone: '01700000000', email: 'shop@example.com' });
+  assert.equal(s.call(s.staff, 'meta.get').data.shop.address, 'House 1, Road 2, Dhaka');
+});
