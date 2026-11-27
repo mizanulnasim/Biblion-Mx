@@ -198,11 +198,11 @@ test('a checklist and evidence: required answers, numbers in range, photos and a
 
 test('a report-printing task is done once the report is printed from it', () => {
   const s = team();
-  const id = s.call(s.owner, 'tasks.create', { title: 'Print last month\'s report', staff_id: s.ids.boss, due_date: today(), link: 'report:month' }).data.record_id;
+  const id = s.call(s.owner, 'tasks.create', { title: 'Print last month\'s report', staff_id: s.ids.boss, due_date: today(), link: 'report:monthly' }).data.record_id;
   assert.equal(s.call(s.owner, 'tasks.complete', { id }).data.error.code, 'TASK_RECORD');
   // Only people who may see the report print it.
-  assert.equal(s.call(s.manager, 'reports.printed', { report: 'month', ref: '2026-10' }).data.error.code, 'FORBIDDEN');
-  const printed = s.call(s.owner, 'reports.printed', { report: 'month', ref: '2026-10' }).data.record_id;
+  assert.equal(s.call(s.manager, 'reports.printed', { report: 'monthly', ref: '2026-10' }).data.error.code, 'FORBIDDEN');
+  const printed = s.call(s.owner, 'reports.printed', { report: 'monthly', ref: '2026-10' }).data.record_id;
   s.call(s.owner, 'tasks.record', { id, record_id: printed });
   assert.equal(s.call(s.owner, 'tasks.complete', { id }).data.data.status, 'done');
 });

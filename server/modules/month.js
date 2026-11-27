@@ -62,6 +62,20 @@ function loanInterest(db, loan, from, to) {
 
 const loanBalance = (db, loan, asOf) => r2(loanEntries(db, loan).filter((e) => e.date <= asOf).reduce((t, e) => t + e.amount, 0));
 
+// Each loan over a period: what was owed before it, lent and repaid in it,
+// owed at its end, and its interest.
+export function loanRegister(db, from, to) {
+  const names = new Map(db.all('Shareholders').map((s) => [s.id, s.name]));
+  return db.all('Loans').sort((a, b) => (a.number < b.number ? -1 : 1)).map((l) => {
+    const inP = loanEntries(db, l).filter((e) => e.date >= from && e.date <= to);
+    return {
+      number: l.number, name: names.get(l.shareholder_id) || '', direction: l.direction, rate: l.rate || 0, opened: l.opened,
+      before: loanBalance(db, l, addDays(from, -1)), lent: r2(inP.filter((e) => e.amount > 0).reduce((t, e) => t + e.amount, 0)),
+      repaid: r2(-inP.filter((e) => e.amount < 0).reduce((t, e) => t + e.amount, 0)), closing: loanBalance(db, l, to), interest: loanInterest(db, l, from, to),
+    };
+  });
+}
+
 // ---- Shares ---------------------------------------------------------------------
 
 // The shares in force on a date: {shareholder_id: percent}.
@@ -131,7 +145,7 @@ function lossBefore(db, month) {
 }
 
 // The month's figures with the share-out: a loss is made up first.
-function withShares(db, month) {
+export function withShares(db, month) {
   const f = monthFigures(db, month);
   const before = lossBefore(db, month);
   const shareable = r2(Math.max(0, f.profit - before));
@@ -253,10 +267,11 @@ export function profitOverdue(ctx) {
 }
 
 // Each shareholder's account: what the business owes them and what they owe
-// it, from their opening figures (Getting started) on.
-function statements(db) {
-  const closed = db.all('Month_Closings').filter((c) => c.status === 'closed');
-  const entries = db.all('Transactions').filter(counts);
+// it, from their opening figures (Getting started) on, as of a date (today
+// unless given): months closed by then and entries up to it.
+export function statements(db, asOf = today(db)) {
+  const closed = db.all('Month_Closings').filter((c) => c.status === 'closed' && c.figures.period_to <= asOf);
+  const entries = db.all('Transactions').filter((e) => counts(e) && e.date <= asOf);
   const overdueDays = setting(db, 'payroll.overdue_days');
   return db.all('Shareholders').map((s) => {
     const mine = entries.filter((e) => e.party_id === s.id);
@@ -267,11 +282,11 @@ function statements(db) {
     const interestEarned = loanInt('given');
     const interestCharged = loanInt('taken');
     const advance = r2(mine.reduce((t, e) => t + payEffect(e).advance, 0));
-    const loansTaken = r2(db.all('Loans').filter((l) => l.shareholder_id === s.id && l.direction === 'taken').reduce((t, l) => t + loanBalance(db, l, today(db)), 0));
-    const loansGiven = r2(db.all('Loans').filter((l) => l.shareholder_id === s.id && l.direction === 'given').reduce((t, l) => t + loanBalance(db, l, today(db)), 0));
+    const loansTaken = r2(db.all('Loans').filter((l) => l.shareholder_id === s.id && l.direction === 'taken').reduce((t, l) => t + loanBalance(db, l, asOf), 0));
+    const loansGiven = r2(db.all('Loans').filter((l) => l.shareholder_id === s.id && l.direction === 'given').reduce((t, l) => t + loanBalance(db, l, asOf), 0));
     // Profit shares are due the payroll overdue days after their month
     // ends; what is paid is set against the oldest first.
-    const dueShares = closed.filter((c) => addDays(c.figures.period_to, overdueDays) < today(db))
+    const dueShares = closed.filter((c) => addDays(c.figures.period_to, overdueDays) < asOf)
       .reduce((t, c) => t + (c.figures.shares.find((x) => x.shareholder_id === s.id) || { amount: 0 }).amount, 0);
     const profitOverdue = r2(Math.max(0, dueShares - paid('profit_share')));
     const owedToThem = r2((s.opening_owed || 0) + salary + profit + interestEarned - paid('owner_salary') - paid('profit_share') - paid('owner_withdrawal'));

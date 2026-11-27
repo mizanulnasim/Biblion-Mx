@@ -64,14 +64,23 @@ function groupDigits(whole) {
   return `${head},${s.slice(-3)}`;
 }
 
-// "Tk 1,250" or "১,২৫০ টাকা"; paisa shown only when there are any.
-export function money(amount) {
-  const negative = amount < 0;
-  const abs = Math.abs(Math.round(amount * 100)) / 100;
+function grouped(abs) {
   const whole = Math.trunc(abs);
   const cents = Math.round((abs - whole) * 100);
-  const text = groupDigits(whole) + (cents ? `.${String(cents).padStart(2, '0')}` : '');
-  return t(negative ? 'money.amount_negative' : 'money.amount', { amount: localDigits(text) });
+  return localDigits(groupDigits(whole) + (cents ? `.${String(cents).padStart(2, '0')}` : ''));
+}
+
+// "Tk 1,250" or "১,২৫০ টাকা"; paisa shown only when there are any.
+export function money(amount) {
+  const abs = Math.abs(Math.round(amount * 100)) / 100;
+  return t(amount < 0 ? 'money.amount_negative' : 'money.amount', { amount: grouped(abs) });
+}
+
+// An amount in a table column: "1,250", "−1,250", or "–" for none.
+export function figure(amount) {
+  const abs = Math.abs(Math.round(amount * 100)) / 100;
+  if (!abs) return '–';
+  return `${amount < 0 ? '−' : ''}${grouped(abs)}`;
 }
 
 // "Nov 2026" from "2026-11".

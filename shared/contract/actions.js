@@ -14,7 +14,8 @@ import { KINDS, SCREEN_KINDS } from '../money/kinds.js';
 import { INTAKE_KINDS, MAX_UPLOAD_BYTES, UPLOAD_TYPES } from '../intake/kinds.js';
 import { LETTER_KINDS } from '../hr/letters.js';
 import { PUNCH_TYPES } from '../hr/attendance.js';
-import { PRIORITIES, REPEATS, REPORTS, TASK_ROLES } from '../tasks/tasks.js';
+import { PRIORITIES, REPEATS, TASK_ROLES } from '../tasks/tasks.js';
+import { REPORTS } from '../reports/reports.js';
 import { MANUAL_STEPS } from '../schema/start.js';
 
 // Bumped whenever a request or reply changes shape. A client built for another
@@ -805,6 +806,14 @@ export const ACTIONS = Object.freeze({
   'tasks.records': { schema: { id: { type: 'id', required: true } } },
   // A report was printed; who may print it is checked by the report.
   'reports.printed': { write: true, area: 'hr', schema: { report: { type: 'enum', required: true, values: Object.keys(REPORTS) }, ref: { type: 'text', max: 40 } } },
+  // A report's model, for the screen, print and Excel; who may see it is
+  // checked by the report.
+  'reports.get': {
+    schema: {
+      report: { type: 'enum', required: true, values: Object.keys(REPORTS) },
+      date: { type: 'date' }, month: { type: 'month' }, from: { type: 'date' }, to: { type: 'date' },
+    },
+  },
   // A photo for a task: before, after, a receipt, or a checklist item's.
   'tasks.attach': {
     write: true, area: 'hr',

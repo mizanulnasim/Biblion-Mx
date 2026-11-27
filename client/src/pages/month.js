@@ -13,35 +13,12 @@ import { t } from '../core/i18n.js';
 import { read, write } from '../core/api.js';
 import { can } from '../core/state.js';
 import { onArea } from '../core/live.js';
-import { dateShort, money, monthLabel, today } from '../core/format.js';
-import { letterhead, signatures } from '../ui/letterhead.js';
+import { dateShort, money, today } from '../core/format.js';
+import { reportView } from '../ui/report.js';
 import { ACTIONS } from '../../../shared/contract/actions.js';
 
 const day = (d) => dateShort(`${d}T06:00:00Z`);
-const line = (label, amount, total = false) => html`<dt class="${total ? 'slip-total' : ''}">${label}</dt><dd class="${total ? 'slip-total' : ''}">${money(amount)}</dd>`;
 const STEP = { ended: 'month.step.ended', days: 'month.step.days' };
-
-function figuresView(f) {
-  return html`<article class="doc">${letterhead()}
-    <h2 class="doc-title">${t('month.report')}</h2>
-    <p class="muted">${monthLabel(f.month)} · ${t('pay.period', { from: day(f.period_from), to: day(f.period_to) })}</p>
-    <h3 class="section-title">${t('month.income')}</h3>
-    <dl class="slip">${line(t('month.net_sales'), f.net)}${line(t('month.books'), f.books)}${line(t('month.cafe'), f.cafe)}
-      ${line(t('month.other_income'), f.other_income)}${line(t('month.interest_from'), f.interest_from)}${line(t('month.total_income'), f.income, true)}</dl>
-    <h3 class="section-title">${t('month.costs')}</h3>
-    <dl class="slip">${f.categories.map((c) => line(c.name, c.amount))}${line(t('month.vendor_costs'), f.vendor_costs)}${line(t('month.book_cost'), f.book_cost)}
-      ${line(t('month.opex'), f.opex, true)}</dl>
-    <h3 class="section-title">${t('month.pay')}</h3>
-    <dl class="slip">${line(t('month.staff_salaries'), f.staff_salaries)}${line(t('month.food'), f.food)}${line(t('month.bonuses'), f.bonuses)}
-      ${line(t('month.owner_salaries'), f.owner_salaries)}${line(t('month.interest_owed'), f.interest_owed)}${line(t('month.drawer'), f.drawer)}</dl>
-    <dl class="slip">${line(t('month.profit'), f.profit, true)}
-      ${f.loss_before ? line(t('month.loss_before'), f.loss_before) : ''}${line(t('month.shareable'), f.shareable, true)}
-      ${f.loss_after ? line(t('month.loss_after'), f.loss_after) : ''}</dl>
-    <h3 class="section-title">${t('month.shares')}</h3>
-    ${f.shares.length ? html`<dl class="slip">${f.shares.map((x) => line(t('month.share_line', { name: x.name, percent: x.percent }), x.amount))}</dl>` : html`<p class="muted">${t('month.no_shares')}</p>`}
-    ${signatures([t('month.sign_prepared'), t('month.sign_checked'), t('month.sign_approved')])}
-  </article>`;
-}
 
 export const monthClosingPage = {
   path: '/closing/month',
@@ -54,6 +31,8 @@ export const monthClosingPage = {
       try {
         data = (await read('month.view', month ? { month } : {})).data;
         month = data.month;
+        // The report itself is the shared monthly report.
+        const report = (await read('reports.get', { report: 'monthly', month })).data.model;
         render(el, html`<div class="list-bar no-print">
             <label class="field-inline">${t('hr.month')} <input type="month" data-role="month" value="${month}" max="${data.current}"></label>
             <button type="button" class="btn" data-act="print">${t('pay.print')}</button>
@@ -65,7 +44,7 @@ export const monthClosingPage = {
                   ${t(STEP[s.id], { date: day(s.params.date || today()), count: s.params.count || 0 })}</span></li>`)}</ul>
                 <div class="form-actions"><button type="button" class="btn btn-primary" data-act="close" ${data.steps.every((s) => s.state === 'done') ? '' : 'disabled'}>${t('month.close')}</button></div>`}
           </section>
-          ${figuresView(data.figures)}`);
+          ${reportView(report)}`);
       } catch (err) {
         render(el, errorBox(errorText(err)));
       }
@@ -93,7 +72,7 @@ export const monthClosingPage = {
       // Printing is noted, so a report-printing task can be done with it.
       print: async () => {
         window.print();
-        const reply = await write('reports.printed', { report: 'month', ref: month });
+        const reply = await write('reports.printed', { report: 'monthly', ref: month });
         if (query.task && reply.status === 'saved') await write('tasks.record', { id: query.task, record_id: reply.record_id });
       },
       close: () => ask(t('month.close'), { name: 'note', label: t('pay.note'), type: 'textarea' }, 'month.close', t('month.closed_done')),

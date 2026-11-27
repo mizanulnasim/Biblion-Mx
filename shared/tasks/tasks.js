@@ -1,5 +1,7 @@
 // Tasks: when a repeating task falls, and the screens a task can open.
 
+import { REPORTS } from '../reports/reports.js';
+
 const DAY_MS = 86400000;
 const daysApart = (a, b) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / DAY_MS);
 
@@ -40,6 +42,10 @@ export const PRIORITIES = Object.freeze(['low', 'normal', 'high', 'urgent']);
 // made after the task, that `counts`); receipt: the record needs its
 // receipt or bill. A money entry opens the money screen with the kind
 // chosen; the person still needs the permission to use it.
+const PRINT_LABELS = {
+  daily: 'rep.print.daily', monthly: 'rep.print.monthly', shareholders: 'rep.print.shareholders', salary: 'rep.print.salary',
+  loans: 'rep.print.loans', dues: 'rep.print.dues', all_money: 'rep.print.all_money',
+};
 const entry = (kind) => ({ table: 'Transactions', counts: (r) => r.kind === kind && r.status === 'active' });
 const notCancelled = (table) => ({ table, counts: (r) => r.status !== 'cancelled' });
 export const TASK_LINKS = Object.freeze({
@@ -56,11 +62,10 @@ export const TASK_LINKS = Object.freeze({
   'page:month_closing': { path: '/closing/month', perm: 'closing.month', label: 'tasks.link.month_closing', record: { table: 'Month_Closings', counts: (r) => r.status === 'closed' } },
   // Printing a report (owner decision: scheduled report printing): done once
   // it is printed or saved as PDF from the task.
-  'report:month': { path: '/closing/month', perm: 'closing.month', label: 'tasks.link.report_month', record: { table: 'Report_Prints', counts: (r) => r.report === 'month' } },
+  ...Object.fromEntries(Object.entries(PRINT_LABELS).map(([id, label]) => [`report:${id}`, {
+    path: `/reports?report=${id}`, perm: REPORTS[id].perm, label, record: { table: 'Report_Prints', counts: (r) => r.report === id },
+  }])),
 });
-
-// The reports a task can have printed, with who may print each.
-export const REPORTS = Object.freeze({ month: { perm: 'closing.month' } });
 
 // The roles a task can be given to (anyone with that role may do it).
 export const TASK_ROLES = Object.freeze(['manager', 'staff']);

@@ -194,7 +194,6 @@
   "month.shareable": "Profit to share",
   "month.loss_after": "Loss carried to next month",
   "month.shares": "Profit sharing",
-  "month.share_line": "{name} ({percent}%)",
   "month.no_shares": "No shares are set: see Shareholders.",
   "month.sign_prepared": "Prepared by",
   "month.sign_checked": "Checked by",

@@ -187,6 +187,31 @@ function monthView(ctx, input) {
   return { month, current: thisPeriod(db), period_from: per.from, period_to: per.to, due_by: dueBy(db, per), rows };
 }
 
+// The month's salaries for the salary report: each person's payslip (or
+// draft), paid for the month and still to pay; food allowance earned and
+// paid in it; and their advance before, given, taken back and after.
+export function salaryReport(db, month) {
+  const view = monthView({ db }, { month });
+  const p = planner(db);
+  const inP = (e) => e.date >= view.period_from && e.date <= view.period_to;
+  return {
+    period_from: view.period_from, period_to: view.period_to, due_by: view.due_by,
+    rows: view.rows.map((r) => {
+      const staff = db.get('Staff', r.staff.id);
+      const mine = db.all('Transactions').filter((e) => counts(e) && e.party_id === staff.id);
+      const sum = (kind, f) => mine.filter((e) => e.kind === kind && f(e)).reduce((t, e) => t + e.amount, 0);
+      const opening = (db.all('Pay_Openings').find((o) => o.staff_id === staff.id) || { advance: 0 }).advance || 0;
+      const advanceTo = (date) => opening + mine.filter((e) => e.date <= date).reduce((t, e) => t + payEffect(e).advance, 0);
+      return {
+        name: r.staff.name, position: r.staff.position || '', salary: r.slip.salary, net: r.slip.net, paid: r.paid, to_pay: r.to_pay, overdue: r.overdue,
+        food_earned: monthPay(db, staff, month, p).food, food_paid: sum('food_paid', inP),
+        advance_before: Math.round(advanceTo(addDays(view.period_from, -1))), advance_given: sum('staff_advance', inP),
+        deducted: sum('staff_deduction', inP), advance_after: Math.round(advanceTo(view.period_to)),
+      };
+    }),
+  };
+}
+
 // The day the app's records start: the setting, else the day it was set up.
 function recordsStart(db) {
   const set = setting(db, 'accounting.start_date');

@@ -464,6 +464,14 @@ fieldset.panel legend { padding: 0 var(--space-2); margin-left: calc(-1 * var(--
 .doc-logo { height: 56px; filter: var(--logo-filter); }
 .doc-title { margin: 0; }
 .doc-foot { margin-top: var(--space-5); }
+/* Reports: as wide as their tables; a wide table scrolls on screen. */
+.report { max-width: 1100px; }
+.report-table { overflow-x: auto; margin: var(--space-3) 0; }
+.report-grid { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.report-grid th, .report-grid td { padding: var(--space-1) var(--space-2); text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.report-grid th { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
+.report-grid .num { text-align: right; }
+.report-grid tfoot td { font-weight: 700; border-top: 1px solid var(--text); }
 
 @media print {
   .topbar, .sidenav, .bottombar, .scrim, .no-print, .toasts { display: none !important; }
@@ -471,6 +479,8 @@ fieldset.panel legend { padding: 0 var(--space-2); margin-left: calc(-1 * var(--
   body, .app, .outlet { background: none; }
   .doc { max-width: none; border: 0; padding: 0; }
   .doc-logo { filter: none; }
+  .report-table { overflow: visible; }
+  .report-grid th, .report-grid td { white-space: normal; }
 }
 
 /* Letters */
