@@ -222,7 +222,9 @@ export const dailyPage = {
             send = { ...payload, reason: answer.reason };
           }
         },
-        onSaved: (reply) => {
+        onSaved: async (reply) => {
+          // Filled from an uploaded shift report: the report is filed on the shift.
+          if (query.from_doc && reply.status === 'saved') await write('intake.attach', { id: query.from_doc, record_id: reply.record_id });
           if (reply.status === 'queued') toast(t('money.saved_on_phone'));
           else toast(reply.data.approval === 'waiting' ? t('money.saved_waiting') : t('money.saved'));
           load();
@@ -240,8 +242,16 @@ export const dailyPage = {
         return;
       }
       const first = (kind) => (prep.accounts.find((a) => a.kind === kind) || {}).id || '';
-      values = values || { dues: [], bkash_account_id: first('bkash'), card_account_id: first('bank'), handed_to: first('owner') };
+      values = values || { dues: [], bkash_account_id: first('bkash'), card_account_id: first('bank'), handed_to: first('owner'), ...fromReport() };
       drawForm();
+    }
+
+    // Figures from an uploaded Loyverse shift report, passed in the link.
+    function fromReport() {
+      if (!query.from_doc) return {};
+      const out = {};
+      for (const k of ['net_sales', 'cash', 'bkash', 'card', 'actual_cash', 'note']) if (query[k]) out[k] = query[k];
+      return out;
     }
 
     async function load() {

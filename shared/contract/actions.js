@@ -359,7 +359,7 @@ export const ACTIONS = Object.freeze({
       // … or a book delivery.
       publisher_id: { type: 'id' },
       challan: { type: 'text', max: 60 },
-      lines: { type: 'list', max: 300, of: { book_id: { type: 'id' }, title: { type: 'text', max: 200 }, printed_price: { type: 'money', required: true }, qty: { type: 'int', required: true, min: 1, max: 10000 } } },
+      lines: { type: 'list', max: 300, of: { book_id: { type: 'id' }, title: { type: 'text', max: 200 }, printed_price: { type: 'money', required: true }, qty: { type: 'int', required: true, min: 1, max: 10000 }, unit_cost: { type: 'money', zero: true } } },
       paid: { type: 'money', zero: true },
       paid_account_id: { type: 'id' },
       reason: { type: 'text', max: 500 },

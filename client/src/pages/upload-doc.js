@@ -26,6 +26,7 @@ import { intakeChip } from './upload.js';
 const UNSURE = {
   date: 'intake.unsure.date', amount: 'intake.unsure.amount', party: 'intake.unsure.party', ref: 'intake.unsure.ref',
   lines: 'intake.unsure.lines', new_titles: 'intake.unsure.new_titles',
+  net_sales: 'intake.unsure.net_sales', cash: 'intake.unsure.cash', actual_cash: 'intake.unsure.actual_cash',
 };
 const PAID = { now: 'intake.paid_now', later: 'intake.paid_later' };
 const MONEY_FIELDS = ['kind', 'date', 'amount', 'account_id', 'to_account_id', 'category_id', 'party_id', 'ref', 'note'];
@@ -44,9 +45,18 @@ function kindStep(doc) {
       ${t(INTAKE_KINDS[k].label)}${doc.guess === k ? html`<span class="kind-guess">${t('intake.looks_like')}</span>` : ''}</button>`)}</div></section>`;
 }
 
+// What a bKash slip was, and how a receipt says it was paid.
+const BKASH_TYPE = {
+  payment: 'intake.bkash.payment', send: 'intake.bkash.send', cash_out: 'intake.bkash.cash_out', to_bank: 'intake.bkash.to_bank',
+  cash_in: 'intake.bkash.cash_in', received: 'intake.bkash.received',
+};
+const VIA = { bkash: 'intake.via.bkash', bank: 'intake.via.bank', cash: 'intake.via.cash' };
+
 function unsureView(proposal) {
   const items = (proposal.unsure || []).map((u) => t(UNSURE[u]));
   if (proposal.paid) items.unshift(t(PAID[proposal.paid]));
+  if (proposal.bkash_type) items.unshift(t(BKASH_TYPE[proposal.bkash_type]));
+  else if (proposal.via) items.push(t(VIA[proposal.via]));
   if (proposal.delivery && proposal.delivery.discount) items.push(t('intake.discount_seen', { amount: money(proposal.delivery.discount) }));
   return items.length ? html`<div class="notice notice-warn"><div><strong>${t('intake.check_these')}</strong><ul class="reasons">${items.map((i) => html`<li>${i}</li>`)}</ul></div></div>` : '';
 }
@@ -132,6 +142,7 @@ export const uploadDocPage = {
             <p class="help">${findBook(l.book, books.books, books.publishers) ? t('books.line_existing', { on_hand: findBook(l.book, books.books, books.publishers).on_hand }) : t('books.line_new')}</p></div>
           <div class="field"><label for="f-lines.${i}.printed_price">${t('books.printed_price')}</label><input id="f-lines.${i}.printed_price" name="lines.${i}.printed_price" inputmode="decimal" value="${l.printed_price}"></div>
           <div class="field"><label for="f-lines.${i}.qty">${t('books.copies')}</label><input id="f-lines.${i}.qty" name="lines.${i}.qty" inputmode="numeric" value="${l.qty}"></div>
+          <div class="field"><label for="f-lines.${i}.unit_cost">${t('intake.cost_each')}</label><input id="f-lines.${i}.unit_cost" name="lines.${i}.unit_cost" inputmode="decimal" value="${l.unit_cost}" placeholder="${t('intake.cost_default')}"></div>
           <button type="button" class="icon-btn" data-act="remove-line" data-i="${i}" aria-label="${t('books.remove_line')}">×</button>
         </div>`)}</div>
         <input type="hidden" name="lines"><p class="field-error" id="f-lines-err"></p>
@@ -176,7 +187,7 @@ export const uploadDocPage = {
             id: doc.id, date: values.date, publisher_id: values.publisher_id || null, challan: values.challan || null,
             lines: values.lines.filter((l) => l.book).map((l) => {
               const book = findBook(l.book, books.books, books.publishers);
-              return { book_id: book ? book.id : null, title: book ? null : l.book, printed_price: l.printed_price, qty: l.qty };
+              return { book_id: book ? book.id : null, title: book ? null : l.book, printed_price: l.printed_price, qty: l.qty, unit_cost: l.unit_cost || null };
             }),
           };
           if (values.paid) Object.assign(out, { paid: values.paid, paid_account_id: values.paid_account_id || null });
@@ -195,6 +206,23 @@ export const uploadDocPage = {
           load();
         },
       });
+    }
+
+    // A Loyverse shift report: the figures read, and the daily shift form
+    // opened with them (saving the shift files the report on it).
+    function shiftView(d) {
+      const s = d.proposal.shift;
+      const rows = [['shift.net_sales', s.net_sales], ['shift.cash', s.cash], ['shift.bkash', s.bkash], ['shift.card', s.card], ['intake.shift.due', s.due],
+        ['intake.shift.paid_out', s.paid_out], ['intake.shift.expected', s.expected_cash], ['shift.actual_cash', s.actual_cash], ['intake.shift.difference', s.difference]]
+        .filter(([, v]) => v !== undefined);
+      const params = new URLSearchParams({ date: s.date, from_doc: d.id });
+      for (const k of ['net_sales', 'cash', 'bkash', 'card', 'actual_cash']) if (s[k] !== undefined) params.set(k, s[k]);
+      if (s.shift_no) params.set('note', t('intake.shift.note', { no: s.shift_no }));
+      return html`<p class="muted">${t('intake.shift.read', { no: s.shift_no || '—' })}</p>
+        <dl class="slip">${rows.map(([label, v]) => html`<dt>${t(label)}</dt><dd>${money(v)}</dd>`)}</dl>
+        ${s.paid_out ? html`<p class="help">${t('intake.shift.paid_out_help')}</p>` : ''}
+        ${s.due ? html`<p class="help">${t('intake.shift.due_help')}</p>` : ''}
+        <div class="form-actions"><a class="btn btn-primary" href="#/daily?${params.toString()}">${t('intake.shift.open')}</a></div>`;
     }
 
     async function attach(recordId) {
@@ -269,10 +297,15 @@ export const uploadDocPage = {
           ...d, date: d.date || today(),
           lines: d.lines.map((l) => {
             const book = l.book_id ? books.books.find((b) => b.id === l.book_id) : null;
-            return { book: book ? bookLabel({ ...book, publisher: names.get(book.publisher_id) }) : l.title, printed_price: String(l.printed_price), qty: String(l.qty) };
+            return {
+              book: book ? bookLabel({ ...book, publisher: names.get(book.publisher_id) }) : l.title, printed_price: String(l.printed_price), qty: String(l.qty),
+              unit_cost: l.unit_cost === null || l.unit_cost === undefined ? '' : String(l.unit_cost),
+            };
           }),
         };
         deliveryForm(slot);
+      } else if (target === 'shift') {
+        render(slot, shiftView(doc));
       } else {
         render(slot, html`<p>${t('intake.keep_help')}</p><div class="form-actions"><button type="button" class="btn btn-primary" data-act="keep">${t('intake.keep')}</button></div>`);
       }

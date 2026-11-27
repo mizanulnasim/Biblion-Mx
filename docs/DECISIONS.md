@@ -337,3 +337,31 @@ These are working choices made while building. Each is easy to change.
   - Ticking a step records who and when. All steps ticked closes it.
   - It shows whether their sign-in is linked and their punch PIN is set.
 - **Not yet:** uploading applicants' CVs (comes with staff papers in uploads part 2).
+
+## Uploads: reading rules checked against the owner's documents (Nov 2026)
+The owner sent 20 real documents: invoices, cash memos, a publisher's invoice, bKash slips, a courier slip, a money receipt, a Loyverse shift report, a bank statement, a membership card and lists. They were used only to check the reading rules. No copy, name, number or account is kept in the repository; the tests use made-up text in the same layouts.
+- **What changed in reading:**
+  - Sizes ("1L", "750ml") are not figures, and counts ("20p", "2000 pcs") are quantities.
+  - A row number at the start of a line is dropped.
+  - Lines with "%" (terms), "Label : value" lines, dated lines and letterhead lines (including BIN) are never items.
+  - "Bill To" is no longer joined to the date line.
+  - A publisher's row "printed price, commission %, copies, net amount" is read as such, and the row's own commission becomes that line's cost (35% vs 40% rows on one invoice).
+  - Delivery charges are charges, not a negative discount.
+  - When a row has only copies and one figure, the printed total decides whether that figure is a price or the row's amount.
+  - A label alone on its line (সর্বমোট, Amount) takes the figure on the next line.
+  - The TrxID is found under "ট্রানজেকশন আইডি" or "Transaction ID".
+  - The bill number is found from "No. :", "SL No." and "Consignment No.".
+  - A receipt's "TK 2000/-" is its total, and "বিকাশ", cheque or cash says how it was paid.
+- **bKash slips:** the kind of transaction decides the entry, and the check screen says which it read:
+  - cash out → a transfer from bKash to the cash drawer;
+  - bKash to Bank → a transfer to the bank;
+  - cash in → a transfer from the drawer to bKash;
+  - received → income;
+  - a merchant payment or send money → paid from bKash: a vendor or publisher payment if the slip names one, otherwise an expense.
+- **Courier slips** are a new upload kind: an expense, paid on arrival ("To-Pay"), in a shipping or courier category if there is one, with the sender noted.
+- **Loyverse shift reports** are a new upload kind:
+  - The check screen shows the figures read.
+  - "Open the daily shift" fills in the form: net sales, cash, bKash, card, counted cash, and the shift number as a note.
+  - Saving the shift files the report on it.
+  - Money paid out of the drawer is still entered as expenses, and each due is entered per person.
+- **Still to come from these documents:** matching a bank or bKash statement (the bank statement), customer and membership cards, requisition lists (title and copies), and shopping lists.

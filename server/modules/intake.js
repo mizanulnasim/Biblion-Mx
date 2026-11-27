@@ -9,7 +9,7 @@
 import { AppError } from '../../shared/contract/errors.js';
 import { saved } from '../../shared/contract/reply.js';
 import { INTAKE_KINDS, MAX_UPLOAD_BYTES } from '../../shared/intake/kinds.js';
-import { extract, guessKind } from '../../shared/intake/extract.js';
+import { extract, guessKind, readBkash, readShiftReport } from '../../shared/intake/extract.js';
 import { page } from '../kernel/paging.js';
 import { saveSetting, setting } from '../kernel/settings.js';
 import {
@@ -85,11 +85,49 @@ function readWithAi(db, file) {
   }
 }
 
+const firstAccount = (db, kind) => (db.all('Money_Accounts').find((a) => a.status === 'active' && a.kind === kind) || {}).id || '';
+
+// The money entry a document suggests. A bKash slip says what moved: cash
+// out (bKash to the cash drawer) and bKash to Bank are transfers, cash in
+// is a transfer the other way, money received is income, and a payment or
+// send money is paid from bKash. A courier slip is an expense paid on
+// arrival, in a shipping or courier category if there is one.
+function moneyProposal(db, kind, found, date) {
+  const def = INTAKE_KINDS[kind];
+  const party = found.party_id ? db.get('Suppliers', found.party_id) : null;
+  const entry = { kind: def.kinds[0], date, amount: found.amount, party_id: found.party_id, ref: found.trx_id || found.bill_no, note: '' };
+  if (kind === 'vendor_bill') entry.kind = found.paid === 'now' ? 'vendor_purchase_paid' : 'vendor_purchase_credit';
+  // A payment to a known vendor or publisher pays what is owed; anything else is an expense.
+  if (kind === 'payment_receipt') entry.kind = party ? (party.kind === 'vendor' ? 'vendor_payment' : 'publisher_payment') : 'expense';
+  const via = { bkash: firstAccount(db, 'bkash'), bank: firstAccount(db, 'bank'), cash: firstAccount(db, 'drawer') }[found.via] || '';
+  if (via && entry.kind !== 'vendor_purchase_credit') entry.account_id = via;
+  const bkash = kind === 'payment_receipt' ? readBkash(found.text) : null;
+  if (bkash) {
+    entry.account_id = firstAccount(db, 'bkash');
+    if (bkash.type === 'cash_out') Object.assign(entry, { kind: 'transfer', to_account_id: firstAccount(db, 'drawer') });
+    if (bkash.type === 'to_bank') Object.assign(entry, { kind: 'transfer', to_account_id: firstAccount(db, 'bank') });
+    if (bkash.type === 'cash_in') Object.assign(entry, { kind: 'transfer', account_id: firstAccount(db, 'drawer'), to_account_id: firstAccount(db, 'bkash') });
+    if (bkash.type === 'received') entry.kind = 'income';
+    entry.note = [bkash.party, bkash.reference].filter(Boolean).join(' · ');
+  }
+  if (kind === 'courier_slip') {
+    const shipping = db.all('Expense_Categories').find((c) => c.status === 'active' && /ship|courier|deliver|parcel|পরিবহন|কুরিয়ার/i.test(c.name));
+    if (shipping) entry.category_id = shipping.id;
+    const from = /from\s*:?\s*([^\n]+)/i.exec(found.text);
+    if (from) entry.note = from[1].trim();
+  }
+  return {
+    target: 'money', entry,
+    // What the document says about payment ("now", "later" or unknown), shown to the person.
+    paid: found.paid, via: found.via, bkash_type: bkash ? bkash.type : '', unsure: found.unsure,
+  };
+}
+
 function prepare(db, doc, kind) {
   const def = INTAKE_KINDS[kind];
   const supplierKind = kind === 'book_delivery' ? 'publisher' : kind === 'vendor_bill' ? 'vendor' : null;
   const suppliers = db.all('Suppliers').filter((s) => s.status === 'active' && (!supplierKind || s.kind === supplierKind));
-  const found = extract(doc.text, kind, suppliers);
+  const found = { ...extract(doc.text, kind, suppliers), text: doc.text };
   let aiUsed = false;
   if (def.ai) {
     const ai = readWithAi(db, db.get('Files', doc.file_id));
@@ -109,28 +147,22 @@ function prepare(db, doc, kind) {
     const own = found.party_id ? books.filter((b) => b.publisher_id === found.party_id) : books;
     const lines = found.items.map((item) => {
       const book = matchBook(own, item.name) || matchBook(books, item.name);
-      return { book_id: book ? book.id : '', title: book ? book.title : item.name, printed_price: item.price, qty: item.qty, matched: Boolean(book) };
+      // A row with its own commission ("price, commission %, copies, amount") costs what it says.
+      const unitCost = item.discount_pct !== undefined ? Math.round((item.amount / item.qty) * 100) / 100 : null;
+      return { book_id: book ? book.id : '', title: book ? book.title : item.name, printed_price: item.price, qty: item.qty, unit_cost: unitCost, matched: Boolean(book) };
     });
     const unsure = [...found.unsure];
     if (!lines.length) unsure.push('lines');
     if (lines.some((l) => !l.matched)) unsure.push('new_titles');
     return { aiUsed, proposal: { target: 'delivery', delivery: { date, publisher_id: found.party_id, challan: found.bill_no, lines, discount: found.discount }, unsure } };
   }
+  if (def.target === 'shift') {
+    const figures = readShiftReport(doc.text) || {};
+    const unsure = ['net_sales', 'cash', 'actual_cash'].filter((f) => figures[f] === undefined);
+    return { aiUsed, proposal: { target: 'shift', shift: { ...figures, date: figures.date || date }, unsure } };
+  }
   if (def.target === 'money') {
-    const party = found.party_id ? db.get('Suppliers', found.party_id) : null;
-    let moneyKind = def.kinds[0];
-    if (kind === 'vendor_bill') moneyKind = found.paid === 'now' ? 'vendor_purchase_paid' : 'vendor_purchase_credit';
-    if (kind === 'payment_receipt' && party) moneyKind = party.kind === 'vendor' ? 'vendor_payment' : 'publisher_payment';
-    return {
-      aiUsed,
-      proposal: {
-        target: 'money',
-        entry: { kind: moneyKind, date, amount: found.amount, party_id: found.party_id, ref: found.trx_id || found.bill_no },
-        // What the document says about payment ("now", "later" or unknown), shown to the person.
-        paid: found.paid,
-        unsure: found.unsure,
-      },
-    };
+    return { aiUsed, proposal: moneyProposal(db, kind, found, date) };
   }
   return { aiUsed, proposal: { target: 'none', unsure: [] } };
 }

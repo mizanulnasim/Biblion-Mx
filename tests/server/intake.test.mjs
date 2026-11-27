@@ -39,7 +39,7 @@ test('a vendor bill becomes a purchase paid now; Confirm files the document on i
   const id = photo(s, 'bill.jpg', BILL).record_id;
   s.call(s.manager, 'intake.kind', { id, kind: 'vendor_bill' });
   const { proposal } = s.call(s.manager, 'intake.get', { id }).data;
-  assert.deepEqual(proposal.entry, { kind: 'vendor_purchase_paid', date: '2026-11-21', amount: 1140, party_id: s.ids.dairy, ref: '5521' });
+  assert.deepEqual(proposal.entry, { kind: 'vendor_purchase_paid', date: '2026-11-21', amount: 1140, party_id: s.ids.dairy, ref: '5521', note: '' });
   assert.equal(proposal.paid, 'now');
   assert.deepEqual(proposal.unsure, []);
   const r = s.call(s.manager, 'intake.confirm', { id, ...proposal.entry, account_id: s.ids.cash }).data;
@@ -122,4 +122,44 @@ test('the optional Gemini reading fills what the text didn\'t; the key is never 
 test('staff can\'t upload', () => {
   const s = withSuppliers();
   assert.equal(s.call(s.staff, 'intake.upload', { name: 'a.jpg', mime: 'image/jpeg', data: b64('x') }).error.code, 'FORBIDDEN');
+});
+
+// Proposals from the owner's kinds of documents (made-up details).
+
+const slip = (title) => `${title}\n01800000000\nপ্রেরক\n013*****111\nসময়\n3:10 PM 04/11/26\nট্রানজেকশন আইডি\nDA1234ABCD\nসর্বমোট\n৳1,000.00\nবিকাশ`;
+const propose = (s, name, text, kind) => {
+  const id = photo(s, name, text).record_id;
+  s.call(s.manager, 'intake.kind', { id, kind });
+  return { id, proposal: s.call(s.manager, 'intake.get', { id }).data.proposal };
+};
+
+test('a bKash cash out is a transfer from bKash to the cash drawer; a payment is paid from bKash', () => {
+  const s = withSuppliers();
+  const out = propose(s, 'cashout.jpg', slip('এজেন্ট ক্যাশ আউট'), 'payment_receipt').proposal;
+  assert.deepEqual([out.entry.kind, out.entry.account_id, out.entry.to_account_id, out.entry.amount, out.entry.ref, out.bkash_type],
+    ['transfer', s.ids.bkash, s.ids.cash, 1000, 'DA1234ABCD', 'cash_out']);
+  const pay = propose(s, 'pay.jpg', slip('মার্চেন্ট পেমেন্ট').replace('DA1234ABCD', 'DA9999ZZZZ'), 'payment_receipt').proposal;
+  assert.deepEqual([pay.entry.kind, pay.entry.account_id], ['expense', s.ids.bkash]);
+});
+
+test('a courier slip is an expense in the shipping category, paid on arrival', () => {
+  const s = withSuppliers();
+  const ship = s.call(s.owner, 'setup.category.save', { name: 'Book shipping', area: 'books', status: 'active' }).data.record_id;
+  const p = propose(s, 'courier.jpg', 'Sundarban Express\nConsignment No. 900100002000111/1\nBooking Date: 11-Oct-2026\nFrom: SOME PROKASHONI\nTo-Pay Payable : 150.00', 'courier_slip').proposal;
+  assert.deepEqual([p.entry.kind, p.entry.category_id, p.entry.amount, p.entry.note, p.paid], ['expense', ship, 150, 'SOME PROKASHONI', 'now']);
+});
+
+test('a shift report fills the daily shift; saving the shift files the report on it', () => {
+  const s = withSuppliers();
+  const { id, proposal } = propose(s, 'shift.jpg', 'Shift report\nShift number: 77\nOwner 15/11/2026 11:00 am\nActual cash amount Tk9,000.00\nNet sales Tk14,500.00\nCash Tk9,000.00\nBkash Tk5,500.00', 'shift_report');
+  assert.deepEqual([proposal.target, proposal.shift.net_sales, proposal.shift.cash, proposal.shift.bkash, proposal.shift.actual_cash, proposal.shift.date], ['shift', 14500, 9000, 5500, 9000, '2026-11-15']);
+  const shift = s.call(s.manager, 'shift.save', { date: '2026-11-15', net_sales: 14500, cash: 9000, bkash: 5500, actual_cash: 9000, bkash_account_id: s.ids.bkash, dues: [] }).data;
+  assert.equal(s.call(s.manager, 'intake.attach', { id, record_id: shift.record_id }).data.status, 'saved');
+  assert.equal(s.call(s.manager, 'intake.get', { id }).data.status, 'attached');
+});
+
+test('a publisher row with its own commission costs what it says', () => {
+  const s = withSuppliers();
+  const { proposal } = propose(s, 'challan.jpg', 'Pathak\nসকল বই ৪০%\n৩ রহিম উদ্দিন নদীর গল্প উপন্যাস ৪০০ ৪০ ২ ৪৮০\nতারিখ: ১০.১১.২০২৬', 'book_delivery');
+  assert.deepEqual(proposal.delivery.lines.map((l) => [l.printed_price, l.qty, l.unit_cost]), [[400, 2, 240]]);
 });
