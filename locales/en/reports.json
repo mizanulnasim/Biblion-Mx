@@ -134,7 +134,6 @@
   "rep.col.copies": "Copies",
   "rep.col.cost": "Cost in the period",
   "rep.col.credit_notes": "Credit notes",
-  "rep.col.days_since": "Days since",
   "rep.col.due_added": "Due added",
   "rep.col.gross_profit": "Gross profit",
   "rep.col.last_payment": "Last payment",
@@ -189,5 +188,16 @@
   "rep.title.vendors": "Vendors report",
   "rep.to_party": "To: {name}",
   "rep.writeoffs": "Advances written off",
-  "rep.party": "Publisher or vendor"
+  "rep.party": "Publisher or vendor",
+  "suppliers.pay_every": "Pay every (months)",
+  "suppliers.pay_every_help": "Empty: no schedule. Counted from the last payment; overdue when something is still owed after it.",
+  "home.publisher_overdue": "{name}: payment overdue since {since}, {amount} owed",
+  "rep.col.every": "Every (months)",
+  "rep.col.counted_from": "Counted from",
+  "rep.col.due_by": "Due by",
+  "rep.col.status": "Status",
+  "rep.status.no_schedule": "No schedule",
+  "rep.status.nothing_owed": "Nothing owed",
+  "rep.status.overdue": "Overdue",
+  "rep.status.due": "Not yet due"
 }

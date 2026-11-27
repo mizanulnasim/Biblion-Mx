@@ -112,7 +112,7 @@ export const TABLES = Object.freeze({
   Suppliers: {
     group: 'accounts',
     prefix: 'SUP',
-    columns: ['kind', 'name', 'phone', 'commission:n', 'sell_discount:n', 'pays_on', 'opening_due:n', 'status'],
+    columns: ['kind', 'name', 'phone', 'commission:n', 'sell_discount:n', 'pays_on', 'opening_due:n', 'status', 'pay_every:n'],
   },
   Books: {
     group: 'books',

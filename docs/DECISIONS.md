@@ -423,3 +423,9 @@ The v1 server and screen code was compared with v2 for what v2 has built; where 
 
 ### Month closing profit (27 Nov 2026)
 Built exactly as v1: net sales + other income + interest on loans shareholders took from the business; minus expenses, vendor costs and the cost of books sold or written off; minus staff salaries, food allowance, bonuses and cuts, owner salaries, and interest owed to shareholders who lent to the business; plus the month's drawer over/short. A loss is made up from later months' profit before anything is shared. Profit is split by the dated share history (46/44/10 to start).
+
+### Publisher payment schedule (28 Nov 2026)
+- **Pay every N months:** each publisher can have a schedule (empty: none), as v1. Vendors don't have one.
+- **Counted from:** the last payment (any payment, even a part payment), else the first book received or the opening stock. When nothing was owed and something becomes owed again, the count starts from that day.
+- **Overdue:** when something is owed after the due date (due by = counted from + N months). With nothing owed, it isn't overdue.
+- **Who is told:** the payment tracker shows the due date and status; Home tells shareholders, whoever can pay publishers, and managers.

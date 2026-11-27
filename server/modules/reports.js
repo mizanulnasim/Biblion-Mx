@@ -21,7 +21,7 @@ import { setting } from '../kernel/settings.js';
 import { lookups } from './money.js';
 import { loanRegister, salaried, statements, withShares } from './month.js';
 import { salaryReport, staffPayFigures } from './payroll.js';
-import { bookCosts, supplierLines } from './suppliers.js';
+import { bookCosts, publisherDue, supplierLines } from './suppliers.js';
 import { planner } from './rota.js';
 
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -348,21 +348,25 @@ function publisherStatement(db, { party_id: id, from, to }) {
   };
 }
 
-// Each publisher on a date: what is owed, the last payment and what the
-// sales are paid up to.
+// Each publisher on a date: how they are paid and how often, what is owed,
+// the last payment, the day payment is due by and whether it is overdue,
+// and what the sales are paid up to.
 function tracker(db, { date }) {
   const rows = suppliersOf(db, 'publisher').filter((p) => p.status === 'active').map((p) => {
-    const lines = supplierLines(db, p.id).filter((l) => l.date <= date);
-    const payments = lines.filter((l) => l.kind === 'publisher_payment');
-    const last = payments.length ? payments[payments.length - 1].date : '';
-    const settled = payments.map((l) => l.covers_up_to).filter(Boolean).sort().pop() || '';
-    const days = last ? Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${last}T00:00:00Z`)) / 86400000) : null;
-    return [p.name, t(p.pays_on === 'delivery' ? 'rep.pays_delivery' : 'rep.pays_sale'), owedOn(p, lines, date), last ? d(last) : t('rep.never'), days === null ? '' : n(days), settled ? d(settled) : ''];
+    const due = publisherDue(db, p, date);
+    const settled = supplierLines(db, p.id).filter((l) => l.date <= date && l.kind === 'publisher_payment').map((l) => l.covers_up_to).filter(Boolean).sort().pop() || '';
+    let status = t('rep.status.no_schedule');
+    if (due.owed <= 0) status = t('rep.status.nothing_owed');
+    else if (due.overdue) status = t('rep.status.overdue');
+    else if (due.due_by) status = t('rep.status.due');
+    return [p.name, t(p.pays_on === 'delivery' ? 'rep.pays_delivery' : 'rep.pays_sale'), p.pay_every ? n(p.pay_every) : '', due.owed,
+      due.last_paid ? d(due.last_paid) : t('rep.never'), due.counted_from ? d(due.counted_from) : '', due.due_by ? d(due.due_by) : '', status, settled ? d(settled) : ''];
   });
   return {
     title: 'rep.title.tracker',
     sub: [t('rep.as_of', { date: d(date) })],
-    blocks: [table([['rep.col.publisher'], ['rep.col.pays_on'], ['rep.col.owed', 'money'], ['rep.col.last_payment'], ['rep.col.days_since', 'count'], ['rep.col.settled_to']], rows)],
+    blocks: [table([['rep.col.publisher'], ['rep.col.pays_on'], ['rep.col.every', 'count'], ['rep.col.owed', 'money'], ['rep.col.last_payment'], ['rep.col.counted_from'],
+      ['rep.col.due_by'], ['rep.col.status'], ['rep.col.settled_to']], rows)],
   };
 }
 

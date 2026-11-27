@@ -3,7 +3,7 @@
 // reviews, announcements and procedures to read, salaries overdue, and
 // changes to people's own contact details; for shareholders, Getting
 // started steps left, the opening stock to approve and profit shares
-// overdue.
+// overdue; publisher payments overdue.
 
 import { waitingChecks } from './attendance.js';
 import { docsWaiting } from './docs.js';
@@ -16,6 +16,7 @@ import { detailsWaiting } from './staff.js';
 import { startLeft } from './start.js';
 import { openingWaiting } from './stocktake.js';
 import { profitOverdue } from './month.js';
+import { publishersOverdue } from './suppliers.js';
 
 function waiting(ctx) {
   const checks = ctx.can('attendance.manage') ? waitingChecks(ctx) : null;
@@ -31,6 +32,7 @@ function waiting(ctx) {
     start: startLeft(ctx),
     opening_stock: openingWaiting(ctx),
     profit_overdue: profitOverdue(ctx),
+    publishers: publishersOverdue(ctx),
   };
 }
 

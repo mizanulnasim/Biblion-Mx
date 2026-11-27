@@ -134,7 +134,6 @@
   "rep.col.copies": "কপি",
   "rep.col.cost": "এই সময়ের খরচ",
   "rep.col.credit_notes": "ক্রেডিট নোট",
-  "rep.col.days_since": "কত দিন আগে",
   "rep.col.due_added": "যোগ হওয়া পাওনা",
   "rep.col.gross_profit": "মোট লাভ",
   "rep.col.last_payment": "শেষ পরিশোধ",
@@ -189,5 +188,16 @@
   "rep.title.vendors": "ভেন্ডরদের প্রতিবেদন",
   "rep.to_party": "প্রতি: {name}",
   "rep.writeoffs": "মওকুফ করা অগ্রিম",
-  "rep.party": "প্রকাশক বা ভেন্ডর"
+  "rep.party": "প্রকাশক বা ভেন্ডর",
+  "suppliers.pay_every": "কত মাস পরপর পরিশোধ",
+  "suppliers.pay_every_help": "খালি: কোনো সময়সূচি নেই। শেষ পরিশোধ থেকে গোনা হয়; এর পরেও পাওনা থাকলে বকেয়া।",
+  "home.publisher_overdue": "{name}: {since} থেকে পরিশোধ বকেয়া, পাওনা {amount}",
+  "rep.col.every": "পরপর (মাস)",
+  "rep.col.counted_from": "যেদিন থেকে গোনা",
+  "rep.col.due_by": "শেষ দিন",
+  "rep.col.status": "অবস্থা",
+  "rep.status.no_schedule": "সময়সূচি নেই",
+  "rep.status.nothing_owed": "কিছু পাওনা নেই",
+  "rep.status.overdue": "বকেয়া",
+  "rep.status.due": "এখনো সময় আছে"
 }

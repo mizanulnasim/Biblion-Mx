@@ -12,6 +12,8 @@
 import { AppError } from '../../shared/contract/errors.js';
 import { saved } from '../../shared/contract/reply.js';
 import { payableEffect } from '../../shared/money/kinds.js';
+import { dhakaDate } from '../../shared/hr/attendance.js';
+import { addDays } from '../../shared/hr/plan.js';
 
 const round = (n) => Math.round(n * 100) / 100;
 const fieldError = (field, code) => new AppError('VALIDATION', {}, { [field]: { code, params: {} } });
@@ -74,7 +76,7 @@ export function supplierBalances(db) {
 function pick(s, owed) {
   return {
     id: s.id, version: s.version, kind: s.kind, name: s.name, phone: s.phone, commission: s.commission || 0,
-    sell_discount: s.sell_discount || 0, pays_on: s.pays_on || 'sale', opening_due: s.opening_due || 0, status: s.status, owed: owed.get(s.id) || 0,
+    sell_discount: s.sell_discount || 0, pays_on: s.pays_on || 'sale', pay_every: s.pay_every || 0, opening_due: s.opening_due || 0, status: s.status, owed: owed.get(s.id) || 0,
   };
 }
 
@@ -92,6 +94,7 @@ function save(ctx, input) {
     commission: input.kind === 'publisher' ? input.commission || 0 : 0,
     sell_discount: input.kind === 'publisher' ? input.sell_discount || 0 : 0,
     pays_on: input.kind === 'publisher' ? input.pays_on || 'sale' : '',
+    pay_every: input.kind === 'publisher' ? input.pay_every || 0 : 0,
     opening_due: input.opening_due || 0,
   };
   let row;
@@ -124,6 +127,52 @@ export function supplierLines(db, id) {
     if (l.supplier_id === id) lines.push({ date: l.date, kind: `book_${l.kind}`, amount: l.amount, book: l.book, book_id: l.book_id, qty: l.qty, id: l.id, created_at: '' });
   }
   return lines.sort((a, b) => (a.date === b.date ? (a.created_at < b.created_at ? -1 : 1) : a.date < b.date ? -1 : 1));
+}
+
+// The same day `months` later (a day the month doesn't have: its last day).
+function addMonths(date, months) {
+  const [y, m, d] = date.split('-').map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + months, 1));
+  const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  return `${target.toISOString().slice(0, 8)}${String(Math.min(d, last)).padStart(2, '0')}`;
+}
+
+// A publisher paid every N months (owner decision), on a date: what is
+// owed, the day the count runs from (the last payment, else the first book
+// received or opening stock; from the day something became owed again
+// after nothing was), the day payment is due by, and whether it is overdue
+// (something owed after that day). No schedule: no due date.
+export function publisherDue(db, publisher, date) {
+  const lines = supplierLines(db, publisher.id).filter((l) => l.date <= date);
+  const bookIds = new Set(db.all('Books').filter((b) => b.publisher_id === publisher.id).map((b) => b.id));
+  const firstBook = db.all('Stock_Movements').filter((m) => m.status === 'active' && bookIds.has(m.book_id) && (m.kind === 'receive' || m.kind === 'opening') && m.date <= date)
+    .map((m) => m.date).sort()[0] || '';
+  let owed = publisher.opening_due || 0;
+  let from = firstBook;
+  let lastPaid = '';
+  for (const l of lines) {
+    const before = owed;
+    owed = round(owed + l.amount);
+    if (l.kind === 'publisher_payment') {
+      from = l.date;
+      lastPaid = l.date;
+    } else if (before <= 0 && owed > 0 && l.date > from) {
+      from = l.date;
+    }
+  }
+  const dueBy = publisher.pay_every && from ? addMonths(from, publisher.pay_every) : '';
+  return { owed, last_paid: lastPaid, counted_from: from, due_by: dueBy, overdue: Boolean(dueBy) && owed > 0 && date > dueBy };
+}
+
+// For Home: publishers whose payment is overdue today, for shareholders,
+// whoever can pay publishers, and managers (owner decision).
+export function publishersOverdue(ctx) {
+  const { db } = ctx;
+  if (!ctx.can('acc.publisher.pay') && ctx.level < 2) return [];
+  const today = dhakaDate(db.now.getTime());
+  return db.all('Suppliers').filter((s) => s.kind === 'publisher' && s.status === 'active' && s.pay_every)
+    .map((s) => ({ name: s.name, ...publisherDue(db, s, today) })).filter((x) => x.overdue)
+    .map((x) => ({ name: x.name, since: addDays(x.due_by, 1), owed: x.owed }));
 }
 
 // Every line that changed what is owed, oldest first, with a running total.

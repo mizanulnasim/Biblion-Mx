@@ -27,6 +27,7 @@ function fields(kind) {
     { name: 'commission', label: t('suppliers.commission'), inputmode: 'numeric', help: t('suppliers.commission_help') },
     { name: 'sell_discount', label: t('suppliers.sell_discount'), inputmode: 'numeric', help: t('suppliers.sell_discount_help') },
     { name: 'pays_on', label: t('suppliers.pays_on'), type: 'select', required: true, options: Object.keys(PAYS_ON).map((v) => ({ value: v, label: t(PAYS_ON[v]) })) },
+    { name: 'pay_every', label: t('suppliers.pay_every'), inputmode: 'numeric', help: t('suppliers.pay_every_help') },
   ] : [];
   return [
     ...base, ...publisher,
@@ -37,7 +38,7 @@ function fields(kind) {
 
 function edit(kind, supplier, onSaved) {
   const values = supplier
-    ? { ...supplier, commission: String(supplier.commission), sell_discount: String(supplier.sell_discount), opening_due: String(supplier.opening_due) }
+    ? { ...supplier, commission: String(supplier.commission), sell_discount: String(supplier.sell_discount), opening_due: String(supplier.opening_due), pay_every: supplier.pay_every ? String(supplier.pay_every) : '' }
     : { status: 'active', pays_on: 'sale' };
   const dialog = formDialog(t(kind === 'vendor' ? 'suppliers.vendor' : 'suppliers.publisher'), formView({ fields: fields(kind), values, submit: t('common.save') }));
   bindForm(dialog.querySelector('form.form'), {
@@ -45,7 +46,7 @@ function edit(kind, supplier, onSaved) {
     busyLabel: t('common.saving'),
     mapValues: (v) => {
       const out = { ...v, kind, id: supplier ? supplier.id : null, version: supplier ? supplier.version : null };
-      for (const k of ['commission', 'sell_discount', 'opening_due']) if (out[k] === '') out[k] = null;
+      for (const k of ['commission', 'sell_discount', 'opening_due', 'pay_every']) if (out[k] === '') out[k] = null;
       return out;
     },
     onSubmit: (v) => write('setup.supplier.save', v),

@@ -74,3 +74,21 @@ test('publisher and vendor reports: statement, vendors and payables add up', () 
   // A statement names the vendor asked for; a publisher id isn't a vendor.
   assert.equal(s.call(s.owner, 'reports.get', { report: 'vendor_statement', party_id: pub }).error.code, 'NOT_FOUND');
 });
+
+test('a publisher paid every N months: counted from the last payment, overdue when owed after it, told on Home', () => {
+  const s = shop();
+  const id = (r) => r.data.record_id;
+  const days = (n) => new Date(Date.parse(`${today()}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
+  const pub = id(s.call(s.owner, 'setup.supplier.save', { kind: 'publisher', name: 'Sheba', commission: 25, sell_discount: 0, pays_on: 'delivery', pay_every: 1, status: 'active' }));
+  const book = id(s.call(s.owner, 'books.save', { title: 'Nodi', publisher_id: pub, printed_price: 400, status: 'active' }));
+  // Books came 70 days ago; nothing paid: due a month after they came.
+  s.call(s.owner, 'books.delivery.save', { date: days(-70), publisher_id: pub, lines: [{ book_id: book, printed_price: 400, qty: 5 }] });
+  const row = () => s.call(s.owner, 'reports.get', { report: 'tracker' }).data.model.blocks[0].rows[0];
+  assert.deepEqual(row()[7], { t: 'rep.status.overdue', p: {} });
+  assert.equal(s.call(s.manager, 'people.waiting').data.publishers[0].owed, 1500);
+  assert.deepEqual(s.call(s.staff, 'people.waiting').data.publishers, []);
+  // A part payment 10 days ago restarts the count: not yet due.
+  s.call(s.owner, 'money.save', { kind: 'publisher_payment', date: days(-10), amount: 500, account_id: s.ids.cash, party_id: pub });
+  assert.deepEqual([row()[5], row()[7]], [{ d: days(-10) }, { t: 'rep.status.due', p: {} }]);
+  assert.deepEqual(s.call(s.owner, 'people.waiting').data.publishers, []);
+});
