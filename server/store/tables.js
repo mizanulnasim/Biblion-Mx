@@ -274,12 +274,20 @@ export const TABLES = Object.freeze({
     prefix: 'HOL',
     columns: ['date', 'name', 'name_bn', 'status'],
   },
-  // Leave. kind: paid (from the balance) or unpaid. days: how many days it
-  // takes, counted when asked. Status: waiting, approved, declined, cancelled.
+  // Leave. kind: paid (from the balance), unpaid, or a Leave_Types id. half:
+  // '' (whole days), first or second (half of one day). days: how many days
+  // it takes, counted when asked. Status: waiting, approved, declined, cancelled.
   Leaves: {
     group: 'hr',
     prefix: 'LEV',
-    columns: ['staff_id', 'kind', 'from', 'to', 'days:n', 'reason', 'status', 'decided_by', 'decided_at', 'decide_note', 'cancel_reason', 'asked_by'],
+    columns: ['staff_id', 'kind', 'half', 'from', 'to', 'days:n', 'reason', 'status', 'decided_by', 'decided_at', 'decide_note', 'cancel_reason', 'asked_by'],
+  },
+  // Kinds of leave shareholders add (Paid and Unpaid are built in; a leave's
+  // kind is 'paid', 'unpaid' or one of these ids). Status: active, inactive.
+  Leave_Types: {
+    group: 'hr',
+    prefix: 'LTY',
+    columns: ['name', 'name_bn', 'paid:b', 'from_balance:b', 'half_days:b', 'status'],
   },
   // A shareholder's change to someone's leave balance, with a reason.
   Leave_Adjustments: {

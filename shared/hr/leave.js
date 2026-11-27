@@ -50,10 +50,20 @@ export function earnedLeave({ joined_on, as_of, rate, probation_months, timing, 
   return round2(earned);
 }
 
+// The two kinds of leave there from the start; shareholders add others
+// (Leave_Types) with the same three choices. paid: the day is paid;
+// from_balance: it uses the earned balance; half_days: it can be taken as
+// the first or second half of one day.
+export const BUILT_IN_LEAVE = Object.freeze({
+  paid: { id: 'paid', paid: true, from_balance: true, half_days: true },
+  unpaid: { id: 'unpaid', paid: false, from_balance: false, half_days: true },
+});
+
 // How many days a leave takes: every date ('calendar'), or only the dates
-// the person was meant to work ('working'). plans: the rota plan of each
-// date in the leave (without the leave itself).
+// the person was meant to work ('working'); a half day counts 0.5. plans:
+// the rota plan of each date in the leave (without the leave itself), with
+// `half` set on a half day.
 export function leaveDays(plans, counting) {
-  if (counting === 'calendar') return plans.length;
-  return plans.filter((p) => p.kind === 'work').length;
+  const weight = (p) => (p.half ? 0.5 : 1);
+  return plans.filter((p) => counting === 'calendar' || p.kind === 'work').reduce((t, p) => t + weight(p), 0);
 }

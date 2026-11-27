@@ -10,6 +10,7 @@ import { addDays, datesBetween, dayPlan, rotaPlan } from '../../shared/hr/plan.j
 import { COUNTED, dhakaDate, dhakaIso } from '../../shared/hr/attendance.js';
 import { setting } from '../kernel/settings.js';
 import { mayDecideFor, staffOfUser } from './staff.js';
+import { leaveTypes } from './leave-types.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
 const WEEK_DAYS = 7;
@@ -19,7 +20,8 @@ export function planner(db) {
   const shifts = new Map(db.all('Shifts').map((s) => [s.id, s]));
   const rows = new Map(db.all('Rota').map((r) => [`${r.staff_id}|${r.date}`, r]));
   const holidays = new Map(db.all('Holidays').filter((h) => h.status === 'active').map((h) => [h.date, h]));
-  const leaves = db.all('Leaves').filter((l) => l.status === 'approved');
+  const paid = new Map(leaveTypes(db).map((t) => [t.id, t.paid]));
+  const leaves = db.all('Leaves').filter((l) => l.status === 'approved').map((l) => ({ ...l, paid: Boolean(paid.get(l.kind)) }));
   const closed = setting(db, 'holidays.treatment') === 'closed';
   const rota = (staff, date) => rotaPlan(staff, date, rows.get(`${staff.id}|${date}`), shifts);
   return {

@@ -60,12 +60,10 @@ function draft(db, staff, month, p = planner(db), cut = {}) {
   const per = period(db, month);
   const employed = employedDates(per, joinedOn(staff), staff.left_on);
   const changes = salaryChanges(db, staff);
-  const unpaid = employed.filter((d) => {
-    const plan = p.plan(staff, d);
-    return plan.kind === 'leave' && plan.leave_kind === 'unpaid';
-  });
+  // Unpaid leave, whole days and half days (counted 0.5).
+  const unpaid = employed.map((d) => ({ date: d, plan: p.plan(staff, d) })).filter((x) => x.plan.leave_kind === 'unpaid');
   const absent = attendanceMonth(db, staff, { from: per.from, to: per.to }).days.filter((d) => d.state === 'absent').length;
-  const leaveTaken = leaveDays(unpaid.map((d) => p.base(staff, d)), setting(db, 'leave.day_counting'));
+  const leaveTaken = leaveDays(unpaid.map((x) => ({ ...p.base(staff, x.date), half: x.plan.half_leave || '' })), setting(db, 'leave.day_counting'));
   const leaveCut = cut.leave ?? leaveTaken;
   const absentCut = cut.absent ?? 0;
   return {

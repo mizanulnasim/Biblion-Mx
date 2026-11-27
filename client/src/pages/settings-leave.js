@@ -1,6 +1,6 @@
 // Settings → Leave and rota: how leave is earned and counted, what public
-// holidays mean for the shop, what staff may ask of the rota; and the
-// public holidays of a year.
+// holidays mean for the shop, what staff may ask of the rota; the kinds of
+// leave; and the public holidays of a year.
 
 import { html, on, render } from '../ui/html.js';
 import { chip, emptyState, errorBox } from '../ui/feedback.js';
@@ -11,6 +11,7 @@ import { t } from '../core/i18n.js';
 import { read, write } from '../core/api.js';
 import { dateShort, today } from '../core/format.js';
 import { ACTIONS } from '../../../shared/contract/actions.js';
+import { leaveTypeName } from './leave.js';
 
 const NUMBERS = ['probation_months', 'rate', 'advance_days', 'min_rest_hours', 'min_notice_days'];
 // options: [[value, message id], …]
@@ -39,6 +40,44 @@ function settingsForm(data) {
       num('min_rest_hours', 'leave.set.rest'),
       num('min_notice_days', 'leave.set.notice', 'leave.set.notice_help'),
     ],
+  });
+}
+
+// The kinds of leave: Paid and Unpaid are built in; shareholders add others.
+function typesView(types) {
+  const yes = (on, id) => (on ? html`<span class="muted">${t(id)}</span>` : '');
+  return html`<section class="panel"><h2 class="section-title">${t('leave.types')}</h2>
+    <p class="help">${t('leave.types_help')}</p>
+    <ul class="punches">${types.map((x) => html`<li class="punch">
+      <span><strong>${leaveTypeName(x)}</strong> ${yes(x.paid, 'leave.type.paid')} ${yes(x.from_balance, 'leave.type.from_balance')} ${yes(x.half_days, 'leave.type.half_days')}</span>
+      ${x.status === 'active' ? '' : chip(t('users.inactive'), 'muted')}
+      ${x.built_in ? html`<span class="muted">${t('leave.type.built_in')}</span>` : html`<button type="button" class="btn btn-small" data-act="type" data-id="${x.id}">${t('common.edit')}</button>`}</li>`)}</ul>
+    <div class="form-actions"><button type="button" class="btn" data-act="type">${t('leave.add_type')}</button></div></section>`;
+}
+
+function editType(type, onDone) {
+  const dialog = formDialog(type ? type.name : t('leave.add_type'), formView({
+    submit: t('common.save'),
+    values: type || { status: 'active', paid: true, half_days: true },
+    fields: [
+      { name: 'name', label: t('users.name'), required: true, help: t('leave.type.name_help') },
+      { name: 'name_bn', label: t('cafe.name_bn') },
+      { name: 'paid', label: t('leave.type.paid'), type: 'checkbox' },
+      { name: 'from_balance', label: t('leave.type.from_balance'), type: 'checkbox', help: t('leave.type.from_balance_help') },
+      { name: 'half_days', label: t('leave.type.half_days'), type: 'checkbox' },
+      { name: 'status', label: t('users.status'), type: 'select', required: true, options: [{ value: 'active', label: t('users.active') }, { value: 'inactive', label: t('users.inactive') }] },
+    ],
+  }));
+  bindForm(dialog.querySelector('form.form'), {
+    schema: ACTIONS['leave.type.save'].schema,
+    busyLabel: t('common.saving'),
+    mapValues: (v) => ({ ...v, id: type ? type.id : null, version: type ? type.version : null }),
+    onSubmit: (v) => write('leave.type.save', v),
+    onSaved: () => {
+      dialog.close();
+      toast(t('setup.saved'));
+      onDone();
+    },
   });
 }
 
@@ -87,11 +126,13 @@ export const settingsLeavePage = {
   mount(el) {
     let year = Number(today().slice(0, 4));
     let holidays = null;
+    let types = [];
     async function load() {
       try {
         const [settings, list] = await Promise.all([read('settings.leave').then((r) => r.data), read('holidays.list', { year }).then((r) => r.data)]);
         holidays = list;
-        render(el, html`<section class="panel">${settingsForm(settings)}</section>${holidaysView(holidays)}`);
+        types = settings.types;
+        render(el, html`<section class="panel">${settingsForm(settings)}</section>${typesView(types)}${holidaysView(holidays)}`);
         bindForm(el.querySelector('form.form'), {
           schema: ACTIONS['settings.leave.save'].schema,
           busyLabel: t('common.saving'),
@@ -107,6 +148,7 @@ export const settingsLeavePage = {
         year += Number(btn.dataset.by);
         load();
       },
+      type: (e, btn) => editType(btn.dataset.id ? types.find((x) => x.id === btn.dataset.id) : null, load),
       holiday: (e, btn) => editHoliday(btn.dataset.id ? holidays.items.find((h) => h.id === btn.dataset.id) : null, load),
     });
     render(el, html`<div aria-busy="true"></div>`);

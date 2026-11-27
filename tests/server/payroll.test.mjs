@@ -172,3 +172,12 @@ test('an advance repaid in instalments: the instalment is suggested as the month
   pay(s, { kind: 'staff_deduction', amount: 1000 });
   assert.deepEqual([account().advance, account().instalment_due], [2000, 0]);
 });
+
+test('an unpaid half day cuts half a day\'s pay', () => {
+  const s = payroll();
+  const month = lastMonth();
+  s.call(s.manager, 'leave.apply', { staff_id: s.ids.sumi, kind: 'unpaid', half: 'second', from: `${month}-12`, to: `${month}-12`, reason: 'Personal' });
+  const slip = row(s, month, 'Sumi').slip;
+  assert.equal(slip.leave_days, 0.5);
+  assert.equal(slip.unpaid_cut, Math.round((12000 * 0.5) / daysIn(month)));
+});

@@ -1,7 +1,10 @@
 // Leave: what each person has earned and used, asking for leave, and
-// deciding it. Paid leave comes from the balance; unpaid leave doesn't.
+// deciding it. Paid leave comes from the balance; unpaid leave doesn't; a
+// kind a shareholder adds says for itself (server/modules/leave-types.js).
+// A half day is the first or second half of one day and counts 0.5.
 // A balance is worked out when asked (shared/hr/leave.js), never stored:
-// earned since probation + a shareholder's adjustments − approved paid leave.
+// earned since probation + a shareholder's adjustments − approved leave
+// taken from the balance.
 //
 // Everyone asks for their own leave without a permission. A manager decides
 // staff leave, a shareholder decides a manager's, nobody their own; a
@@ -18,6 +21,7 @@ import { saveSetting, setting } from '../kernel/settings.js';
 import { joinedOn, mayDecideFor, staffOfUser } from './staff.js';
 import { planner } from './rota.js';
 import { moveTasksForLeave } from './tasks.js';
+import { leaveType, leaveTypes } from './leave-types.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -35,24 +39,25 @@ export function balanceOf(db, staff) {
   const joined = joinedOn(staff);
   const earned = earnedLeave({ joined_on: joined, as_of: dhakaDate(db.now.getTime()), ...rules });
   const adjusted = db.all('Leave_Adjustments').filter((a) => a.staff_id === staff.id).reduce((t, a) => t + a.days, 0);
-  const paid = db.all('Leaves').filter((l) => l.staff_id === staff.id && l.kind === 'paid');
-  const used = paid.filter((l) => l.status === 'approved').reduce((t, l) => t + l.days, 0);
-  const waiting = paid.filter((l) => l.status === 'waiting').reduce((t, l) => t + l.days, 0);
+  const fromBalance = new Set(leaveTypes(db).filter((t) => t.from_balance).map((t) => t.id));
+  const taken = db.all('Leaves').filter((l) => l.staff_id === staff.id && fromBalance.has(l.kind));
+  const used = taken.filter((l) => l.status === 'approved').reduce((t, l) => t + l.days, 0);
+  const waiting = taken.filter((l) => l.status === 'waiting').reduce((t, l) => t + l.days, 0);
   return {
     earning_from: earningFrom(joined, rules.probation_months), earned, adjusted: round2(adjusted), used,
     balance: round2(earned + adjusted - used), waiting,
   };
 }
 
-// Days a leave would take for this person.
-function countDays(db, staff, from, to) {
+// Days a leave would take for this person (half: a half day).
+function countDays(db, staff, from, to, half) {
   const p = planner(db);
-  return leaveDays(datesBetween(from, to).map((d) => p.base(staff, d)), setting(db, 'leave.day_counting'));
+  return leaveDays(datesBetween(from, to).map((d) => ({ ...p.base(staff, d), half: half || '' })), setting(db, 'leave.day_counting'));
 }
 
 function leaveView(l, names) {
   return {
-    id: l.id, staff_id: l.staff_id, staff_name: names.get(l.staff_id) || '', kind: l.kind, from: l.from, to: l.to, days: l.days,
+    id: l.id, staff_id: l.staff_id, staff_name: names.get(l.staff_id) || '', kind: l.kind, half: l.half || '', from: l.from, to: l.to, days: l.days,
     reason: l.reason, status: l.status, decide_note: l.decide_note, cancel_reason: l.cancel_reason, created_at: l.created_at,
   };
 }
@@ -64,7 +69,10 @@ function mine(ctx) {
   const me = staffOfUser(db, ctx.user.id);
   if (!me) throw new AppError('NO_STAFF');
   const items = db.all('Leaves').filter((l) => l.staff_id === me.id).sort((a, b) => (a.from < b.from ? 1 : -1));
-  return { staff: { id: me.id, name: me.name }, balance: balanceOf(db, me), items: items.map((l) => leaveView(l, names(db))), rules: leaveRules(db) };
+  return {
+    staff: { id: me.id, name: me.name }, balance: balanceOf(db, me), items: items.map((l) => leaveView(l, names(db))), rules: leaveRules(db),
+    types: leaveTypes(db),
+  };
 }
 
 function whose(ctx, staffId) {
@@ -79,15 +87,16 @@ function whose(ctx, staffId) {
 function preview(ctx, input) {
   const { staff } = whose(ctx, input.staff_id);
   if (input.to < input.from) throw fieldError('to', 'val.date_order');
-  return { days: countDays(ctx.db, staff, input.from, input.to), balance: balanceOf(ctx.db, staff) };
+  return { days: countDays(ctx.db, staff, input.from, input.to, input.half), balance: balanceOf(ctx.db, staff) };
 }
 
-// Paid leave must fit in what is left after waiting requests, unless a
-// setting allows going below zero.
+// Leave from the balance must fit in what is left after waiting requests,
+// unless a setting allows going below zero.
 function checkBalance(db, staff, days, ignoreId) {
   if (setting(db, 'leave.allow_negative')) return;
   const b = balanceOf(db, staff);
-  const waitingOthers = db.all('Leaves').filter((l) => l.staff_id === staff.id && l.kind === 'paid' && l.status === 'waiting' && l.id !== ignoreId)
+  const fromBalance = new Set(leaveTypes(db).filter((t) => t.from_balance).map((t) => t.id));
+  const waitingOthers = db.all('Leaves').filter((l) => l.staff_id === staff.id && fromBalance.has(l.kind) && l.status === 'waiting' && l.id !== ignoreId)
     .reduce((t, l) => t + l.days, 0);
   const left = round2(b.balance - waitingOthers);
   if (days > left) throw new AppError('LEAVE_BALANCE', { balance: left, days });
@@ -97,14 +106,19 @@ function apply(ctx, input) {
   const { db } = ctx;
   const { staff, forSelf } = whose(ctx, input.staff_id);
   if (input.to < input.from) throw fieldError('to', 'val.date_order');
+  const type = leaveType(db, input.kind);
+  if (!type || type.status !== 'active') throw fieldError('kind', 'val.not_found');
+  const half = input.half || '';
+  if (half && !type.half_days) throw fieldError('half', 'val.no_half_days');
+  if (half && input.to !== input.from) throw fieldError('to', 'val.half_one_day');
   const overlap = db.all('Leaves').some((l) => l.staff_id === staff.id && OPEN.includes(l.status) && l.from <= input.to && l.to >= input.from);
   if (overlap) throw new AppError('OVERLAP');
-  const days = countDays(db, staff, input.from, input.to);
+  const days = countDays(db, staff, input.from, input.to, half);
   if (!days) throw new AppError('NO_DAYS');
-  if (input.kind === 'paid') checkBalance(db, staff, days, null);
+  if (type.from_balance) checkBalance(db, staff, days, null);
   const final = forSelf ? ctx.level === 3 : mayDecideFor(ctx, staff, 'leave.approve');
   const row = db.insert('Leaves', {
-    staff_id: staff.id, kind: input.kind, from: input.from, to: input.to, days, reason: input.reason, status: final ? 'approved' : 'waiting',
+    staff_id: staff.id, kind: type.id, half, from: input.from, to: input.to, days, reason: input.reason, status: final ? 'approved' : 'waiting',
     decided_by: final ? ctx.user.id : '', decided_at: final ? db.nowIso : '', decide_note: '', cancel_reason: '', asked_by: ctx.user.id,
   });
   if (final) moveTasksForLeave(db, row);
@@ -120,7 +134,7 @@ function decide(ctx, { id, decision, note }) {
   if (staff.user_id === ctx.user.id) throw new AppError('OWN_ENTRY');
   if (!mayDecideFor(ctx, staff, 'leave.approve')) throw new AppError('FORBIDDEN');
   if (decision === 'reject' && !note) throw fieldError('note', 'val.required');
-  if (decision === 'accept' && l.kind === 'paid') checkBalance(db, staff, l.days, l.id);
+  if (decision === 'accept' && (leaveType(db, l.kind) || {}).from_balance) checkBalance(db, staff, l.days, l.id);
   if (note) db.setReason(note);
   const row = db.update('Leaves', l, { status: decision === 'accept' ? 'approved' : 'declined', decided_by: ctx.user.id, decided_at: db.nowIso, decide_note: note || '' });
   if (decision === 'accept') moveTasksForLeave(db, row);
@@ -150,6 +164,7 @@ function overview(ctx) {
   const all = db.all('Leaves');
   const decidable = (l) => mayDecideFor(ctx, db.get('Staff', l.staff_id), 'leave.approve');
   return {
+    types: leaveTypes(db),
     waiting: all.filter((l) => l.status === 'waiting' && decidable(l)).sort((a, b) => (a.from < b.from ? -1 : 1)).map((l) => leaveView(l, n)),
     upcoming: all.filter((l) => l.status === 'approved' && l.to >= today).sort((a, b) => (a.from < b.from ? -1 : 1)).map((l) => leaveView(l, n)),
     balances: db.all('Staff').filter((s) => s.status === 'active').sort((a, b) => a.name.localeCompare(b.name))
@@ -184,9 +199,22 @@ const KEYS = Object.freeze({
 const FLAGS = new Set(['allow_negative', 'self_select']);
 
 function readSettings(db) {
-  const out = {};
+  const out = { types: leaveTypes(db) };
   for (const [name, key] of Object.entries(KEYS)) out[name] = setting(db, key);
   return out;
+}
+
+// A kind of leave a shareholder adds or changes.
+function saveType(ctx, input) {
+  const { db } = ctx;
+  const clash = db.all('Leave_Types').some((t) => t.name.toLowerCase() === input.name.toLowerCase() && t.id !== input.id);
+  if (clash) throw fieldError('name', 'val.taken');
+  const fields = { name: input.name, name_bn: input.name_bn || '', paid: Boolean(input.paid), from_balance: Boolean(input.from_balance), half_days: Boolean(input.half_days), status: input.status };
+  if (!input.id) return saved(db.insert('Leave_Types', fields).id);
+  const row = db.get('Leave_Types', input.id);
+  if (!row) throw new AppError('NOT_FOUND');
+  db.update('Leave_Types', row, fields, input.version);
+  return saved(row.id);
 }
 
 function saveSettings(ctx, input) {
@@ -204,4 +232,5 @@ export const LEAVE_HANDLERS = {
   'leave.adjust': adjust,
   'settings.leave': (ctx) => readSettings(ctx.db),
   'settings.leave.save': saveSettings,
+  'leave.type.save': saveType,
 };

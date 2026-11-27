@@ -60,8 +60,9 @@ function punchLine(p) {
 // What a day was meant to be, in a few words: "Morning 07:00–13:00",
 // "10:00–18:00", "Day off", "On leave", "Victory Day".
 export function planText(plan) {
-  const named = plan.holiday ? ` · ${plan.holiday}` : '';
+  let named = plan.holiday ? ` · ${plan.holiday}` : '';
   if (plan.kind === 'leave') return t(plan.leave_kind === 'unpaid' ? 'hr.plan.unpaid' : 'hr.plan.leave') + named;
+  if (plan.half_leave) named = ` · ${t(plan.half_leave === 'first' ? 'hr.plan.half_first' : 'hr.plan.half_second')}${named}`;
   if (plan.kind === 'holiday') return plan.holiday;
   if (plan.kind === 'off') return t('hr.state.off') + named;
   if (!plan.start) return t('hr.no_hours') + named;

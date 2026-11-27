@@ -8,7 +8,7 @@ import { chip, emptyState, errorBox, staleNotice } from '../ui/feedback.js';
 import { formDialog } from '../ui/dialog.js';
 import { bindForm, errorText, formView } from '../ui/form.js';
 import { toast } from '../ui/toast.js';
-import { t } from '../core/i18n.js';
+import { getLang, t } from '../core/i18n.js';
 import { read, write } from '../core/api.js';
 import { can } from '../core/state.js';
 import { onArea } from '../core/live.js';
@@ -18,6 +18,14 @@ import { decideRequest } from './rota.js';
 
 const STATUS = { waiting: ['hr.fix.waiting', 'warn'], approved: ['hr.fix.approved', 'ok'], declined: ['hr.fix.declined', 'danger'], cancelled: ['leave.cancelled', 'muted'] };
 const KIND = { paid: 'leave.kind.paid', unpaid: 'leave.kind.unpaid' };
+const HALF = { first: 'leave.half.first', second: 'leave.half.second' };
+// The kinds of leave (built in, and those shareholders added), from the server.
+let types = [];
+export const leaveTypeName = (type) => (type.built_in ? t(KIND[type.id]) : (getLang() === 'bn' && type.name_bn) || type.name);
+const kindName = (id) => {
+  const type = types.find((x) => x.id === id);
+  return type ? leaveTypeName(type) : id;
+};
 const shortDate = (date) => dateShort(`${date}T06:00:00Z`);
 const days = (n) => t('leave.days', { count: n });
 
@@ -27,7 +35,7 @@ function span(l) {
 
 function leaveLine(l, { who = false, actions = '' } = {}) {
   return html`<li class="check-item">
-    <span><strong>${who ? `${l.staff_name} · ` : ''}${span(l)}</strong> · ${t(KIND[l.kind])} · ${days(l.days)} ${chip(t(STATUS[l.status][0]), STATUS[l.status][1])}</span>
+    <span><strong>${who ? `${l.staff_name} · ` : ''}${span(l)}</strong> · ${kindName(l.kind)}${l.half ? ` · ${t(HALF[l.half])}` : ''} · ${days(l.days)} ${chip(t(STATUS[l.status][0]), STATUS[l.status][1])}</span>
     <span>“${l.reason}”</span>
     ${l.decide_note ? html`<span class="muted">${t('hr.note', { note: l.decide_note })}</span>` : ''}
     ${l.cancel_reason ? html`<span class="muted">${t('leave.cancel_note', { note: l.cancel_reason })}</span>` : ''}
@@ -83,9 +91,10 @@ function overviewView(o) {
 // what's left are shown as the dates are picked.
 function applyDialog({ staff = null, onDone }) {
   const fields = [
-    { name: 'kind', label: t('leave.kind'), type: 'select', required: true, options: Object.keys(KIND).map((k) => ({ value: k, label: t(KIND[k]) })) },
+    { name: 'kind', label: t('leave.kind'), type: 'select', required: true, options: types.filter((x) => x.status === 'active').map((x) => ({ value: x.id, label: leaveTypeName(x) })) },
     { name: 'from', label: t('leave.from'), type: 'date', required: true },
     { name: 'to', label: t('leave.to'), type: 'date', required: true },
+    { name: 'half', label: t('leave.half'), type: 'select', placeholder: t('leave.half.whole'), options: Object.keys(HALF).map((k) => ({ value: k, label: t(HALF[k]) })), help: t('leave.half_help') },
     { name: 'reason', label: t('hr.fix_reason'), type: 'textarea', required: true },
   ];
   if (staff) fields.unshift({ name: 'staff_id', label: t('nav.staff'), type: 'select', required: true, placeholder: t('money.choose'), options: staff.map((s) => ({ value: s.staff.id, label: s.staff.name })) });
@@ -97,8 +106,16 @@ function applyDialog({ staff = null, onDone }) {
   }));
   const form = dialog.querySelector('form.form');
   const slot = form.querySelector('[data-role="preview"]');
+  // A half day: only for one date, and a kind that allows it.
+  const halfField = form.elements.half.closest('.field');
+  const showHalf = () => {
+    const type = types.find((x) => x.id === form.elements.kind.value);
+    halfField.hidden = !(type && type.half_days && form.elements.from.value && form.elements.from.value === form.elements.to.value);
+    if (halfField.hidden) form.elements.half.value = '';
+  };
   async function preview() {
-    const v = { staff_id: form.elements.staff_id ? form.elements.staff_id.value || null : null, from: form.elements.from.value, to: form.elements.to.value };
+    showHalf();
+    const v = { staff_id: form.elements.staff_id ? form.elements.staff_id.value || null : null, from: form.elements.from.value, to: form.elements.to.value, half: form.elements.half.value || null };
     if (!v.from || !v.to || v.to < v.from || (staff && !v.staff_id)) {
       slot.hidden = true;
       return;
@@ -116,7 +133,7 @@ function applyDialog({ staff = null, onDone }) {
   bindForm(form, {
     schema: ACTIONS['leave.apply'].schema,
     busyLabel: t('common.saving'),
-    mapValues: (v) => ({ ...v, staff_id: v.staff_id || null }),
+    mapValues: (v) => ({ ...v, staff_id: v.staff_id || null, half: v.half || null }),
     onSubmit: (v) => write('leave.apply', v),
     onSaved: (reply) => {
       dialog.close();
@@ -178,6 +195,7 @@ export const leavePage = {
           can('leave.approve') ? read('leave.overview').then((r) => r.data) : null,
         ]);
         overview = over;
+        types = (over || mine.data).types;
         render(el, html`${mine ? staleNotice(mine.cachedAt) : ''}
           ${overview ? overviewView(overview) : ''}
           ${mine ? mineView(mine.data) : ''}`);

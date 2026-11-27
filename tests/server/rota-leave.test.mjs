@@ -160,3 +160,31 @@ test('a public holiday when the shop closes is not a working day', () => {
   assert.equal(s.call(s.staff, 'leave.preview', { from: monday, to: plus(monday, 1) }).data.days, 1);
   assert.equal(s.call(s.owner, 'holidays.save', { date: monday, name: 'Again', status: 'active' }).data.error.fields.date.code, 'val.taken');
 });
+
+test('kinds of leave: a shareholder adds one; it is paid or not, from the balance or not, half days or not', () => {
+  const s = team();
+  const monday = nextWeekday(1, 3);
+  const sick = s.call(s.owner, 'leave.type.save', { name: 'Sick leave', paid: true, from_balance: false, half_days: false, status: 'active' }).data.record_id;
+  assert.equal(s.call(s.manager, 'leave.type.save', { name: 'x', status: 'active' }).error.code, 'FORBIDDEN');
+  assert.deepEqual(s.call(s.staff, 'leave.mine').data.types.map((x) => x.id), ['paid', 'unpaid', sick]);
+  // Not from the balance, so the balance doesn't change.
+  const asked = s.call(s.staff, 'leave.apply', { kind: sick, from: monday, to: plus(monday, 1), reason: 'Fever' }).data;
+  s.call(s.manager, 'leave.decide', { id: asked.record_id, decision: 'accept' });
+  assert.equal(s.call(s.staff, 'leave.mine').data.balance.used, 0);
+  assert.equal(s.call(s.staff, 'leave.apply', { kind: sick, half: 'first', from: plus(monday, 3), to: plus(monday, 3), reason: 'Doctor' }).data.error.fields.half.code, 'val.no_half_days');
+  assert.equal(s.call(s.staff, 'leave.apply', { kind: 'nothing', from: plus(monday, 3), to: plus(monday, 3), reason: 'x' }).data.error.fields.kind.code, 'val.not_found');
+});
+
+test('a half day counts 0.5 and halves the hours expected that day', () => {
+  const s = team();
+  const monday = nextWeekday(1, 3);
+  assert.equal(s.call(s.staff, 'leave.preview', { from: monday, to: monday, half: 'first' }).data.days, 0.5);
+  assert.equal(s.call(s.staff, 'leave.apply', { kind: 'paid', half: 'first', from: monday, to: plus(monday, 1), reason: 'x' }).data.error.fields.to.code, 'val.half_one_day');
+  const asked = s.call(s.staff, 'leave.apply', { kind: 'paid', half: 'first', from: monday, to: monday, reason: 'Bank in the morning' }).data;
+  assert.equal(asked.data.days, 0.5);
+  s.call(s.manager, 'leave.decide', { id: asked.record_id, decision: 'accept' });
+  // Usual hours 10:00–18:00: the morning is off, so the day starts at 14:00.
+  const day = dayOf(s, s.staff, monday);
+  assert.deepEqual([day.kind, day.start, day.end, day.half_leave], ['work', '14:00', '18:00', 'first']);
+  assert.equal(s.call(s.staff, 'leave.mine').data.balance.used, 0.5);
+});

@@ -37,12 +37,25 @@ export function rotaPlan(staff, date, row, shifts) {
   return { kind: 'work', start: staff.work_start || '', end: staff.work_end || '', shift: '', set: false };
 }
 
-// The whole plan. leave: the approved leave covering the date, if any;
-// holiday: the public holiday on the date, if any; closed: whether the shop
-// closes on public holidays.
+// The middle of a day's hours, "HH:MM".
+function midpoint(start, end) {
+  const toMin = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+  const m = Math.round((toMin(start) + toMin(end)) / 2);
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
+// The whole plan. leave: the approved leave covering the date, if any
+// ({paid, half: '' | first | second}); holiday: the public holiday on the
+// date, if any; closed: whether the shop closes on public holidays. A half
+// day's leave leaves the other half to work: the hours expected are halved.
 export function dayPlan(rota, { leave = null, holiday = null, closed = false } = {}) {
   const named = holiday ? { holiday: holiday.name } : {};
-  if (leave) return { ...rota, ...named, kind: 'leave', leave_kind: leave.kind };
+  const leaveKind = leave ? (leave.paid ? 'paid' : 'unpaid') : '';
+  if (leave && leave.half && rota.kind === 'work') {
+    const hours = rota.start && rota.end ? (leave.half === 'first' ? { start: midpoint(rota.start, rota.end) } : { end: midpoint(rota.start, rota.end) }) : {};
+    return { ...rota, ...hours, ...named, half_leave: leave.half, leave_kind: leaveKind };
+  }
+  if (leave) return { ...rota, ...named, kind: 'leave', leave_kind: leaveKind };
   if (holiday && closed) return { ...rota, ...named, kind: 'holiday' };
   return { ...rota, ...named };
 }

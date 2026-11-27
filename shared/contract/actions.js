@@ -626,12 +626,14 @@ export const ACTIONS = Object.freeze({
     schema: { id: { type: 'id' }, version: { type: 'int', min: 1 }, date: { type: 'date', required: true }, name: NAME, name_bn: { type: 'text', max: 80 }, status: STATUS },
   },
   'leave.mine': { cache: true },
-  'leave.preview': { schema: { staff_id: { type: 'id' }, from: { type: 'date', required: true }, to: { type: 'date', required: true } } },
+  'leave.preview': { schema: { staff_id: { type: 'id' }, from: { type: 'date', required: true }, to: { type: 'date', required: true }, half: { type: 'enum', values: ['first', 'second'] } } },
   'leave.apply': {
     write: true, area: 'hr',
     schema: {
       staff_id: { type: 'id' },
-      kind: { type: 'enum', required: true, values: ['paid', 'unpaid'] },
+      // paid, unpaid, or a kind a shareholder added (its id)
+      kind: { type: 'text', required: true, max: 20 },
+      half: { type: 'enum', values: ['first', 'second'] },
       from: { type: 'date', required: true },
       to: { type: 'date', required: true },
       reason: { type: 'text', required: true, max: 300 },
@@ -645,6 +647,19 @@ export const ACTIONS = Object.freeze({
     schema: { staff_id: { type: 'id', required: true }, days: { type: 'number', required: true, min: -365, max: 365 }, reason: { type: 'text', required: true, max: 200 } },
   },
   'settings.leave': { perm: 'settings.manage' },
+  'leave.type.save': {
+    write: true, perm: 'settings.manage', area: 'hr',
+    schema: {
+      id: { type: 'id' },
+      version: { type: 'int', min: 1 },
+      name: NAME,
+      name_bn: { type: 'text', max: 80 },
+      paid: { type: 'bool' },
+      from_balance: { type: 'bool' },
+      half_days: { type: 'bool' },
+      status: { type: 'enum', required: true, values: ['active', 'inactive'] },
+    },
+  },
   'settings.leave.save': {
     write: true, perm: 'settings.manage', area: 'hr',
     schema: {

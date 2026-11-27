@@ -30,4 +30,7 @@ test('leave is counted in working days or calendar days', () => {
   const plans = [{ kind: 'work' }, { kind: 'off' }, { kind: 'holiday' }, { kind: 'work' }];
   assert.equal(leaveDays(plans, 'working'), 2);
   assert.equal(leaveDays(plans, 'calendar'), 4);
+  // A half day counts 0.5, if the day counts at all.
+  assert.equal(leaveDays([{ kind: 'work', half: 'first' }], 'working'), 0.5);
+  assert.equal(leaveDays([{ kind: 'off', half: 'first' }], 'working'), 0);
 });
