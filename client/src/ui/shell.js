@@ -25,7 +25,7 @@ function connection(state) {
     </a>`;
 }
 
-function navView(items, path, state) {
+function navView(items, groups, path, state) {
   const user = state.meta.user;
   const role = roleById(user.role_id);
   return html`
@@ -37,13 +37,16 @@ function navView(items, path, state) {
       <span class="avatar" aria-hidden="true">${user.display_name.slice(0, 1).toUpperCase()}</span>
       <span><strong>${user.display_name}</strong><br><span class="muted">${role ? t(role.name) : ''}</span></span>
     </div>
-    <ul class="nav-list">
-      ${visible(items).map((item) => html`
+    ${groups.map((g) => {
+      const mine = visible(items).filter((item) => item.group === g.id);
+      return mine.length ? html`<p class="nav-group">${t(g.label)}</p><ul class="nav-list">
+        ${mine.map((item) => html`
         <li><a href="#${item.path}" class="nav-link ${item.path === path ? 'is-current' : ''}" ${item.path === path ? html`aria-current="page"` : ''}>
           ${icon(item.icon)}<span>${t(item.title)}</span>
           ${item.path === '/saved' && state.queued ? html`<span class="badge">${state.queued}</span>` : ''}
         </a></li>`)}
-    </ul>
+      </ul>` : '';
+    })}
     <button class="nav-link nav-signout" data-act="sign-out">${icon('signout')}<span>${t('shell.sign_out')}</span></button>`;
 }
 
@@ -97,8 +100,8 @@ function dropAnywhere(app) {
   };
 }
 
-// items: [{path, title, icon, perm?, bottom?}]
-export function mountShell(root, { items, onSignOut }) {
+// items: [{path, group, title, icon, perm?, bottom?}]; groups: [{id, label}]
+export function mountShell(root, { items, groups, onSignOut }) {
   render(root, html`
     <div class="app">
       <header class="topbar">
@@ -121,7 +124,7 @@ export function mountShell(root, { items, onSignOut }) {
 
   const draw = () => {
     const state = getState();
-    render(nav, navView(items, path, state));
+    render(nav, navView(items, groups, path, state));
     render(bottom, bottomView(items, path));
     render(conn, connection(state));
   };

@@ -48,7 +48,6 @@
   "home.greeting_morning": "Good morning, {name}",
   "home.greeting_afternoon": "Good afternoon, {name}",
   "home.greeting_evening": "Good evening, {name}",
-  "home.shortcuts": "Go to",
   "home.saved_waiting": "{count, plural, one {# entry is} other {# entries are}} saved on this phone and will be sent when you're online.",
   "home.saved_attention": "{count, plural, one {# entry saved on this phone needs} other {# entries saved on this phone need}} your attention.",
   "signin.title": "Sign in",
@@ -114,5 +113,11 @@
   "list.per_page": "A page:",
   "list.no_match": "Nothing matches this search.",
   "sync.sent": "{count, plural, one {# entry saved on this phone was sent.} other {# entries saved on this phone were sent.}}",
-  "sync.attention": "{count, plural, one {# entry wasn't saved and needs you.} other {# entries weren't saved and need you.}} See Saved on this phone."
+  "sync.attention": "{count, plural, one {# entry wasn't saved and needs you.} other {# entries weren't saved and need you.}} See Saved on this phone.",
+  "nav.group.today": "Today",
+  "nav.group.money": "Money",
+  "nav.group.books": "Books",
+  "nav.group.cafe": "Café",
+  "nav.group.people": "People",
+  "nav.group.settings": "Settings"
 }

@@ -48,7 +48,6 @@
   "home.greeting_morning": "সুপ্রভাত, {name}",
   "home.greeting_afternoon": "শুভ অপরাহ্ন, {name}",
   "home.greeting_evening": "শুভ সন্ধ্যা, {name}",
-  "home.shortcuts": "যেখানে যেতে চান",
   "home.saved_waiting": "{count}টি এন্ট্রি এই ফোনে সেভ করা আছে, অনলাইন হলে পাঠানো হবে।",
   "home.saved_attention": "এই ফোনে সেভ করা {count}টি এন্ট্রিতে আপনার মনোযোগ দরকার।",
   "signin.title": "সাইন ইন",
@@ -114,5 +113,11 @@
   "list.per_page": "প্রতি পাতায়:",
   "list.no_match": "এই খোঁজার সাথে কিছু মেলেনি।",
   "sync.sent": "এই ফোনে সেভ করা {count}টি এন্ট্রি পাঠানো হয়েছে।",
-  "sync.attention": "{count}টি এন্ট্রি সেভ হয়নি, আপনার দেখা দরকার। \"এই ফোনে সেভ করা\" পাতায় দেখুন।"
+  "sync.attention": "{count}টি এন্ট্রি সেভ হয়নি, আপনার দেখা দরকার। \"এই ফোনে সেভ করা\" পাতায় দেখুন।",
+  "nav.group.today": "আজ",
+  "nav.group.money": "টাকা",
+  "nav.group.books": "বই",
+  "nav.group.cafe": "ক্যাফে",
+  "nav.group.people": "মানুষ",
+  "nav.group.settings": "সেটিংস"
 }

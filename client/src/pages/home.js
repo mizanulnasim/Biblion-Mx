@@ -14,7 +14,7 @@ import { icon } from '../ui/icons.js';
 import { t } from '../core/i18n.js';
 import { can, getState, subscribe } from '../core/state.js';
 import { dateShort, partOfDay } from '../core/format.js';
-import { NAV } from './nav.js';
+import { NAV, NAV_GROUPS } from './nav.js';
 
 const GREETINGS = { morning: 'home.greeting_morning', afternoon: 'home.greeting_afternoon', evening: 'home.greeting_evening' };
 
@@ -52,11 +52,13 @@ function view(state, home) {
         ${icon('phone')}
         <span>${state.attention ? t('home.saved_attention', { count: state.attention }) : t('home.saved_waiting', { count: state.queued })}</span>
       </a>` : ''}
-    <h3 class="section-title">${t('home.shortcuts')}</h3>
-    <ul class="tiles">
-      ${shortcuts.map((item) => html`
-        <li><a class="tile" href="#${item.path}">${icon(item.icon)}<span class="tile-title">${t(item.title)}</span><span class="tile-text">${t(item.hint)}</span></a></li>`)}
-    </ul>`;
+    ${NAV_GROUPS.map((g) => {
+      const mine = shortcuts.filter((item) => item.group === g.id);
+      return mine.length ? html`<h3 class="section-title">${t(g.label)}</h3>
+        <ul class="tiles">${mine.map((item) => html`
+          <li><a class="tile" href="#${item.path}">${icon(item.icon)}<span class="tile-title">${t(item.title)}</span><span class="tile-text">${t(item.hint)}</span></a></li>`)}
+        </ul>` : '';
+    })}`;
 }
 
 export const homePage = {
