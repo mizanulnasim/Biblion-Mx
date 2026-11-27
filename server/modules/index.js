@@ -30,6 +30,7 @@ import { SEPARATION_HANDLERS } from './separation.js';
 import { DOC_HANDLERS } from './docs.js';
 import { PERFORMANCE_HANDLERS } from './performance.js';
 import { WAITING_HANDLERS } from './waiting.js';
+import { RECRUITMENT_HANDLERS } from './recruitment.js';
 import { USER_HANDLERS } from './users.js';
 
 export const HANDLERS = Object.freeze({
@@ -61,5 +62,6 @@ export const HANDLERS = Object.freeze({
   ...DOC_HANDLERS,
   ...PERFORMANCE_HANDLERS,
   ...WAITING_HANDLERS,
+  ...RECRUITMENT_HANDLERS,
   'sync.version': () => ({ areas: areaVersions() }),
 });

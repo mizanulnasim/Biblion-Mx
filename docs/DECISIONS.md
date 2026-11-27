@@ -322,3 +322,18 @@ These are working choices made while building. Each is easy to change.
   - The points (Punctuality, Task completion, Work quality, Teamwork, Customer care) were written fresh and are edited in Settings → Reviews.
 - **Home** shows reviews waiting, pinned announcements, unread announcements, and anything waiting for an acknowledgement. All of these "waiting for you" counts now come from one place (`people.waiting`).
 - **Not yet:** recruitment (stages and applicants) and onboarding, and email notifications.
+
+## Milestone 14: recruitment and onboarding (assumptions to confirm)
+- **Applicants** (`recruitment.manage`, managers and shareholders, since names and phones are personal):
+  - Each applicant has a name, phone, the job, where they heard of it, and notes.
+  - Stages: New → Interview (with a time) → Offered (salary and start date) → Hired. They can also end as "Not taken" or "Withdrew", both with a reason.
+  - Every move is kept with who made it, when, and a note.
+- **Hiring** (also needs `staff.edit`):
+  - Makes their staff record with the job, the offered salary and the start date.
+  - Hours, days off, sign-in and PIN are added afterwards in Staff.
+  - An offer or appointment letter is then written from Staff → Letters.
+- **Onboarding:**
+  - A checklist for each new person, with steps from Settings → Onboarding (seven written fresh).
+  - Ticking a step records who and when. All steps ticked closes it.
+  - It shows whether their sign-in is linked and their punch PIN is set.
+- **Not yet:** uploading applicants' CVs (comes with staff papers in uploads part 2).

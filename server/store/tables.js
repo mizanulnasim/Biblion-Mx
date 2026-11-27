@@ -369,6 +369,24 @@ export const TABLES = Object.freeze({
       'started_by', 'shared_by', 'shared_at', 'acked_at',
     ],
   },
+  // People applying for a job. stage: new, interview, offered, hired,
+  // rejected, withdrawn; history:j [{stage, at, by, note}]. When hired,
+  // staff_id is their new staff record.
+  Applicants: {
+    group: 'hr',
+    prefix: 'APL',
+    columns: [
+      'name', 'phone', 'position', 'source', 'notes', 'stage', 'history:j', 'interview_at',
+      'offer_salary:n', 'start_date', 'staff_id',
+    ],
+  },
+  // A new person's first steps. steps:j [{label, done_at, done_by}].
+  // Status: open, done.
+  Onboarding: {
+    group: 'hr',
+    prefix: 'ONB',
+    columns: ['staff_id', 'steps:j', 'status', 'done_at'],
+  },
   // One row per closed date; reopening keeps the row with its reason.
   Day_Closings: {
     group: 'accounts',

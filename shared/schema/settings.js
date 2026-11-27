@@ -87,6 +87,16 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   // they give their own view first.
   'performance.criteria': ['Punctuality', 'Task completion', 'Work quality', 'Teamwork', 'Customer care'],
   'performance.self_assessment': true,
+  // A new person's onboarding checklist.
+  'onboarding.steps': [
+    'Copy of NID received',
+    'Appointment letter signed',
+    'Sign-in made and linked to the staff record',
+    'Punch PIN set',
+    'Job description and procedures read',
+    'Shown around the shop and the café',
+    'First week working beside a colleague',
+  ],
   'separation.notice_days': 30,
   'separation.notice_deduct': true,
   'separation.leave_encash': 'ask',

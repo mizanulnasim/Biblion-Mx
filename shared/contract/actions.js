@@ -769,4 +769,39 @@ export const ACTIONS = Object.freeze({
     write: true, perm: 'settings.manage', area: 'hr',
     schema: { criteria: { type: 'list', max: 12, of: { name: { type: 'text', max: 60 } } }, self_assessment: { type: 'bool' } },
   },
+  // ---- Recruitment and onboarding ----
+  'applicants.list': { perm: 'recruitment.manage', schema: { ...PAGED, stage: { type: 'enum', values: ['open', 'hired', 'rejected', 'withdrawn'] } } },
+  'applicants.save': {
+    write: true, perm: 'recruitment.manage', area: 'hr',
+    schema: {
+      id: { type: 'id' },
+      version: { type: 'int', min: 1 },
+      name: NAME,
+      phone: { type: 'text', max: 20 },
+      position: { type: 'text', required: true, max: 60 },
+      source: { type: 'text', max: 80 },
+      notes: { type: 'text', max: 1000 },
+    },
+  },
+  'applicants.stage': {
+    write: true, perm: 'recruitment.manage', area: 'hr',
+    schema: {
+      id: { type: 'id', required: true },
+      stage: { type: 'enum', required: true, values: ['interview', 'offered', 'hired', 'rejected', 'withdrawn'] },
+      interview_at: { type: 'text', max: 40 },
+      offer_salary: { type: 'money' },
+      start_date: { type: 'date' },
+      note: { type: 'text', max: 500 },
+    },
+  },
+  'onboarding.list': { perm: 'recruitment.manage' },
+  'onboarding.tick': {
+    write: true, perm: 'recruitment.manage', area: 'hr',
+    schema: { id: { type: 'id', required: true }, step: { type: 'int', required: true, min: 0, max: 30 }, done: { type: 'bool' } },
+  },
+  'settings.onboarding': { perm: 'settings.manage' },
+  'settings.onboarding.save': {
+    write: true, perm: 'settings.manage', area: 'hr',
+    schema: { steps: { type: 'list', max: 20, of: { label: { type: 'text', max: 120 } } } },
+  },
 });
