@@ -78,6 +78,8 @@ export const BUSINESS_DEFAULTS = Object.freeze({
   // days the person punched in ('worked_days').
   'food.rates': [{ from: '2000-01-01', amount: 100 }],
   'food.unpaid_rule': 'every_day',
+  // Repeating tasks are made this many days ahead (besides today).
+  'tasks.days_ahead': 1,
 });
 
 const BRAND_ACCENT = '#4f46e5';

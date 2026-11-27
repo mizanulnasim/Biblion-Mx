@@ -262,3 +262,22 @@ These are working choices made while building. Each is easy to change.
 - **Payroll page** (shareholders): the month's payslips, what was paid for the month and what is left, everyone's pay account, and buttons that open the money screen with the person, kind, amount and month filled in.
 - **Payslips:** staff see their own under My pay. A payslip prints (or saves as PDF) on the letterhead.
 - **Not yet:** overtime pay (`payroll.overtime_paid` stays off), settling pay when someone leaves (comes with staff leaving), and payslips by email.
+
+## Milestone 11: tasks (assumptions to confirm)
+- **Tasks are given to a person,** not a role. Managers give one-off tasks (`tasks.create`) and set repeating tasks (`tasks.manage`).
+- **Repeating tasks:**
+  - Daily, on chosen weekdays, or on one day of the month (the last day in a shorter month).
+  - The hourly job makes them for today and tomorrow (a setting), and only on days the person is meant to work by the rota. So no tasks appear on days off, on leave, or on closed holidays.
+  - Pausing or ending a repeating task skips its coming tasks. Changing its person moves the open coming ones.
+- **Doing a task:**
+  - People do their own tasks without a permission: done, or "can't do it" with a reason, and comments.
+  - All three work offline and are sent later.
+- **Checks:**
+  - A task can need a manager's check. The manager accepts it or sends it back with a note, and it opens again.
+  - Nobody checks their own task, and a manager's is checked by a shareholder.
+- **Links:** a task can open a screen, such as the money screen with "Expense" chosen, the daily shift or the café count. The button shows only to someone who may use that screen. The task is still marked done by hand.
+- **Leave:** when leave is approved, repeating tasks on those days are skipped, and one-off tasks move to the person's next working day (and show where they moved from).
+- **Where tasks show:**
+  - Home shows the person's tasks due today or overdue, and managers see "N tasks wait for your check".
+  - Day closing gains a tasks step: open tasks are a warning, not a block.
+- **Not yet:** reminders by notification or email (Home shows what is due and overdue), and printed task reports.

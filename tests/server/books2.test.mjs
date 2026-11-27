@@ -126,12 +126,12 @@ test('stock-take: one at a time, counts over several sittings, applied as stock 
 
 test('the hourly job drafts requisitions once per week when set to', () => {
   const s = bookshop();
-  // The job's result comes from the server's sandbox; compare it as plain data.
-  const job = () => JSON.parse(JSON.stringify(s.server.job()));
-  assert.deepEqual(job(), { req_auto: 0 });
+  // The requisitions job's result (the hourly run holds other jobs too).
+  const job = () => s.server.job().req_auto;
+  assert.equal(job(), 0);
   s.call(s.owner, 'settings.books.save', { req_auto: 'weekly', req_days: 30 });
-  assert.deepEqual(job(), { req_auto: 1 });
-  assert.deepEqual(job(), { req_auto: 0 });
+  assert.equal(job(), 1);
+  assert.equal(job(), 0);
   const drafts = s.call(s.manager, 'books.reqs', { status: 'draft' }).data.items;
   assert.equal(drafts.length, 1);
   assert.equal(drafts[0].entered_by, '');

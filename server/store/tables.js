@@ -298,6 +298,31 @@ export const TABLES = Object.freeze({
     prefix: 'POP',
     columns: ['staff_id', 'owed:n', 'advance:n'],
   },
+  // Repeating tasks. repeat: daily, weekly (days:j, 0 Sunday … 6 Saturday)
+  // or monthly (day_of_month). link: a screen the task opens
+  // (shared/tasks/tasks.js). needs_check: a manager checks it when done.
+  // Status: active, paused, ended.
+  Task_Templates: {
+    group: 'hr',
+    prefix: 'TTP',
+    columns: [
+      'title', 'details', 'staff_id', 'repeat', 'days:j', 'day_of_month:n', 'due_time', 'link', 'needs_check:b',
+      'start_date', 'end_date', 'status',
+    ],
+  },
+  // Tasks, one-off or made from a template for one date. Status: open,
+  // to_check (done, waiting for a manager's check), done, not_done (with
+  // the person's reason), skipped (cancelled, or the person was on leave).
+  // comments:j [{by, name, at, text}]. moved_from: the date it was due
+  // before approved leave moved it.
+  Tasks: {
+    group: 'hr',
+    prefix: 'TSK',
+    columns: [
+      'template_id', 'title', 'details', 'staff_id', 'due_date', 'due_time', 'link', 'needs_check:b', 'status',
+      'note', 'done_at', 'done_by', 'checked_by', 'checked_at', 'check_note', 'skip_reason', 'moved_from', 'comments:j', 'created_by',
+    ],
+  },
   // One row per closed date; reopening keeps the row with its reason.
   Day_Closings: {
     group: 'accounts',

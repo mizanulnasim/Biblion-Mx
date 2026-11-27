@@ -25,6 +25,7 @@ import { STAFF_HANDLERS } from './staff.js';
 import { ROTA_HANDLERS } from './rota.js';
 import { LEAVE_HANDLERS } from './leave.js';
 import { PAYROLL_HANDLERS } from './payroll.js';
+import { TASK_HANDLERS } from './tasks.js';
 import { USER_HANDLERS } from './users.js';
 
 export const HANDLERS = Object.freeze({
@@ -51,5 +52,6 @@ export const HANDLERS = Object.freeze({
   ...ROTA_HANDLERS,
   ...LEAVE_HANDLERS,
   ...PAYROLL_HANDLERS,
+  ...TASK_HANDLERS,
   'sync.version': () => ({ areas: areaVersions() }),
 });

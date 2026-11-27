@@ -17,6 +17,7 @@ export const NAV = Object.freeze([
   { path: '/uploads', group: 'today', title: 'nav.uploads', hint: 'nav.uploads_hint', icon: 'log', perm: 'intake.upload' },
   { path: '/daily', group: 'today', title: 'nav.daily', hint: 'nav.daily_hint', icon: 'daily', perm: 'acc.daily', bottom: true },
   { path: '/cafe/count', group: 'today', title: 'nav.cafe_count', hint: 'nav.cafe_count_hint', icon: 'cup', perm: 'cafe.count', bottom: true },
+  { path: '/tasks', group: 'today', title: 'nav.tasks', hint: 'nav.tasks_hint', icon: 'check', perm: 'tasks.view_all|self.staff' },
   { path: '/me/attendance', group: 'today', title: 'nav.my_attendance', hint: 'nav.my_attendance_hint', icon: 'clock', perm: 'self.staff' },
   { path: '/rota', group: 'today', title: 'nav.rota', hint: 'nav.rota_hint', icon: 'daily', perm: 'schedule.view|self.staff' },
   { path: '/leave', group: 'today', title: 'nav.leave', hint: 'nav.leave_hint', icon: 'badge', perm: 'leave.approve|self.staff' },

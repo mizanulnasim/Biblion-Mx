@@ -7,8 +7,12 @@ import { isInitialized, openDb } from '../store/db.js';
 import { withLock } from '../platform.js';
 import { bumpArea } from './areas.js';
 import { autoRequisitions } from '../modules/requisitions.js';
+import { makeTasks } from '../modules/tasks.js';
 
-const JOBS = [{ id: 'req_auto', area: 'books', run: autoRequisitions }];
+const JOBS = [
+  { id: 'req_auto', area: 'books', run: autoRequisitions },
+  { id: 'tasks', area: 'hr', run: makeTasks },
+];
 
 export function runJobs() {
   if (!isInitialized()) return {};

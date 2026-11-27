@@ -19,6 +19,7 @@ import { newToken, sameHex, signHex } from '../kernel/crypto.js';
 import { joinedOn, mayDecideFor, staffOfUser } from './staff.js';
 import { planner, rotaWaiting } from './rota.js';
 import { leaveWaiting } from './leave.js';
+import { tasksToCheck } from './tasks.js';
 
 const DAY_MS = 86400000;
 const MINUTE_MS = 60000;
@@ -172,8 +173,8 @@ function today(ctx) {
   const mine = staffOfUser(db, ctx.user.id);
   const checks = ctx.can('attendance.manage') ? waitingChecks(ctx) : null;
   // What waits for this person: attendance checks, rota requests (to agree
-  // to or decide) and leave to decide.
-  const waiting = { checks: checks ? checks.punches.length + checks.fixes.length : 0, rota: rotaWaiting(ctx), leave: leaveWaiting(ctx) };
+  // to or decide), leave to decide and tasks to check.
+  const waiting = { checks: checks ? checks.punches.length + checks.fixes.length : 0, rota: rotaWaiting(ctx), leave: leaveWaiting(ctx), tasks: tasksToCheck(ctx) };
   if (!mine) return { staff: null, ...waiting };
   const [day] = daysFor(db, mine, [dhakaDate(db.now.getTime())]);
   const todays = day.punches.filter(counted).map((p) => ({ type: p.type, at: Date.parse(p.at) }));

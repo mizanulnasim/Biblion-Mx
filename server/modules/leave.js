@@ -6,7 +6,8 @@
 // Everyone asks for their own leave without a permission. A manager decides
 // staff leave, a shareholder decides a manager's, nobody their own; a
 // shareholder's own leave is final. Leave that has started can be cancelled
-// only by someone who may decide it.
+// only by someone who may decide it. Approved leave moves the person's tasks
+// (server/modules/tasks.js).
 
 import { AppError } from '../../shared/contract/errors.js';
 import { saved } from '../../shared/contract/reply.js';
@@ -16,6 +17,7 @@ import { datesBetween } from '../../shared/hr/plan.js';
 import { saveSetting, setting } from '../kernel/settings.js';
 import { joinedOn, mayDecideFor, staffOfUser } from './staff.js';
 import { planner } from './rota.js';
+import { moveTasksForLeave } from './tasks.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -105,6 +107,7 @@ function apply(ctx, input) {
     staff_id: staff.id, kind: input.kind, from: input.from, to: input.to, days, reason: input.reason, status: final ? 'approved' : 'waiting',
     decided_by: final ? ctx.user.id : '', decided_at: final ? db.nowIso : '', decide_note: '', cancel_reason: '', asked_by: ctx.user.id,
   });
+  if (final) moveTasksForLeave(db, row);
   return saved(row.id, { final, days });
 }
 
@@ -119,7 +122,8 @@ function decide(ctx, { id, decision, note }) {
   if (decision === 'reject' && !note) throw fieldError('note', 'val.required');
   if (decision === 'accept' && l.kind === 'paid') checkBalance(db, staff, l.days, l.id);
   if (note) db.setReason(note);
-  db.update('Leaves', l, { status: decision === 'accept' ? 'approved' : 'declined', decided_by: ctx.user.id, decided_at: db.nowIso, decide_note: note || '' });
+  const row = db.update('Leaves', l, { status: decision === 'accept' ? 'approved' : 'declined', decided_by: ctx.user.id, decided_at: db.nowIso, decide_note: note || '' });
+  if (decision === 'accept') moveTasksForLeave(db, row);
   return saved(l.id);
 }
 

@@ -37,6 +37,14 @@ const PLACE = {
   accuracy: { type: 'number', min: 0, max: 100000 },
 };
 const SIGNATURE = { type: 'text', required: true, max: 64 };
+const TASK_FIELDS = {
+  title: { type: 'text', required: true, max: 120 },
+  details: { type: 'text', max: 1000 },
+  staff_id: { type: 'id', required: true },
+  due_time: { type: 'time' },
+  link: { type: 'text', max: 40 },
+  needs_check: { type: 'bool' },
+};
 const DECISION = {
   id: { type: 'id', required: true },
   decision: { type: 'enum', required: true, values: ['accept', 'reject'] },
@@ -653,6 +661,37 @@ export const ACTIONS = Object.freeze({
       divisor: { type: 'enum', required: true, values: ['period_days', 'fixed_30'] },
       food_rule: { type: 'enum', required: true, values: ['every_day', 'skip_unpaid', 'worked_days'] },
       food_rates: { type: 'list', max: 20, of: { from: { type: 'date', required: true }, amount: { type: 'money', zero: true, required: true } } },
+    },
+  },
+  // ---- Tasks ----
+  'tasks.mine': { cache: true },
+  'tasks.list': { perm: 'tasks.view_all', schema: { date: { type: 'date' }, staff_id: { type: 'id' } } },
+  'tasks.create': {
+    write: true, perm: 'tasks.create', area: 'hr',
+    schema: { ...TASK_FIELDS, due_date: { type: 'date', required: true } },
+  },
+  'tasks.complete': { write: true, offline: true, area: 'hr', schema: { id: { type: 'id', required: true }, note: { type: 'text', max: 300 } } },
+  'tasks.not_done': { write: true, offline: true, area: 'hr', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 300 } } },
+  'tasks.comment': { write: true, offline: true, area: 'hr', schema: { id: { type: 'id', required: true }, text: { type: 'text', required: true, max: 500 } } },
+  'tasks.verify': { write: true, perm: 'tasks.verify', area: 'hr', schema: DECISION },
+  'tasks.reassign': {
+    write: true, perm: 'tasks.manage', area: 'hr',
+    schema: { id: { type: 'id', required: true }, staff_id: { type: 'id', required: true }, due_date: { type: 'date' } },
+  },
+  'tasks.cancel': { write: true, perm: 'tasks.manage', area: 'hr', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 200 } } },
+  'tasks.templates': { perm: 'tasks.manage' },
+  'tasks.template.save': {
+    write: true, perm: 'tasks.manage', area: 'hr',
+    schema: {
+      id: { type: 'id' },
+      version: { type: 'int', min: 1 },
+      ...TASK_FIELDS,
+      repeat: { type: 'enum', required: true, values: ['daily', 'weekly', 'monthly'] },
+      days: { type: 'list', max: 7, of: { day: { type: 'int', required: true, min: 0, max: 6 } } },
+      day_of_month: { type: 'int', min: 1, max: 31 },
+      start_date: { type: 'date', required: true },
+      end_date: { type: 'date' },
+      status: { type: 'enum', required: true, values: ['active', 'paused', 'ended'] },
     },
   },
 });

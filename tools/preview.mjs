@@ -86,6 +86,13 @@ function seed(server, state) {
   call(server, 'rota.set', { staff_id: people[3], date: day(-2), value: morning }, token);
   call(server, 'holidays.save', { date: day(-5), name: 'Sample holiday', name_bn: 'নমুনা ছুটি', status: 'active' }, token);
   call(server, 'leave.apply', { staff_id: people[3], kind: 'paid', from: day(-8), to: day(-9), reason: 'Preview sample' }, token);
+  // Tasks: repeating ones for staff and the manager, and one to be checked.
+  const task = (fields) => call(server, 'tasks.template.save', { start_date: day(0), status: 'active', ...fields }, token);
+  task({ title: 'Wipe the café tables', staff_id: people[2], repeat: 'daily', due_time: '11:00' });
+  task({ title: 'Count the café stock', staff_id: people[2], repeat: 'daily', due_time: '20:30', link: 'page:cafe_count' });
+  task({ title: 'Dust the shelves', staff_id: people[3], repeat: 'weekly', days: [0, 1, 2, 3, 4, 6].map((d) => ({ day: d })), needs_check: true });
+  task({ title: 'Pay the electricity bill', staff_id: people[1], repeat: 'monthly', day_of_month: Number(day(0).slice(8)), link: 'money:expense' });
+  call(server, 'tasks.create', { title: 'Put up the new poetry display', details: 'Use the front table.', staff_id: people[2], due_date: day(0), needs_check: true }, token);
   for (let n = 7; n >= 1; n--) {
     const date = day(n);
     if (new Date(`${date}T00:00:00Z`).getUTCDay() === 5) continue;
@@ -112,7 +119,14 @@ export function startPreview({ port = 8080, fresh = false, quiet = false } = {})
     if (!fresh) seed(server, state);
   }
   const save = () => fs.writeFileSync(file, JSON.stringify(state));
-  save();
+  // The hourly job (repeating tasks, automatic requisitions), as the Apps
+  // Script trigger would run it.
+  const runJobs = () => {
+    server.job();
+    save();
+  };
+  runJobs();
+  const hourly = setInterval(runJobs, 3600000);
 
   const httpServer = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://localhost');
@@ -166,6 +180,7 @@ export function startPreview({ port = 8080, fresh = false, quiet = false } = {})
         lines.push('Stop with Ctrl+C.');
         process.stdout.write(`${lines.join('\n')}\n`);
       }
+      httpServer.on('close', () => clearInterval(hourly));
       resolve(httpServer);
     });
   });

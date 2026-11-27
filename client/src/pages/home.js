@@ -17,6 +17,7 @@ import { can, getState, subscribe } from '../core/state.js';
 import { dateShort, partOfDay } from '../core/format.js';
 import { NAV, NAV_GROUPS } from './nav.js';
 import { punchCard, startPunch } from './attendance-common.js';
+import { taskActions, taskItem } from './tasks.js';
 
 const GREETINGS = { morning: 'home.greeting_morning', afternoon: 'home.greeting_afternoon', evening: 'home.greeting_evening' };
 
@@ -46,10 +47,21 @@ function attendanceView(att) {
   return html`${att.staff && att.day ? punchCard(att) : ''}
     ${att.checks ? html`<a class="notice notice-warn" href="#/attendance">${icon('clock')}<span>${t('home.attendance_checks', { count: att.checks })}</span></a>` : ''}
     ${att.rota ? html`<a class="notice notice-warn" href="#/rota">${icon('daily')}<span>${t('home.rota_waiting', { count: att.rota })}</span></a>` : ''}
-    ${att.leave ? html`<a class="notice notice-warn" href="#/leave">${icon('badge')}<span>${t('home.leave_waiting', { count: att.leave })}</span></a>` : ''}`;
+    ${att.leave ? html`<a class="notice notice-warn" href="#/leave">${icon('badge')}<span>${t('home.leave_waiting', { count: att.leave })}</span></a>` : ''}
+    ${att.tasks ? html`<a class="notice notice-warn" href="#/tasks">${icon('check')}<span>${t('home.tasks_to_check', { count: att.tasks })}</span></a>` : ''}`;
 }
 
-function view(state, home, att) {
+// The person's open tasks up to today.
+function tasksView(tasks) {
+  if (!tasks) return '';
+  if (tasks.error) return errorBox(tasks.error);
+  const due = tasks.items.filter((x) => x.status === 'open' && x.due_date <= tasks.today);
+  return due.length ? html`<section class="panel"><h3 class="section-title">${t('home.my_tasks', { count: due.length })}</h3>
+    <ul class="waiting-list">${due.map((x) => taskItem(x, { mine: true }))}</ul>
+    <a href="#/tasks">${t('home.all_tasks')}</a></section>` : '';
+}
+
+function view(state, home, att, tasks) {
   const now = Date.now();
   const shortcuts = NAV.filter((item) => item.path !== '/' && (!item.perm || can(item.perm)));
   return html`
@@ -58,6 +70,7 @@ function view(state, home, att) {
       <h2 class="hero-title">${t(GREETINGS[partOfDay(now)], { name: state.meta.user.display_name })}</h2>
     </section>
     ${attendanceView(att)}
+    ${tasksView(tasks)}
     ${waitingView(home)}
     ${state.queued || state.attention ? html`
       <a class="notice ${state.attention ? 'notice-warn' : ''}" href="#/saved">
@@ -79,7 +92,17 @@ export const homePage = {
   mount(el) {
     let home = null;
     let att = null;
-    const draw = () => render(el, view(getState(), home, att));
+    let tasks = null;
+    const draw = () => render(el, view(getState(), home, att, tasks));
+    const loadTasks = async () => {
+      if (!can('self.staff')) return;
+      try {
+        tasks = (await read('tasks.mine')).data;
+      } catch (err) {
+        tasks = { error: errorText(err) };
+      }
+      draw();
+    };
     const loadAttendance = async () => {
       if (!can('self.staff|attendance.manage|schedule.manage|leave.approve')) return;
       try {
@@ -101,12 +124,17 @@ export const homePage = {
     draw();
     load();
     loadAttendance();
+    loadTasks();
     const unsubscribe = subscribe(draw);
     const offArea = onArea('money', load);
-    const offHr = onArea('hr', loadAttendance);
+    const offHr = onArea('hr', () => {
+      loadAttendance();
+      loadTasks();
+    });
     const offClick = on(el, 'click', {
       open: (e, btn) => openEntry(btn.dataset.id, load),
       punch: (e, btn) => startPunch(btn, loadAttendance),
+      ...taskActions((id) => tasks.items.find((x) => x.id === id), loadTasks),
     });
     return () => {
       unsubscribe();
