@@ -31,5 +31,8 @@
   "me.notify_email_help": "Sent after the shop closes, only on days with something that needs a shareholder: money overdue, approvals waiting, the day's shift or closing, the drawer short or over.",
   "me.notify_daily": "Send me the daily warnings email",
   "hr.email_after": "Daily warnings email, minutes after closing",
-  "hr.email_after_help": "The shareholders' email goes this long after the shop closes, so the day can be closed first."
+  "hr.email_after_help": "The shareholders' email goes this long after the shop closes, so the day can be closed first.",
+  "month.files": "Kept in Drive, and emailed to shareholders who set an address:",
+  "mail.month_subject": "{shop}: month {month} closed, its reports",
+  "mail.month_body": "Month {month} is closed. Its monthly, shareholders' and salary reports are attached as PDF and Excel; they are also kept in Drive."
 }

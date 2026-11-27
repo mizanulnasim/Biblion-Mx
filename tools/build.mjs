@@ -104,7 +104,12 @@ export function build({ apiUrl = '/api', outDir = path.join(ROOT, 'dist') } = {}
     const server = bundle('server/main.js', 'gas');
     // The messages, for the emails the server writes (server/kernel/i18n.js).
     const serverLocales = Object.fromEntries(LANGS.map((lang) => [lang, loadLocale(lang)]));
-    fs.writeFileSync(path.join(gas, 'Code.js'), `var BIBLION_LOCALES = ${JSON.stringify(serverLocales)};\n${server.code}`);
+    // The logo, for the letterhead of month-end PDFs (server/modules/report-files.js).
+    const logo = `data:image/png;base64,${fs.readFileSync(path.join(ROOT, 'assets/biblion-logo.png')).toString('base64')}`;
+    // The light theme's design tokens, for the same PDFs' colours and fonts.
+    const root = /:root\s*\{([^}]*)\}/.exec(read('client/styles/tokens.css'))[1];
+    const tokens = Object.fromEntries([...root.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]));
+    fs.writeFileSync(path.join(gas, 'Code.js'), `var BIBLION_LOCALES = ${JSON.stringify(serverLocales)};\nvar BIBLION_LOGO = ${JSON.stringify(logo)};\nvar BIBLION_TOKENS = ${JSON.stringify(tokens)};\n${server.code}`);
     fs.copyFileSync(path.join(ROOT, 'server/appsscript.json'), path.join(gas, 'appsscript.json'));
 
     return { id, web, gas, client: client.modules, server: server.modules };

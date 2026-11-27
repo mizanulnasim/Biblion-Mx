@@ -6,6 +6,7 @@ import { html } from './html.js';
 import { letterhead, signatures } from './letterhead.js';
 import { t, localDigits } from '../core/i18n.js';
 import { dateShort, figure, money } from '../core/format.js';
+import { reportSheets } from '../../../shared/reports/sheets.js';
 
 const day = (d) => dateShort(`${d}T06:00:00Z`);
 
@@ -50,19 +51,7 @@ export function reportView(model) {
   </article>`;
 }
 
-// The workbook: one sheet, the report from top to bottom, with numbers as
-// numbers and totals in bold.
-export function reportSheets(model) {
-  const rows = [[{ v: textOf(model.title), bold: true }], ...model.sub.map((x) => [textOf(x)]), []];
-  const value = (x) => (typeof x === 'number' ? x : x && typeof x === 'object' && 'n' in x ? x.n : textOf(x));
-  for (const b of model.blocks) {
-    if (b.kind === 'section') rows.push([], [{ v: textOf(b.title), bold: true }]);
-    else if (b.kind === 'note') rows.push([textOf(b.text)]);
-    else if (b.kind === 'kv') for (const r of b.rows) rows.push([{ v: textOf(r.label), bold: r.total }, { v: value(r.value), bold: r.total }]);
-    else if (b.kind === 'table') {
-      rows.push(b.columns.map((c) => ({ v: textOf(c.label), bold: true })), ...b.rows.map((row) => row.map(value)));
-      if (b.total) rows.push(b.total.map((x) => ({ v: value(x), bold: true })));
-    }
-  }
-  return [{ name: textOf(model.title), rows }];
+// The same report as an Excel workbook.
+export function workbook(model) {
+  return reportSheets(model, textOf);
 }

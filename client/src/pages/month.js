@@ -16,6 +16,7 @@ import { onArea } from '../core/live.js';
 import { dateShort, money, today } from '../core/format.js';
 import { reportView } from '../ui/report.js';
 import { ACTIONS } from '../../../shared/contract/actions.js';
+import { dataUrl } from '../ui/files.js';
 
 const day = (d) => dateShort(`${d}T06:00:00Z`);
 const STEP = { ended: 'month.step.ended', days: 'month.step.days' };
@@ -39,6 +40,7 @@ export const monthClosingPage = {
           </div>
           <section class="panel no-print">
             ${data.closed ? html`<p>${chip(t('month.closed'), 'ok')} ${t('month.closed_on', { date: dateShort(data.closed_at) })}</p>
+              ${data.files.length ? html`<p class="help">${t('month.files')}</p><div class="check-actions">${data.files.map((f) => html`<button type="button" class="btn btn-small" data-act="file" data-id="${f.id}">${f.name}</button>`)}</div>` : ''}
               <div class="form-actions"><button type="button" class="btn" data-act="reopen">${t('month.reopen')}</button></div>`
               : html`<ul class="waiting-list">${data.steps.map((s) => html`<li class="check-item"><span>${chip(t(s.state === 'done' ? 'month.done' : 'month.todo'), s.state === 'done' ? 'ok' : 'warn')}
                   ${t(STEP[s.id], { date: day(s.params.date || today()), count: s.params.count || 0 })}</span></li>`)}</ul>
@@ -74,6 +76,17 @@ export const monthClosingPage = {
         window.print();
         const reply = await write('reports.printed', { report: 'monthly', ref: month });
         if (query.task && reply.status === 'saved') await write('tasks.record', { id: query.task, record_id: reply.record_id });
+      },
+      file: async (e, btn) => {
+        // Opened in a new tab; the browser shows the PDF or saves the Excel file.
+        const tab = window.open('', '_blank');
+        try {
+          const { data: f } = await read('files.get', { id: btn.dataset.id });
+          tab.location.href = dataUrl(f.mime, f.data);
+        } catch (err) {
+          tab.close();
+          toast(errorText(err), 'error');
+        }
       },
       close: () => ask(t('month.close'), { name: 'note', label: t('pay.note'), type: 'textarea' }, 'month.close', t('month.closed_done')),
       reopen: () => ask(t('month.reopen'), { name: 'reason', label: t('hr.fix_reason'), type: 'textarea', required: true }, 'month.reopen', t('month.reopened')),

@@ -112,6 +112,8 @@ function blob(bytes, mime, name) {
     getDataAsString: () => buf.toString('utf8'),
     getContentType: () => mime,
     getName: () => name,
+    // A stand-in PDF: the page itself after a PDF header.
+    getAs: (type) => blob(Buffer.concat([Buffer.from('%PDF-1.4 stand-in\n'), buf]), type, name.replace(/\.html$/, '.pdf')),
     _buf: buf,
   };
 }
@@ -177,7 +179,7 @@ export function gasGlobals(state) {
     },
     LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) },
     // Emails are kept, not sent.
-    MailApp: { sendEmail: (mail) => { (state.mails ||= []).push(mail); } },
+    MailApp: { sendEmail: (mail) => { (state.mails ||= []).push({ ...mail, attachments: (mail.attachments || []).map((a) => a.getName()) }); } },
     SpreadsheetApp: {
       openById(id) {
         if (!state.books[id]) throw new Error(`No spreadsheet ${id}`);

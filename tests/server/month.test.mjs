@@ -117,3 +117,27 @@ test('profit by area: each area\'s own sales and costs, the rest shared, adding 
   assert.equal(f.areas.shared.costs, 11000);
   assert.equal(Math.round(f.areas.books.profit + f.areas.cafe.profit + f.areas.shared.income - f.areas.shared.costs), f.profit);
 });
+
+test('closing keeps the month\'s reports as PDF and Excel, listed on the closing and emailed to shareholders with an address', () => {
+  const s = books();
+  const month = lastMonth();
+  s.call(s.owner, 'shareholders.shares.save', { from: '2000-01-01', shares: [{ shareholder_id: s.ids.karim, percent: 100 }] });
+  s.call(s.owner, 'settings.payroll.save', { ...s.call(s.owner, 'settings.payroll').data, start_date: plus(today(), 1) });
+  s.call(s.owner, 'me.notify', { email: 'owner@example.com', daily: false });
+  s.call(s.owner, 'settings.shop.save', { ...s.call(s.owner, 'settings.shop').data, address: 'House 1, Sample Road' });
+  s.call(s.owner, 'month.close', { month });
+  const { files } = s.call(s.owner, 'month.view', { month }).data;
+  assert.deepEqual(files.map((f) => f.name), [
+    `Monthly report ${month}.pdf`, `Monthly report ${month}.xlsx`, `Shareholders' monthly report ${month}.pdf`,
+    `Shareholders' monthly report ${month}.xlsx`, `Monthly salary report ${month}.pdf`, `Monthly salary report ${month}.xlsx`,
+  ]);
+  // The PDF is the report on the letterhead, with the tokens' colours put in.
+  const pdf = Buffer.from(s.call(s.owner, 'files.get', { id: files[0].id }).data.data, 'base64').toString('utf8');
+  assert.match(pdf, /House 1, Sample Road/);
+  assert.match(pdf, /Profit for the month/);
+  assert.doesNotMatch(pdf, /var\(--/);
+  // Emailed with all six attached (the daily email being off doesn't matter).
+  const mail = s.state.mails.find((m) => m.subject.includes('closed'));
+  assert.equal(mail.to, 'owner@example.com');
+  assert.equal(mail.attachments.length, 6);
+});

@@ -20,6 +20,15 @@ export function dayText(lang, date) {
   return text(lang, 'date.short', { wd: text(lang, WEEKDAYS[d.getUTCDay()]), day: d.getUTCDate(), mon: text(lang, MONTHS[d.getUTCMonth()]) });
 }
 
+// An amount in a table column: "1,250", "−1,250", or "–" for none.
+export function figureText(lang, amount) {
+  const abs = Math.abs(Math.round(amount * 100)) / 100;
+  if (!abs) return '–';
+  const whole = Math.trunc(abs);
+  const cents = Math.round((abs - whole) * 100);
+  return `${amount < 0 ? '−' : ''}${digitsFor(lang, groupDigits(whole) + (cents ? `.${String(cents).padStart(2, '0')}` : ''))}`;
+}
+
 // "Tk 1,250" or "১,২৫০ টাকা".
 export function moneyText(lang, amount) {
   const abs = Math.abs(Math.round(amount * 100)) / 100;

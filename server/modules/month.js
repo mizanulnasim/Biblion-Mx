@@ -198,10 +198,13 @@ function view(ctx, input) {
   return {
     month, current: periodKey(today(db), startDay(db)), closed: Boolean(closed),
     closed_at: closed ? closed.closed_at : '', figures: closed ? closed.figures : withShares(db, month), steps: closed ? [] : steps(db, month),
+    files: closed ? closed.files || [] : [],
   };
 }
 
-function close(ctx, { month, note }) {
+// Closing a month; `files` makes the month-end files and sends them
+// (server/modules/report-files.js, which registers the action).
+export function closeMonth(ctx, { month, note }, files) {
   const { db } = ctx;
   if (closingOf(db, month)) throw new AppError('CONFLICT', { by: '' });
   if (steps(db, month).some((s) => s.state !== 'done')) throw new AppError('MONTH_NOT_READY');
@@ -211,10 +214,14 @@ function close(ctx, { month, note }) {
   const before = previous(db, month);
   const anyClosed = db.all('Month_Closings').some((c) => c.status === 'closed');
   if (anyClosed && !closingOf(db, before)) throw new AppError('MONTH_ORDER', { month: before });
+  // The month-end files are made first: if Drive fails, nothing is closed.
+  const made = files.make(ctx, month);
   const row = db.insert('Month_Closings', {
     month, status: 'closed', figures: withShares(db, month), note: note || '', closed_by: ctx.user.id, closed_at: db.nowIso,
-    reopened_by: '', reopened_at: '', reopen_reason: '',
+    reopened_by: '', reopened_at: '', reopen_reason: '', files: made.map((f) => ({ id: f.id, name: f.name })),
   });
+  for (const f of made) db.update('Files', db.get('Files', f.id), { record_ids: [row.id] });
+  files.send(db, month, made);
   return saved(row.id, { profit: row.figures.profit });
 }
 
@@ -321,7 +328,6 @@ export function statements(db, asOf = today(db)) {
 
 export const MONTH_HANDLERS = {
   'month.view': view,
-  'month.close': close,
   'month.reopen': reopen,
   'shareholders.view': shareholders,
   'shareholders.shares.save': saveShares,

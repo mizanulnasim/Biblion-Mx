@@ -4,7 +4,18 @@
 //   sheets: [{name, rows: [[cell]]}], cell: a string, a number, null, or
 //   {v: string|number, bold: true}
 
-const enc = new TextEncoder();
+// UTF-8 bytes of a string (Apps Script has no TextEncoder).
+function utf8(text) {
+  const out = [];
+  for (const ch of text) {
+    const c = ch.codePointAt(0);
+    if (c < 0x80) out.push(c);
+    else if (c < 0x800) out.push(0xc0 | (c >> 6), 0x80 | (c & 63));
+    else if (c < 0x10000) out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+    else out.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+  }
+  return new Uint8Array(out);
+}
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
   // XML can't hold most control characters.
   .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '');
@@ -75,7 +86,7 @@ function zip(files) {
   const central = [];
   let offset = 0;
   for (const f of files) {
-    const name = enc.encode(f.name);
+    const name = utf8(f.name);
     const crc = crc32(f.data);
     const local = new DataView(new ArrayBuffer(30));
     local.setUint32(0, 0x04034b50, true);
@@ -134,5 +145,5 @@ export function xlsx(sheets) {
     ['xl/styles.xml', STYLES],
     ...sheets.map((s, i) => [`xl/worksheets/sheet${i + 1}.xml`, sheetXml(s.rows)]),
   ];
-  return zip(files.map(([name, text]) => ({ name, data: enc.encode(text) })));
+  return zip(files.map(([name, text]) => ({ name, data: utf8(text) })));
 }

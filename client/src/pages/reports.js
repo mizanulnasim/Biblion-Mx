@@ -6,7 +6,7 @@
 import { html, on, render } from '../ui/html.js';
 import { errorBox } from '../ui/feedback.js';
 import { errorText } from '../ui/form.js';
-import { reportSheets, reportView } from '../ui/report.js';
+import { reportView, workbook } from '../ui/report.js';
 import { t } from '../core/i18n.js';
 import { read, write } from '../core/api.js';
 import { can } from '../core/state.js';
@@ -82,7 +82,7 @@ export const reportsPage = {
         if (query.task && reply.status === 'saved') await write('tasks.record', { id: query.task, record_id: reply.record_id });
       },
       excel: () => {
-        const bytes = xlsx(reportSheets(data.model));
+        const bytes = xlsx(workbook(data.model));
         const a = document.createElement('a');
         a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
         a.download = `${t(TITLES[report])} ${Object.values(data.input).join(' ')}.xlsx`;

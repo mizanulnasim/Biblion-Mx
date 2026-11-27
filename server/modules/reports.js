@@ -494,6 +494,12 @@ function inputs(db, report, input) {
 const PARTY = { publisher: 'publisher', vendor: 'vendor' };
 const TITLES_EMPTY = { publisher: 'rep.title.publisher_statement', vendor: 'rep.title.vendor_statement' };
 
+// A month's report for the month-end files (monthly, shareholders', salary).
+export function monthReport(db, report, month) {
+  const model = BUILD[report](db, { month });
+  return { ...model, title: label(model.title) };
+}
+
 function get(ctx, input) {
   const spec = REPORTS[input.report];
   if (!ctx.can(spec.perm)) throw new AppError('FORBIDDEN');

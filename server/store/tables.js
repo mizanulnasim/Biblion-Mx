@@ -83,7 +83,7 @@ export const TABLES = Object.freeze({
   Month_Closings: {
     group: 'accounts',
     prefix: 'MCL',
-    columns: ['month', 'status', 'figures:j', 'note', 'closed_by', 'closed_at', 'reopened_by', 'reopened_at', 'reopen_reason'],
+    columns: ['month', 'status', 'figures:j', 'note', 'closed_by', 'closed_at', 'reopened_by', 'reopened_at', 'reopen_reason', 'files:j'],
   },
   // Money entries are append-only: a correction is a new row that
   // `replaces` the old one, and the old one is marked replaced; a

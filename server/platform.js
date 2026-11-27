@@ -55,8 +55,14 @@ export function sha256Bytes(text) {
 
 // An email from the Google account the app runs on (free, within Gmail's
 // daily limit).
-export function sendMail(to, subject, body) {
-  MailApp.sendEmail({ to, subject, body });
+// attachments: [{name, mime, bytes}].
+export function sendMail(to, subject, body, attachments = []) {
+  MailApp.sendEmail({ to, subject, body, attachments: attachments.map((a) => Utilities.newBlob(a.bytes, a.mime, a.name)) });
+}
+
+// A PDF of an HTML page, made by Google.
+export function htmlToPdf(html, name) {
+  return Utilities.newBlob(html, 'text/html', `${name}.html`).getAs('application/pdf').getBytes();
 }
 
 export function jsonOutput(value) {

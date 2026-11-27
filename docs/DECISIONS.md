@@ -437,3 +437,6 @@ Built exactly as v1: net sales + other income + interest on loans shareholders t
 ### Profit by area (28 Nov 2026)
 - In the monthly report, after the profit: books' and café's own profit, then what is shared, then the month's profit. Shared costs are not split between the areas.
 - An area's own: its sales (the shift's books sales; the rest is café), expenses in categories of that area, vendor bills from vendors marked with that area (a new setting on each vendor; unmarked is shared), and for books the cost of books sold or written off. Shared: other income and interest, the drawer's over/short, salaries, food allowance, bonuses, owner salaries and interest owed.
+
+### Month-end report files (28 Nov 2026)
+Closing a month keeps its monthly, shareholders' and salary reports as PDF and Excel files in Drive (Monthly reports, by year), listed on the month closing page, and emails them to the shareholders who set an address in My settings.
