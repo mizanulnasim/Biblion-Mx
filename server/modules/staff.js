@@ -61,7 +61,7 @@ function staffView(ctx, s, users) {
   const out = {
     id: s.id, version: s.version, number: s.number, name: s.name, name_bn: s.name_bn, phone: s.phone, email: s.email, position: s.position,
     user_id: s.user_id, user_name: user ? user.display_name : '', joined_on: s.joined_on, left_on: s.left_on, status: s.status,
-    work_start: s.work_start, work_end: s.work_end, days_off: s.days_off || [], pin_set: Boolean(s.pin_hash),
+    work_start: s.work_start, work_end: s.work_end, days_off: s.days_off || [], shift_ids: s.shift_ids || [], pin_set: Boolean(s.pin_hash),
   };
   for (const [perm, cols] of Object.entries(PRIVATE)) {
     if (ctx.can(perm)) for (const c of cols) out[c] = c === 'emergency' ? s[c] || [] : s[c];
@@ -79,6 +79,8 @@ function list(ctx, query) {
   return {
     ...result,
     items: result.items.map(({ _row, created_at, ...s }) => s),
+    // The shifts a person's own list can hold.
+    shifts: ctx.db.all('Shifts').filter((s) => s.status === 'active').map((s) => ({ id: s.id, name: s.name })),
     // Sign-ins that are not yet linked to a staff record, to pick from.
     users: [...users.values()].filter((u) => u.status === 'active').map((u) => ({ id: u.id, name: u.display_name, linked: linked.has(u.id) })),
   };
@@ -104,6 +106,7 @@ function save(ctx, input) {
     name: input.name, name_bn: input.name_bn || '', phone: cleanPhone(input.phone), email: input.email || '', position: input.position || '',
     user_id: input.user_id || '', joined_on: input.joined_on || '', left_on: input.left_on || '', status: input.status,
     work_start: input.work_start || '', work_end: input.work_end || '', days_off: [...new Set(input.days_off.map((d) => d.day))].sort(),
+    shift_ids: [...new Set((input.shift_ids || []).map((x) => x.id))],
   };
   // Private parts change only with their permission; salary needs salary.edit.
   if (ctx.can('staff.identity')) Object.assign(patch, { nid: input.nid || '', birth_date: input.birth_date || '', address: input.address || '' });

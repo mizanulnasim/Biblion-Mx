@@ -23,7 +23,7 @@ const WEEKDAYS = ['date.wd.sun', 'date.wd.mon', 'date.wd.tue', 'date.wd.wed', 'd
 const STATUS = { active: ['users.active', 'ok'], left: ['hr.left', 'muted'] };
 const EMERGENCY_ROWS = 2;
 
-function fieldsFor(staff, users) {
+function fieldsFor(staff, users, shifts) {
   const fields = [
     { name: 'name', label: t('users.name'), required: true },
     { name: 'name_bn', label: t('cafe.name_bn') },
@@ -39,6 +39,7 @@ function fieldsFor(staff, users) {
     { name: 'work_start', label: t('hr.work_start'), type: 'time', help: t('hr.work_help') },
     { name: 'work_end', label: t('hr.work_end'), type: 'time' },
     ...WEEKDAYS.map((wd, day) => ({ name: `off_${day}`, label: t('hr.day_off', { day: t(wd) }), type: 'checkbox' })),
+    ...shifts.map((s, i) => ({ name: `shift_${s.id}`, label: t('hr.may_choose', { shift: s.name }), type: 'checkbox', help: i ? '' : t('hr.shift_list_help') })),
     { name: 'pin', label: t(staff && staff.pin_set ? 'hr.new_pin' : 'hr.pin'), type: 'password', inputmode: 'numeric', autocomplete: 'new-password', help: t(staff && staff.pin_set ? 'hr.new_pin_help' : 'hr.pin_help') },
     { name: 'status', label: t('users.status'), type: 'select', required: true, options: [{ value: 'active', label: t('users.active') }, { value: 'left', label: t('hr.left') }] },
   ];
@@ -72,6 +73,7 @@ function valuesOf(staff) {
   if (!staff) return { status: 'active', off_5: true };
   const values = { ...staff, salary: staff.salary ? String(staff.salary) : '', overtime_rate: staff.overtime_rate ? String(staff.overtime_rate) : '' };
   for (const day of staff.days_off) values[`off_${day}`] = true;
+  for (const id of staff.shift_ids) values[`shift_${id}`] = true;
   (staff.emergency || []).forEach((e, i) => {
     values[`em_name_${i}`] = e.name;
     values[`em_relation_${i}`] = e.relation;
@@ -80,11 +82,11 @@ function valuesOf(staff) {
   return values;
 }
 
-function openStaff(staff, users, onSaved) {
+function openStaff(staff, users, shifts, onSaved) {
   const dialog = formDialog(staff ? staff.name : t('hr.add_staff'), formView({
     submit: staff ? t('common.save') : t('hr.add_staff'),
     values: valuesOf(staff),
-    fields: fieldsFor(staff, users),
+    fields: fieldsFor(staff, users, shifts),
     extra: staff ? html`<p><a href="#/staff/letters?id=${staff.id}">${t('nav.letters')}</a></p>` : '',
   }));
   bindForm(dialog.querySelector('form.form'), {
@@ -93,6 +95,7 @@ function openStaff(staff, users, onSaved) {
     mapValues: (v) => {
       const out = { ...v, id: staff ? staff.id : null, version: staff ? staff.version : null };
       out.days_off = WEEKDAYS.map((wd, day) => day).filter((day) => v[`off_${day}`]).map((day) => ({ day }));
+      out.shift_ids = shifts.filter((s) => v[`shift_${s.id}`]).map((s) => ({ id: s.id }));
       out.emergency = [];
       for (let i = 0; i < EMERGENCY_ROWS; i++) {
         if (`em_name_${i}` in v) out.emergency.push({ name: v[`em_name_${i}`], relation: v[`em_relation_${i}`], phone: v[`em_phone_${i}`] });
@@ -115,6 +118,7 @@ export const staffPage = {
   perm: 'staff.view',
   mount(el) {
     let users = [];
+    let shifts = [];
     const columns = [
       { label: t('hr.number'), cell: (s) => s.number || '—', kind: 'nowrap' },
       { label: t('users.name'), cell: (s) => html`<strong>${s.name}</strong>${s.position ? html` <span class="muted">${s.position}</span>` : ''}` },
@@ -133,11 +137,14 @@ export const staffPage = {
       emptySearch: t('list.no_match'),
       filters: [{ name: 'status', label: t('hr.all_staff'), options: [{ value: 'active', label: t('users.active') }, { value: 'left', label: t('hr.left') }] }],
       initial: { status: 'active' },
-      onData: (data) => { users = data.users; },
+      onData: (data) => {
+        users = data.users;
+        shifts = data.shifts;
+      },
       tools: can('staff.edit') ? html`<button type="button" class="btn btn-primary" data-act="tool" data-tool="add">${t('hr.add_staff')}</button>` : '',
       columns,
-      onRow: (staff) => (can('staff.edit') ? openStaff(staff, users, () => list.reload()) : null),
-      onTool: () => openStaff(null, users, () => list.reload()),
+      onRow: (staff) => (can('staff.edit') ? openStaff(staff, users, shifts, () => list.reload()) : null),
+      onTool: () => openStaff(null, users, shifts, () => list.reload()),
     });
     return () => list.destroy();
   },

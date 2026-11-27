@@ -28,12 +28,17 @@ const KIND_TONE = { work: '', off: 'muted', leave: 'muted', holiday: 'muted' };
 const shortDate = (date) => dateShort(`${date}T06:00:00Z`);
 const shiftLabel = (s) => `${s.name} ${t('hr.hours', { start: s.start, end: s.end })}`;
 
-// Short-rest warnings (never a block): [{side, date, hours}].
-function restNotes(rest) {
-  return rest.map((w) => html`<p class="notice notice-warn">${t(w.side === 'before' ? 'rota.rest_before' : 'rota.rest_after', { hours: w.hours, date: shortDate(w.date) })}</p>`);
+// Short-rest warnings (never a block): [{side, date, hours}]; and notes for
+// the manager deciding: [{code, params}].
+function restNotes(rest, notes = []) {
+  return html`${rest.map((w) => html`<p class="notice notice-warn">${t(w.side === 'before' ? 'rota.rest_before' : 'rota.rest_after', { hours: w.hours, date: shortDate(w.date) })}</p>`)}
+    ${notes.map((n) => html`<p class="notice notice-warn">${t(NOTE[n.code], n.params)}</p>`)}`;
 }
+const NOTE = { 'rota.note.unavailable': 'rota.note.unavailable', 'rota.note.not_in_list': 'rota.note.not_in_list' };
+const BLOCK = { 'val.shift_full': 'val.shift_full', 'val.shift_position': 'val.shift_position' };
 
-// Shows the warnings for the form's current choice, as it changes.
+// Shows what the form's current choice brings, as it changes: warnings,
+// notes, and why it can't be had.
 function watchRest(dialog, payload) {
   const form = dialog.querySelector('form.form');
   const slot = form.querySelector('.rest-notes');
@@ -44,7 +49,8 @@ function watchRest(dialog, payload) {
       return;
     }
     try {
-      render(slot, restNotes((await read('rota.rest', p)).data.rest));
+      const d = (await read('rota.check', p)).data;
+      render(slot, html`${d.blocks ? html`<p class="notice notice-danger">${t(BLOCK[d.blocks.code], d.blocks.params)}</p>` : ''}${restNotes(d.rest, d.notes)}`);
     } catch {
       render(slot, '');
     }
@@ -66,7 +72,7 @@ function requestsView(week) {
     <ul class="waiting-list">${week.requests.map((r) => html`<li class="check-item">
       <span><strong>${requestText(r)}</strong> ${chip(t(REQUEST_STATUS[r.status][0]), REQUEST_STATUS[r.status][1])}</span>
       ${r.reason ? html`<span>“${r.reason}”</span>` : ''}
-      ${restNotes(r.rest)}
+      ${restNotes(r.rest, r.notes)}
       ${r.decide_note ? html`<span class="muted">${t('hr.note', { note: r.decide_note })}</span>` : ''}
       <span class="check-actions">
         ${r.status === 'partner' && r.partner_id === week.me ? html`
@@ -93,6 +99,37 @@ function weekView(week) {
         </span></td>`)}
       </tr>`)}</tbody></table></div>` : emptyState(t('hr.no_staff_yet'))}
   </section>`;
+}
+
+// The days the person can't work, to add or remove.
+function unavailableView(data) {
+  return html`<section class="panel"><h2 class="section-title">${t('rota.unavailable')}</h2>
+    <p class="help">${t('rota.unavailable_help')}</p>
+    ${data.items.length ? html`<ul class="punches">${data.items.map((u) => html`<li class="punch">
+      <span><strong>${u.date ? shortDate(u.date) : t('rota.every', { day: t(WEEKDAY[u.weekday]) })}</strong>${u.note ? html` <span class="muted">${u.note}</span>` : ''}</span>
+      <button type="button" class="btn btn-small" data-act="unremove" data-id="${u.id}">${t('saved.remove')}</button></li>`)}</ul>` : emptyState(t('rota.no_unavailable'))}
+    ${data.allowed ? html`<div class="form-actions"><button type="button" class="btn" data-act="unadd">${t('rota.add_unavailable')}</button></div>` : ''}</section>`;
+}
+const WEEKDAY = ['date.wd.sun', 'date.wd.mon', 'date.wd.tue', 'date.wd.wed', 'date.wd.thu', 'date.wd.fri', 'date.wd.sat'];
+
+function addUnavailable(onDone) {
+  const dialog = formDialog(t('rota.add_unavailable'), formView({
+    submit: t('common.save'),
+    values: { date: minDate(1) },
+    fields: [
+      { name: 'date', label: t('money.field.date'), type: 'date', help: t('rota.unavailable_date_help') },
+      { name: 'weekday', label: t('rota.weekday'), type: 'select', placeholder: t('rota.not_weekly'), options: WEEKDAY.map((id, day) => ({ value: String(day), label: t(id) })) },
+      { name: 'note', label: t('hr.fix_reason') },
+    ],
+  }));
+  saveWith(dialog, 'rota.unavailable.save', {
+    schema: ACTIONS['rota.unavailable.save'].schema,
+    mapValues: (v) => (v.weekday ? { weekday: v.weekday, note: v.note } : { date: v.date, note: v.note }),
+    done: () => {
+      toast(t('setup.saved'));
+      onDone();
+    },
+  });
 }
 
 function shiftsView(shifts) {
@@ -186,18 +223,20 @@ function pickChange(week, date, onDone) {
 function editShift(shift, onDone) {
   const dialog = formDialog(shift ? shift.name : t('rota.add_shift'), formView({
     submit: t('common.save'),
-    values: shift || { status: 'active' },
+    values: shift ? { ...shift, places: shift.places ? String(shift.places) : '', positions: shift.positions.join(', ') } : { status: 'active' },
     fields: [
       { name: 'name', label: t('users.name'), required: true },
       { name: 'name_bn', label: t('cafe.name_bn') },
       { name: 'start', label: t('hr.work_start'), type: 'time', required: true },
       { name: 'end', label: t('hr.work_end'), type: 'time', required: true },
+      { name: 'places', label: t('rota.places'), inputmode: 'numeric', help: t('rota.places_help') },
+      { name: 'positions', label: t('rota.positions'), help: t('rota.positions_help') },
       { name: 'status', label: t('users.status'), type: 'select', required: true, options: [{ value: 'active', label: t('users.active') }, { value: 'inactive', label: t('users.inactive') }] },
     ],
   }));
   saveWith(dialog, 'rota.shift.save', {
     schema: ACTIONS['rota.shift.save'].schema,
-    mapValues: (v) => ({ ...v, id: shift ? shift.id : null, version: shift ? shift.version : null }),
+    mapValues: (v) => ({ ...v, places: v.places || null, id: shift ? shift.id : null, version: shift ? shift.version : null }),
     done: () => {
       toast(t('setup.saved'));
       onDone();
@@ -248,7 +287,10 @@ export const rotaPage = {
     let week = null;
     async function load() {
       try {
-        const reply = await read('rota.week', { from });
+        const [reply, away] = await Promise.all([
+          read('rota.week', { from }),
+          can('self.staff') ? read('rota.unavailable').then((r) => r.data) : null,
+        ]);
         week = reply.data;
         render(el, html`${staleNotice(reply.cachedAt)}
           ${requestsView(week)}
@@ -259,6 +301,7 @@ export const rotaPage = {
             ${week.me ? html`<button type="button" class="btn btn-primary" data-act="ask">${t('rota.ask_title')}</button>` : ''}
           </div>
           ${weekView(week)}
+          ${away ? unavailableView(away) : ''}
           ${can('schedule.manage') ? shiftsView(week.shifts) : ''}`);
       } catch (err) {
         render(el, errorBox(errorText(err)));
@@ -284,6 +327,11 @@ export const rotaPage = {
         }
       },
       decide: (e, btn) => decideRequest('rota.decide', btn, load),
+      unadd: () => addUnavailable(load),
+      unremove: async (e, btn) => {
+        const reply = await write('rota.unavailable.remove', { id: btn.dataset.id });
+        if (reply.status === 'saved') load();
+      },
       withdraw: async (e, btn) => {
         const reply = await write('rota.withdraw', { id: btn.dataset.id });
         if (reply.status === 'saved') load();

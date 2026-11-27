@@ -90,6 +90,30 @@ function shortRest(db, staff, date, start, end, p = planner(db)) {
   return out;
 }
 
+// Who may work a shift on a date. blocks: why it can't be had at all
+// (full, or for other positions); notes: what a manager should know when
+// deciding (the person marked the day unavailable, or the shift isn't on
+// their own list). except: a rota request not to count.
+function shiftLimits(db, staff, date, shift, except = '') {
+  const out = { blocks: null, notes: [] };
+  const positions = (shift.positions || []).map((x) => x.toLowerCase());
+  if (positions.length && !positions.includes((staff.position || '').toLowerCase())) {
+    out.blocks = { code: 'val.shift_position', params: { positions: shift.positions.join(', ') } };
+  }
+  if (!out.blocks && shift.places) {
+    const taken = new Set(db.all('Rota').filter((r) => r.date === date && r.shift_id === shift.id && r.mode === 'hours' && r.staff_id !== staff.id).map((r) => r.staff_id));
+    for (const r of db.all('Rota_Requests')) {
+      if (r.kind === 'shift' && r.status === 'waiting' && r.date === date && r.shift_id === shift.id && r.staff_id !== staff.id && r.id !== except) taken.add(r.staff_id);
+    }
+    if (taken.size >= shift.places) out.blocks = { code: 'val.shift_full', params: { places: shift.places } };
+  }
+  const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
+  const away = db.all('Unavailable').find((u) => u.staff_id === staff.id && u.status === 'active' && (u.date === date || (u.date === '' && u.weekday === weekday)));
+  if (away) out.notes.push({ code: 'rota.note.unavailable', params: { note: away.note || '' } });
+  if ((staff.shift_ids || []).length && !staff.shift_ids.includes(shift.id)) out.notes.push({ code: 'rota.note.not_in_list', params: {} });
+  return out;
+}
+
 function requestView(db, r, names, p) {
   const shift = r.shift_id ? db.get('Shifts', r.shift_id) : null;
   return {
@@ -97,18 +121,21 @@ function requestView(db, r, names, p) {
     partner_id: r.partner_id, partner_name: names.get(r.partner_id) || '', shift: shift ? shift.name : '',
     reason: r.reason, status: r.status, decide_note: r.decide_note, created_at: r.created_at,
     rest: shift && r.status === 'waiting' ? shortRest(db, db.get('Staff', r.staff_id), r.date, shift.start, shift.end, p) : [],
+    notes: shift && r.status === 'waiting' ? shiftLimits(db, db.get('Staff', r.staff_id), r.date, shift, r.id).notes : [],
   };
 }
 
-// The rest warnings a day's setting would bring, before it is saved. value:
+// What a day's setting would bring, before it is saved: short-rest
+// warnings, notes for the manager, and what would refuse it. value:
 // 'usual', 'off' or a shift's id. Staff may ask only about themselves.
-function restPreview(ctx, { staff_id: staffId, date, value }) {
+function checkDay(ctx, { staff_id: staffId, date, value }) {
   const { db } = ctx;
   const mine = staffOfUser(db, ctx.user.id);
   const staff = staffId ? db.get('Staff', staffId) : mine;
   if (!staff || (staff !== mine && !ctx.can('schedule.manage'))) throw new AppError('NOT_FOUND');
   const hours = dayHours(db, staff, value);
-  return { rest: hours ? shortRest(db, staff, date, hours.start, hours.end) : [] };
+  const shift = db.get('Shifts', value);
+  return { rest: hours ? shortRest(db, staff, date, hours.start, hours.end) : [], ...(shift ? shiftLimits(db, staff, date, shift) : { blocks: null, notes: [] }) };
 }
 
 // The hours a value gives: a shift's, or the person's usual ones; none for a day off.
@@ -137,7 +164,9 @@ function week(ctx, input) {
   return {
     from, dates, me: mine ? mine.id : '',
     holidays: dates.filter((d) => p.holidays.has(d)).map((d) => ({ date: d, name: p.holidays.get(d).name, name_bn: p.holidays.get(d).name_bn })),
-    shifts: db.all('Shifts').filter((s) => s.status === 'active').map((s) => ({ id: s.id, version: s.version, name: s.name, name_bn: s.name_bn, start: s.start, end: s.end })),
+    shifts: db.all('Shifts').filter((s) => s.status === 'active').map((s) => ({
+      id: s.id, version: s.version, name: s.name, name_bn: s.name_bn, start: s.start, end: s.end, places: s.places || 0, positions: s.positions || [],
+    })),
     // Colleagues to swap with: everyone working, by name only.
     colleagues: mine ? db.all('Staff').filter((s) => s.status === 'active' && s.id !== mine.id).map((s) => ({ id: s.id, name: s.name })) : [],
     rows: people.map((s) => ({ staff: { id: s.id, name: s.name, work_start: s.work_start, work_end: s.work_end }, days: dates.map((d) => ({ date: d, ...p.plan(s, d) })) })),
@@ -155,16 +184,20 @@ function setDay(ctx, { staff_id: staffId, date, value }) {
   } else {
     const shift = db.get('Shifts', value);
     if (!shift || shift.status !== 'active') throw fieldError('value', 'val.not_found');
+    const limits = shiftLimits(db, db.get('Staff', staffId), date, shift);
+    if (limits.blocks) throw fieldError('value', limits.blocks.code, limits.blocks.params);
     setRow(db, staffId, date, { mode: 'hours', start: shift.start, end: shift.end, shift_id: shift.id, source: 'manager' });
   }
   const hours = dayHours(db, db.get('Staff', staffId), value);
-  return saved(null, { rest: hours ? shortRest(db, db.get('Staff', staffId), date, hours.start, hours.end) : [] });
+  const shift = db.get('Shifts', value);
+  return saved(null, { rest: hours ? shortRest(db, db.get('Staff', staffId), date, hours.start, hours.end) : [], notes: shift ? shiftLimits(db, db.get('Staff', staffId), date, shift).notes : [] });
 }
 
 function saveShift(ctx, input) {
   const { db } = ctx;
   if (input.end <= input.start) throw fieldError('end', 'val.time_after');
-  const fields = { name: input.name, name_bn: input.name_bn || '', start: input.start, end: input.end, status: input.status };
+  const positions = [...new Set((input.positions || '').split(',').map((x) => x.trim()).filter(Boolean))];
+  const fields = { name: input.name, name_bn: input.name_bn || '', start: input.start, end: input.end, places: input.places || 0, positions, status: input.status };
   if (!input.id) return saved(db.insert('Shifts', fields).id);
   const row = db.get('Shifts', input.id);
   if (!row) throw new AppError('NOT_FOUND');
@@ -179,6 +212,8 @@ function apply(ctx, r) {
   const tag = { request_id: r.id };
   if (r.kind === 'shift') {
     const shift = db.get('Shifts', r.shift_id);
+    const limits = shiftLimits(db, db.get('Staff', r.staff_id), r.date, shift, r.id);
+    if (limits.blocks) throw fieldError('id', limits.blocks.code, limits.blocks.params);
     setRow(db, r.staff_id, r.date, { mode: 'hours', start: shift.start, end: shift.end, shift_id: shift.id, source: 'choice', ...tag });
   } else if (r.kind === 'swap') {
     const me = db.get('Staff', r.staff_id);
@@ -212,10 +247,13 @@ function ask(ctx, input) {
     if (input.date <= now || input.date > addDays(now, ahead)) throw fieldError('date', 'val.days_ahead', { days: ahead });
     const shift = input.shift_id ? db.get('Shifts', input.shift_id) : null;
     if (!shift || shift.status !== 'active') throw fieldError('shift_id', 'val.required');
+    const limits = shiftLimits(db, me, input.date, shift);
+    if (limits.blocks) throw fieldError('shift_id', limits.blocks.code, limits.blocks.params);
     // Every choice waits for a manager or a shareholder (owner decision);
-    // too little rest is only a warning, shown to both.
+    // too little rest, an unavailable day or a shift not on the person's
+    // list are shown to both.
     const row = db.insert('Rota_Requests', { ...base, shift_id: shift.id, status: 'waiting' });
-    return saved(row.id, { final: false, rest: shortRest(db, me, input.date, shift.start, shift.end, p) });
+    return saved(row.id, { final: false, rest: shortRest(db, me, input.date, shift.start, shift.end, p), notes: limits.notes });
   }
 
   if (input.kind === 'swap') {
@@ -285,6 +323,42 @@ export function rotaWaiting(ctx) {
     || (r.status === 'waiting' && ctx.can('schedule.manage') && [r.staff_id, r.partner_id].filter(Boolean).every((id) => mayDecideFor(ctx, db.get('Staff', id), 'schedule.manage')))).length;
 }
 
+// ---- Days a person can't work -------------------------------------------------
+
+// The person's own (or, for a manager, anyone's) unavailable days.
+function unavailable(ctx, { staff_id: staffId }) {
+  const { db } = ctx;
+  const mine = staffOfUser(db, ctx.user.id);
+  const staff = staffId ? db.get('Staff', staffId) : mine;
+  if (!staff || (staff !== mine && !ctx.can('schedule.manage'))) throw new AppError('NOT_FOUND');
+  return {
+    allowed: setting(db, 'rota.self_unavailable') || ctx.can('schedule.manage'),
+    items: db.all('Unavailable').filter((u) => u.staff_id === staff.id && u.status === 'active' && (u.date === '' || u.date >= today(db)))
+      .map((u) => ({ id: u.id, date: u.date, weekday: u.weekday, note: u.note })),
+  };
+}
+
+function saveUnavailable(ctx, input) {
+  const { db } = ctx;
+  const mine = staffOfUser(db, ctx.user.id);
+  const staff = input.staff_id ? db.get('Staff', input.staff_id) : mine;
+  if (!staff || (staff !== mine && !ctx.can('schedule.manage'))) throw new AppError('NOT_FOUND');
+  if (staff === mine && !setting(db, 'rota.self_unavailable') && !ctx.can('schedule.manage')) throw new AppError('FORBIDDEN');
+  if (Boolean(input.date) === (input.weekday !== null && input.weekday !== undefined)) throw fieldError('date', 'val.required');
+  if (input.date && input.date < today(db)) throw fieldError('date', 'val.not_past');
+  const row = db.insert('Unavailable', { staff_id: staff.id, date: input.date || '', weekday: input.date ? null : input.weekday, note: input.note || '', status: 'active' });
+  return saved(row.id);
+}
+
+function removeUnavailable(ctx, { id }) {
+  const { db } = ctx;
+  const u = db.get('Unavailable', id);
+  const mine = staffOfUser(db, ctx.user.id);
+  if (!u || ((!mine || u.staff_id !== mine.id) && !ctx.can('schedule.manage'))) throw new AppError('NOT_FOUND');
+  db.update('Unavailable', u, { status: 'removed' });
+  return saved(u.id);
+}
+
 // ---- Public holidays ---------------------------------------------------------
 
 function holidays(ctx, { year }) {
@@ -312,7 +386,10 @@ function saveHoliday(ctx, input) {
 export const ROTA_HANDLERS = {
   'rota.week': week,
   'rota.set': setDay,
-  'rota.rest': restPreview,
+  'rota.check': checkDay,
+  'rota.unavailable': unavailable,
+  'rota.unavailable.save': saveUnavailable,
+  'rota.unavailable.remove': removeUnavailable,
   'rota.shift.save': saveShift,
   'rota.request': ask,
   'rota.answer': answer,

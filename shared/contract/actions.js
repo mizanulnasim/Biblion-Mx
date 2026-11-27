@@ -492,6 +492,8 @@ export const ACTIONS = Object.freeze({
       work_start: { type: 'time' },
       work_end: { type: 'time' },
       days_off: { type: 'list', max: 7, of: { day: { type: 'int', required: true, min: 0, max: 6 } } },
+      // The shifts the person may choose; empty: any.
+      shift_ids: { type: 'list', max: 30, of: { id: { type: 'id', required: true } } },
       nid: { type: 'text', max: 30 },
       birth_date: { type: 'date' },
       address: { type: 'text', max: 300 },
@@ -594,8 +596,9 @@ export const ACTIONS = Object.freeze({
     // value: 'usual', 'off', or a shift's id
     schema: { staff_id: { type: 'id', required: true }, date: { type: 'date', required: true }, value: { type: 'text', required: true, max: 30 } },
   },
-  // The short-rest warnings a day's setting would bring (staff: only their own).
-  'rota.rest': { schema: { staff_id: { type: 'id' }, date: { type: 'date', required: true }, value: { type: 'text', required: true, max: 30 } } },
+  // What a day's setting would bring: short-rest warnings, notes for the
+  // manager, what refuses it (staff: only their own).
+  'rota.check': { schema: { staff_id: { type: 'id' }, date: { type: 'date', required: true }, value: { type: 'text', required: true, max: 30 } } },
   'rota.shift.save': {
     write: true, perm: 'schedule.manage', area: 'hr',
     schema: {
@@ -605,9 +608,18 @@ export const ACTIONS = Object.freeze({
       name_bn: { type: 'text', max: 80 },
       start: { type: 'time', required: true },
       end: { type: 'time', required: true },
+      places: { type: 'int', min: 0, max: 99 },
+      // Comma-separated positions; empty: anyone.
+      positions: { type: 'text', max: 200 },
       status: STATUS,
     },
   },
+  'rota.unavailable': { schema: { staff_id: { type: 'id' } } },
+  'rota.unavailable.save': {
+    write: true, area: 'hr',
+    schema: { staff_id: { type: 'id' }, date: { type: 'date' }, weekday: { type: 'int', min: 0, max: 6 }, note: { type: 'text', max: 120 } },
+  },
+  'rota.unavailable.remove': { write: true, area: 'hr', schema: { id: { type: 'id', required: true } } },
   'rota.request': {
     write: true, area: 'hr',
     schema: {

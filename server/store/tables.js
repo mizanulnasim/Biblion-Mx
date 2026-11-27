@@ -194,14 +194,15 @@ export const TABLES = Object.freeze({
   // phone}] (staff.emergency); family (staff.family); salary (salary.view).
   // The punch PIN is kept only as a PBKDF2 hash. number: the staff number
   // (BIB0001), given when the record is made. overtime_rate: taka an hour of
-  // overtime; 0 means overtime isn't paid to this person.
+  // overtime; 0 means overtime isn't paid to this person. shift_ids:j the
+  // shifts the person may choose ([]: any; others need a manager).
   Staff: {
     group: 'hr',
     prefix: 'STF',
     columns: [
       'number', 'name', 'name_bn', 'phone', 'email', 'position', 'user_id', 'joined_on', 'left_on', 'status',
       'work_start', 'work_end', 'days_off:j',
-      'nid', 'birth_date', 'address', 'emergency:j', 'family', 'salary:n', 'overtime_rate:n',
+      'nid', 'birth_date', 'address', 'emergency:j', 'family', 'salary:n', 'overtime_rate:n', 'shift_ids:j',
       'pin_hash', 'pin_salt', 'pin_iter:n', 'pin_failed:n', 'pin_locked_until',
     ],
     secret: ['pin_hash', 'pin_salt', 'pin_iter'],
@@ -242,11 +243,19 @@ export const TABLES = Object.freeze({
     columns: ['name', 'secret', 'status'],
     secret: ['secret'],
   },
-  // Named shifts for the rota.
+  // Named shifts for the rota. places: how many people it takes (0: no
+  // limit); positions:j the staff positions it is for ([] : anyone).
   Shifts: {
     group: 'hr',
     prefix: 'SHF',
-    columns: ['name', 'name_bn', 'start', 'end', 'status'],
+    columns: ['name', 'name_bn', 'start', 'end', 'places:n', 'positions:j', 'status'],
+  },
+  // Dates (date) or weekdays (weekday, 0 Sunday … 6 Saturday) a person
+  // can't work. Status: active, removed.
+  Unavailable: {
+    group: 'hr',
+    prefix: 'UNA',
+    columns: ['staff_id', 'date', 'weekday:n', 'note', 'status'],
   },
   // The rota: one row per person and date where the day differs from (or
   // is set back to) their usual hours. mode: usual, off, or hours (start,

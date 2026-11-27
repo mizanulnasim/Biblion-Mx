@@ -63,7 +63,7 @@ test('choosing a shift: within the days ahead, always confirmed by a manager; sh
   // Late ends at 23:00 and Morning starts at 07:00: 8 hours' rest. With 9
   // needed it is still sent, with a warning the person and the manager see.
   s.call(s.owner, 'settings.leave.save', { ...s.call(s.owner, 'settings.leave').data, min_rest_hours: 9 });
-  assert.deepEqual(s.call(s.staff, 'rota.rest', { date: plus(d, 1), value: s.ids.morning }).data.rest, [{ side: 'before', date: d, hours: 8 }]);
+  assert.deepEqual(s.call(s.staff, 'rota.check', { date: plus(d, 1), value: s.ids.morning }).data.rest, [{ side: 'before', date: d, hours: 8 }]);
   const short = s.call(s.staff, 'rota.request', { kind: 'shift', date: plus(d, 1), shift_id: s.ids.morning }).data;
   assert.deepEqual(short.data.rest, [{ side: 'before', date: d, hours: 8 }]);
   assert.deepEqual(s.call(s.manager, 'rota.week', { from: d }).data.requests.find((r) => r.id === short.record_id).rest, [{ side: 'before', date: d, hours: 8 }]);
@@ -72,7 +72,7 @@ test('choosing a shift: within the days ahead, always confirmed by a manager; sh
   s.call(s.manager, 'rota.set', { staff_id: s.ids.sumi, date: plus(d, 6), value: s.ids.morning });
   const before = s.call(s.manager, 'rota.set', { staff_id: s.ids.sumi, date: plus(d, 5), value: s.ids.late }).data;
   assert.deepEqual(before.data.rest, [{ side: 'after', date: plus(d, 6), hours: 8 }]);
-  assert.equal(s.call(s.staff, 'rota.rest', { staff_id: s.ids.rafi, date: d, value: s.ids.morning }).error.code, 'NOT_FOUND');
+  assert.equal(s.call(s.staff, 'rota.check', { staff_id: s.ids.rafi, date: d, value: s.ids.morning }).error.code, 'NOT_FOUND');
   assert.equal(s.call(s.staff, 'rota.request', { kind: 'shift', date: plus(today(), 30), shift_id: s.ids.morning }).data.error.fields.date.code, 'val.days_ahead');
   const morning = s.call(s.staff, 'rota.request', { kind: 'shift', date: plus(d, 3), shift_id: s.ids.morning }).data;
   assert.equal(morning.data.final, false);
@@ -187,4 +187,27 @@ test('a half day counts 0.5 and halves the hours expected that day', () => {
   const day = dayOf(s, s.staff, monday);
   assert.deepEqual([day.kind, day.start, day.end, day.half_leave], ['work', '14:00', '18:00', 'first']);
   assert.equal(s.call(s.staff, 'leave.mine').data.balance.used, 0.5);
+});
+
+test('who may work a shift: places, positions, unavailable days and the person\'s own list', () => {
+  const s = team();
+  const d = nextWeekday(2, 2);
+  // One place: Rafi takes it, so Sumi's choice is refused.
+  const one = s.call(s.manager, 'rota.shift.save', { name: 'Opening', start: '10:00', end: '14:00', places: 1, status: 'active' }).data.record_id;
+  s.call(s.owner, 'rota.set', { staff_id: s.ids.rafi, date: d, value: one });
+  assert.equal(s.call(s.staff, 'rota.request', { kind: 'shift', date: d, shift_id: one }).data.error.fields.shift_id.code, 'val.shift_full');
+  assert.equal(s.call(s.staff, 'rota.check', { date: d, value: one }).data.blocks.code, 'val.shift_full');
+  // For the café only: Sumi (no position) can't be put on it.
+  const cafe = s.call(s.manager, 'rota.shift.save', { name: 'Café', start: '12:00', end: '20:00', positions: 'Café', status: 'active' }).data.record_id;
+  assert.equal(s.call(s.manager, 'rota.set', { staff_id: s.ids.sumi, date: d, value: cafe }).data.error.fields.value.code, 'val.shift_position');
+  // Unavailable on that weekday, and Morning not on her list: allowed, with notes for the manager.
+  s.call(s.staff, 'rota.unavailable.save', { weekday: new Date(`${d}T00:00:00Z`).getUTCDay(), note: 'Classes' });
+  const sumi = s.call(s.owner, 'staff.list', {}).data.items.find((x) => x.name === 'Sumi');
+  s.call(s.owner, 'staff.save', { ...sumi, days_off: sumi.days_off.map((day) => ({ day })), shift_ids: [{ id: s.ids.late }], pin: null });
+  const asked = s.call(s.staff, 'rota.request', { kind: 'shift', date: d, shift_id: s.ids.morning }).data;
+  assert.deepEqual(asked.data.notes.map((n) => n.code), ['rota.note.unavailable', 'rota.note.not_in_list']);
+  assert.deepEqual(s.call(s.manager, 'rota.week', { from: d }).data.requests.find((r) => r.id === asked.record_id).notes.map((n) => n.params.note || ''), ['Classes', '']);
+  const away = s.call(s.staff, 'rota.unavailable').data.items;
+  assert.equal(away.length, 1);
+  assert.equal(s.call(s.staff, 'rota.unavailable.remove', { id: away[0].id }).data.status, 'saved');
 });
