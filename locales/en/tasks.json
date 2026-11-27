@@ -126,5 +126,9 @@
   "tasks.check_required": "Required",
   "tasks.evidence_before": "Needs a photo before",
   "tasks.evidence_after": "Needs a photo after",
-  "tasks.evidence_note": "Needs a note"
+  "tasks.evidence_note": "Needs a note",
+  "tasks.record": "Done with",
+  "tasks.record_help": "The entry or record you made for this task.",
+  "tasks.record_none": "Nothing made yet: open it with the task's button and save it first.",
+  "tasks.receipt": "Receipt or bill photo"
 }

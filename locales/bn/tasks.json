@@ -126,5 +126,9 @@
   "tasks.check_required": "আবশ্যক",
   "tasks.evidence_before": "আগের ছবি লাগবে",
   "tasks.evidence_after": "পরের ছবি লাগবে",
-  "tasks.evidence_note": "নোট লাগবে"
+  "tasks.evidence_note": "নোট লাগবে",
+  "tasks.record": "যে রেকর্ড দিয়ে করা",
+  "tasks.record_help": "এই কাজের জন্য আপনি যে এন্ট্রি বা রেকর্ড করেছেন।",
+  "tasks.record_none": "এখনো কিছু করা হয়নি: কাজের বোতাম দিয়ে খুলে আগে সেভ করুন।",
+  "tasks.receipt": "রসিদ বা বিলের ছবি"
 }

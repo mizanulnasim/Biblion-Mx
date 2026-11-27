@@ -36,17 +36,17 @@ export function occursOn(template, date) {
 
 export const PRIORITIES = Object.freeze(['low', 'normal', 'high', 'urgent']);
 
-// What a task can open, and the record it needs before it can be done (a
-// row of `table`, dated from the day the task was made, that `counts`). A
-// money entry opens the money screen with the kind chosen; the person
-// still needs the permission to use it.
+// What a task can open, and the record it is done with (a row of `table`,
+// made after the task, that `counts`); receipt: the record needs its
+// receipt or bill. A money entry opens the money screen with the kind
+// chosen; the person still needs the permission to use it.
 const entry = (kind) => ({ table: 'Transactions', counts: (r) => r.kind === kind && r.status === 'active' });
 const notCancelled = (table) => ({ table, counts: (r) => r.status !== 'cancelled' });
 export const TASK_LINKS = Object.freeze({
-  'money:expense': { path: '/money/new?kind=expense', perm: 'acc.entry', label: 'tasks.link.expense', record: entry('expense') },
-  'money:vendor_payment': { path: '/money/new?kind=vendor_payment', perm: 'acc.entry', label: 'tasks.link.vendor_payment', record: entry('vendor_payment') },
-  'money:vendor_purchase_credit': { path: '/money/new?kind=vendor_purchase_credit', perm: 'acc.entry', label: 'tasks.link.vendor_purchase', record: entry('vendor_purchase_credit') },
-  'money:publisher_payment': { path: '/money/new?kind=publisher_payment', perm: 'acc.entry', label: 'tasks.link.publisher_payment', record: entry('publisher_payment') },
+  'money:expense': { path: '/money/new?kind=expense', perm: 'acc.entry', label: 'tasks.link.expense', record: entry('expense'), receipt: true },
+  'money:vendor_payment': { path: '/money/new?kind=vendor_payment', perm: 'acc.entry', label: 'tasks.link.vendor_payment', record: entry('vendor_payment'), receipt: true },
+  'money:vendor_purchase_credit': { path: '/money/new?kind=vendor_purchase_credit', perm: 'acc.entry', label: 'tasks.link.vendor_purchase', record: entry('vendor_purchase_credit'), receipt: true },
+  'money:publisher_payment': { path: '/money/new?kind=publisher_payment', perm: 'acc.entry', label: 'tasks.link.publisher_payment', record: entry('publisher_payment'), receipt: true },
   'page:daily': { path: '/daily', perm: 'acc.daily', label: 'tasks.link.daily', record: entry('daily_shift') },
   'page:cafe_count': { path: '/cafe/count', perm: 'cafe.count', label: 'tasks.link.cafe_count', record: { table: 'Cafe_Counts', counts: () => true } },
   'page:cafe_orders': { path: '/cafe/orders', perm: 'cafe.view', label: 'tasks.link.cafe_orders', record: notCancelled('Cafe_Orders') },

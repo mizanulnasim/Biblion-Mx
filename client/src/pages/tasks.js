@@ -12,7 +12,7 @@ import { t } from '../core/i18n.js';
 import { read, write } from '../core/api.js';
 import { can } from '../core/state.js';
 import { onArea } from '../core/live.js';
-import { dateShort, dateShortTime, today } from '../core/format.js';
+import { dateShort, dateShortTime, money, today } from '../core/format.js';
 import { ACTIONS } from '../../../shared/contract/actions.js';
 import { errorMessageId } from '../../../shared/contract/errors.js';
 import { TASK_LINKS, TASK_ROLES } from '../../../shared/tasks/tasks.js';
@@ -66,7 +66,7 @@ export function taskItem(task, { mine = false, manage = false, who = false, chec
     ${task.comments.length ? html`<details class="comments"><summary>${t('tasks.comments', { count: task.comments.length })}</summary>
       <ul>${task.comments.map((c) => html`<li><strong>${c.name}</strong> <span class="muted">${dateShortTime(c.at)}</span><br>${c.text}</li>`)}</ul></details>` : ''}
     <span class="check-actions">
-      ${link && task.status === 'open' && can(link.perm) && mine ? html`<a class="btn btn-small" href="#${link.path}">${t(link.label)}</a>` : ''}
+      ${link && task.status === 'open' && can(link.perm) && mine ? html`<a class="btn btn-small" href="#${link.path}${link.path.includes('?') ? '&' : '?'}task=${task.id}">${t(link.label)}</a>` : ''}
       ${mine && task.status === 'open' ? html`
         <button type="button" class="btn btn-small btn-primary" data-act="done" data-id="${task.id}">${t('tasks.done')}</button>
         <button type="button" class="btn btn-small" data-act="not-done" data-id="${task.id}">${t('tasks.not_done')}</button>` : ''}
@@ -107,19 +107,38 @@ function photoField(slot, label, has, required) {
   return html`<div class="field"><label for="ph-${slot}">${label}${required ? '' : html` <span class="muted">${t('form.optional')}</span>`}</label>
     <input id="ph-${slot}" type="file" accept="image/*" capture="environment" data-slot="${slot}" aria-describedby="ph-${slot}-state">
     <p class="help" id="ph-${slot}-state">${has ? t('tasks.photo_added') : ''}</p>
-    <p class="field-error" id="f-${slot === 'before' || slot === 'after' ? slot : `answers.${slot}`}-err"></p></div>`;
+    <p class="field-error" id="f-${['before', 'after', 'receipt'].includes(slot) ? slot : `answers.${slot}`}-err"></p></div>`;
 }
 
-// Doing a task with a checklist or evidence: the answers, the photos (sent
-// when chosen), and the note.
-function doTask(task, onDone) {
+// Doing a task with a checklist, evidence or a linked record: the record it
+// was done with (if not already tied), the receipt, the answers, the
+// photos (sent when chosen), and the note.
+async function doTask(task, onDone) {
   const has = (slot) => task.files.some((f) => f.slot === slot);
-  const fields = task.checklist.filter((c) => c.type !== 'photo').map((c) => ({
+  let records = { items: [], receipt: false };
+  if (task.link) {
+    try {
+      records = (await read('tasks.records', { id: task.id })).data;
+    } catch (err) {
+      toast(errorText(err), 'error');
+      return;
+    }
+  }
+  const recordLabel = (r) => [dateShort(`${r.date}T06:00:00Z`), r.amount === null ? '' : money(r.amount), r.note].filter(Boolean).join(' · ');
+  const fields = [];
+  if (task.link && !task.record_id && !task.override_reason) {
+    fields.push({
+      name: 'record_id', label: t('tasks.record'), type: 'select', required: true, placeholder: t('money.choose'),
+      options: records.items.map((r) => ({ value: r.id, label: recordLabel(r) })), help: records.items.length ? t('tasks.record_help') : t('tasks.record_none'),
+    });
+  }
+  fields.push(...task.checklist.filter((c) => c.type !== 'photo').map((c) => ({
     name: `answers.${c.id}`, label: c.unit ? `${c.label} (${c.unit})` : c.label, required: c.required,
     ...(c.type === 'check' ? { type: 'checkbox' } : c.type === 'number' ? { inputmode: 'decimal' } : {}),
-  }));
+  })));
   fields.push({ name: 'note', label: t('tasks.note'), type: 'textarea', required: Boolean(task.evidence.note) });
-  const photos = html`${task.checklist.filter((c) => c.type === 'photo').map((c) => photoField(c.id, c.label, has(c.id), c.required))}
+  const photos = html`${records.receipt ? photoField('receipt', t('tasks.receipt'), has('receipt'), true) : ''}
+    ${task.checklist.filter((c) => c.type === 'photo').map((c) => photoField(c.id, c.label, has(c.id), c.required))}
     ${task.evidence.before ? photoField('before', t('tasks.photo_before'), has('before'), true) : ''}
     ${task.evidence.after ? photoField('after', t('tasks.photo_after'), has('after'), true) : ''}`;
   const values = {};
@@ -143,7 +162,7 @@ function doTask(task, onDone) {
     schema: { note: ACTIONS['tasks.complete'].schema.note },
     busyLabel: t('common.saving'),
     mapValues: (v) => ({
-      id: task.id, note: v.note,
+      id: task.id, note: v.note, record_id: v.record_id || null,
       answers: task.checklist.filter((c) => c.type !== 'photo').map((c) => ({ item: c.id, value: c.type === 'check' ? (v[`answers.${c.id}`] ? 'yes' : '') : v[`answers.${c.id}`] })),
     }),
     onSubmit: (v) => write('tasks.complete', v, { label: task.title }),
@@ -161,7 +180,7 @@ export function taskActions(findTask, onDone) {
     done: async (e, btn) => {
       const task = findTask(btn.dataset.id);
       const ev = task.evidence || {};
-      if (task.checklist.length || ev.before || ev.after || ev.note) {
+      if (task.link || task.checklist.length || ev.before || ev.after || ev.note) {
         doTask(task, onDone);
         return;
       }

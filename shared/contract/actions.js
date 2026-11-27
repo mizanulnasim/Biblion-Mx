@@ -761,8 +761,11 @@ export const ACTIONS = Object.freeze({
   },
   'tasks.complete': {
     write: true, offline: true, area: 'hr',
-    schema: { id: { type: 'id', required: true }, note: { type: 'text', max: 300 }, answers: { type: 'list', max: 20, of: { item: { type: 'text', required: true, max: 20 }, value: { type: 'text', max: 300 } } } },
+    schema: { id: { type: 'id', required: true }, note: { type: 'text', max: 300 }, record_id: { type: 'id' }, answers: { type: 'list', max: 20, of: { item: { type: 'text', required: true, max: 20 }, value: { type: 'text', max: 300 } } } },
   },
+  // A linked task's record: tied when saved from the task, or picked.
+  'tasks.record': { write: true, area: 'hr', schema: { id: { type: 'id', required: true }, record_id: { type: 'id', required: true } } },
+  'tasks.records': { schema: { id: { type: 'id', required: true } } },
   // A photo for a task: before, after, a receipt, or a checklist item's.
   'tasks.attach': {
     write: true, area: 'hr',

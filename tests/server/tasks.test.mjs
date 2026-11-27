@@ -99,8 +99,25 @@ test('a linked task needs its record, unless a manager allows it with a reason',
   const counted = s.call(s.manager, 'tasks.create', { title: 'Count again', staff_id: s.ids.sumi, due_date: today(), link: 'page:cafe_count' }).data.record_id;
   assert.equal(item.status, 'saved', JSON.stringify(item));
   s.call(s.staff, 'cafe.count.save', { date: today(), lines: [{ item_id: item.record_id, counted: 5 }] });
-  assert.equal(s.call(s.staff, 'tasks.complete', { id: counted }).data.status, 'saved');
-  assert.ok(mine(s, s.staff).find((t) => t.id === counted).record_id);
+  // Done with the exact record: picked from those made since the task.
+  assert.equal(s.call(s.staff, 'tasks.complete', { id: counted }).data.error.code, 'TASK_RECORD');
+  const made = s.call(s.staff, 'tasks.records', { id: counted }).data.items;
+  assert.equal(made.length, 1);
+  assert.equal(s.call(s.staff, 'tasks.complete', { id: counted, record_id: made[0].id }).data.status, 'saved');
+  assert.equal(mine(s, s.staff).find((t) => t.id === counted).record_id, made[0].id);
+});
+
+test('a payment task is tied to the entry made from it and needs the receipt, which is filed on the entry', () => {
+  const s = team();
+  const id = s.call(s.owner, 'tasks.create', { title: 'Pay the electricity bill', staff_id: s.ids.rafi, due_date: today(), link: 'money:expense' }).data.record_id;
+  const category = s.call(s.owner, 'setup.category.save', { name: 'Electricity', area: 'shared', status: 'active' }).data.record_id;
+  const entry = s.call(s.manager, 'money.save', { kind: 'expense', date: today(), amount: 1500, account_id: s.ids.cash, category_id: category }).data.record_id;
+  assert.equal(s.call(s.manager, 'tasks.record', { id, record_id: entry }).data.status, 'saved');
+  assert.equal(s.call(s.manager, 'tasks.complete', { id }).data.error.fields.receipt.code, 'val.photo_needed');
+  s.call(s.manager, 'tasks.attach', { id, slot: 'receipt', name: 'bill.jpg', mime: 'image/jpeg', data: Buffer.from('a bill').toString('base64') });
+  assert.equal(s.call(s.manager, 'tasks.complete', { id }).data.status, 'saved');
+  // The receipt is now filed on the entry itself.
+  assert.equal(s.call(s.manager, 'tasks.records', { id }).data.items.find((r) => r.id === entry).has_receipt, true);
 });
 
 test('approved leave skips repeating tasks and moves one-off tasks to the working day before it', () => {

@@ -281,17 +281,43 @@ function create(ctx, input) {
   return saved(row.id, { due_date: row.due_date, moved_from: row.moved_from, move_flag: row.move_flag });
 }
 
-// The record a linked task was done with: one that counts, dated from the
-// day the task was made to today.
-function recordFor(db, t) {
+// The records a linked task can be done with: made after the task, of the
+// kind the task opens, newest first.
+function candidates(db, t) {
   const spec = TASK_LINKS[t.link].record;
-  const from = dhakaDate(Date.parse(t.created_at));
-  const now = today(db);
-  const row = db.all(spec.table).find((r) => r.date >= from && r.date <= now && spec.counts(r));
-  return row ? row.id : '';
+  return db.all(spec.table).filter((r) => r.created_at >= t.created_at && spec.counts(r)).sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 }
 
-function complete(ctx, { id, note, answers: list }) {
+// Whether a record already has its receipt or bill filed on it.
+const hasReceipt = (db, id) => db.all('Files').some((f) => f.status === 'active' && (f.record_ids || []).includes(id))
+  || Boolean((db.get('Transactions', id) || {}).file_id);
+
+// Ties a linked task to the record it was done with (saved from the task,
+// or picked from those made since).
+function tie(db, t, recordId) {
+  if (!candidates(db, t).some((r) => r.id === recordId)) throw fieldError('record_id', 'val.not_found');
+  db.update('Tasks', t, { record_id: recordId });
+}
+
+function linkRecord(ctx, { id, record_id: recordId }) {
+  const { t } = ownTask(ctx, id);
+  if (t.status !== 'open' || !t.link) throw new AppError('CONFLICT', { by: '' });
+  tie(ctx.db, t, recordId);
+  return saved(t.id);
+}
+
+// The records a linked task can be done with, to pick from.
+function taskRecords(ctx, { id }) {
+  const { db } = ctx;
+  const { t } = ownTask(ctx, id);
+  if (!t.link) return { items: [], receipt: false };
+  return {
+    receipt: Boolean(TASK_LINKS[t.link].receipt),
+    items: candidates(db, t).map((r) => ({ id: r.id, date: r.date, amount: r.amount ?? null, kind: r.kind || '', note: r.note || '', has_receipt: hasReceipt(db, r.id) })),
+  };
+}
+
+function complete(ctx, { id, note, answers: list, record_id: recordId }) {
   const { db } = ctx;
   const { t, me } = ownTask(ctx, id);
   if (t.status !== 'open') throw new AppError('CONFLICT', { by: '' });
@@ -299,11 +325,22 @@ function complete(ctx, { id, note, answers: list }) {
   for (const a of list || []) answers[a.item] = a.value ?? '';
   const gaps = missing(t, answers, note);
   if (gaps.length) throw new AppError('VALIDATION', {}, Object.fromEntries(gaps.map((g) => [g.field, { code: g.code, params: g.params }])));
-  const recordId = t.link && TASK_LINKS[t.link] ? recordFor(db, t) : '';
-  if (t.link && !recordId && !t.override_reason) throw new AppError('TASK_RECORD');
+  // A linked task is done with its record (and, for payments and bills, the
+  // receipt), unless a manager allowed it without.
+  if (recordId && t.link) tie(db, t, recordId);
+  const tied = db.get('Tasks', t.id).record_id;
+  if (t.link && !tied && !t.override_reason) throw new AppError('TASK_RECORD');
+  if (tied && TASK_LINKS[t.link].receipt) {
+    const photo = (t.files || []).find((f) => f.slot === 'receipt');
+    if (!photo && !hasReceipt(db, tied)) throw fieldError('receipt', 'val.photo_needed');
+    if (photo) {
+      const file = db.get('Files', photo.file_id);
+      db.update('Files', file, { record_ids: [...new Set([...(file.record_ids || []), tied])] });
+    }
+  }
   // Checked by someone more senior; a shareholder's own is final.
   const status = roleKey(ctx.user) === 'owner' ? 'done' : 'to_check';
-  db.update('Tasks', t, { staff_id: me.id, status, record_id: recordId, answers, note: note || '', done_at: db.nowIso, done_by: ctx.user.id });
+  db.update('Tasks', db.get('Tasks', t.id), { staff_id: me.id, status, answers, note: note || '', done_at: db.nowIso, done_by: ctx.user.id });
   return saved(t.id, { status });
 }
 
@@ -480,6 +517,8 @@ export const TASK_HANDLERS = {
   'tasks.create': create,
   'tasks.complete': complete,
   'tasks.attach': attach,
+  'tasks.record': linkRecord,
+  'tasks.records': taskRecords,
   'tasks.not_done': notDone,
   'tasks.comment': comment,
   'tasks.verify': verify,

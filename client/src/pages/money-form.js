@@ -281,10 +281,12 @@ export const moneyFormPage = {
             body = { ...payload, reason: answer.reason };
           }
         },
-        onSaved: (reply) => {
+        onSaved: async (reply) => {
           if (reply.status === 'queued') toast(t('money.saved_on_phone'));
           else toast(reply.data.approval === 'waiting' ? t('money.saved_waiting') : t('money.saved'));
-          location.hash = '#/money';
+          // Opened from a task: the entry is the task's record.
+          if (query.task && reply.status === 'saved') await write('tasks.record', { id: query.task, record_id: reply.record_id });
+          location.hash = query.task ? '#/tasks' : '#/money';
         },
       });
     }
