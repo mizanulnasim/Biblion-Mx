@@ -1,6 +1,8 @@
 # Owner decisions
 
-These decisions were made by the owner on 24 Nov 2026. Where they differ from `BLUEPRINT.md`, this file wins. `BLUEPRINT.md` describes v1 and is used as a **feature checklist only**.
+**The app's rulebook is `BIBLION_SPECIFICATION.md`**: it states every rule as it stands now. This file is the history of how the decisions were reached, oldest first; where an entry here differs from the rulebook, the rulebook wins.
+
+These decisions were first made by the owner on 24 Nov 2026. `BLUEPRINT.md` describes v1 and was used as a **feature checklist only**.
 
 ## A completely new app
 - Nothing is carried over from v1: no data, ids, spreadsheets, browser storage or code.
