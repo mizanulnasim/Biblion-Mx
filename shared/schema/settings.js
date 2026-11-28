@@ -31,9 +31,10 @@ export const SETTING_AREAS = Object.freeze({
 });
 
 const APPROVE = Object.freeze({ final: 'approvals.final', shareholder: 'approvals.shareholder' });
-const rule = (label) => ({ area: 'approvals', kind: 'choice', choices: APPROVE, start: 'final', label });
+// A money kind's switch: like "other money entries" (to start), or its own.
+const rule = (label) => ({ area: 'approvals', kind: 'choice', choices: { same: 'approvals.same', ...APPROVE }, start: 'same', label });
 const minutes = (start, max, label, help) => ({ area: 'attendance', kind: 'int', min: 0, max, start, label, help });
-const BRAND_ACCENT = '#4f46e5';
+const BRAND_ACCENT = '#0f3d34';
 
 export const SETTINGS = Object.freeze({
   // ---- The shop ----
@@ -47,7 +48,8 @@ export const SETTINGS = Object.freeze({
   'staff.self_edit': { area: 'shop', kind: 'bool', personal: true, start: true, label: 'shop.self_edit', help: 'shop.self_edit_help' },
 
   // ---- Money approvals: a manager's entry above the limit waits for a
-  // shareholder; each kind is final for a manager or a shareholder confirms.
+  // shareholder; each kind is final for a manager or a shareholder confirms,
+  // and to start follows "other money entries", which a shareholder confirms.
   'approve.money_limit': { area: 'approvals', kind: 'money', required: true, start: 2000, label: 'approvals.limit', help: 'approvals.limit_help' },
   'approve.rule.expense': rule('approvals.expense'),
   'approve.rule.income': rule('approvals.income'),
@@ -55,7 +57,7 @@ export const SETTINGS = Object.freeze({
   'approve.rule.daily': rule('approvals.daily'),
   'approve.rule.vendor': rule('approvals.vendor'),
   'approve.rule.publisher': rule('approvals.publisher'),
-  'approve.rule.other': rule('approvals.other'),
+  'approve.rule.other': { area: 'approvals', kind: 'choice', choices: APPROVE, start: 'shareholder', label: 'approvals.other' },
 
   // ---- Payroll. The accounting month starts on the 11th (owner decision);
   // payroll, payslips and month reports follow it. A day's pay is the
@@ -173,9 +175,12 @@ export const SETTINGS = Object.freeze({
   // ---- Repeating tasks are made this many days ahead (besides today).
   'tasks.days_ahead': { area: 'tasks', kind: 'int', min: 0, max: 14, required: true, start: 1, label: 'set.tasks.days_ahead' },
 
-  // ---- Reading documents: the optional Gemini key is used for receipts
-  // and bills, or not at all.
-  'intake.ai': { area: 'reading', kind: 'choice', start: 'off', label: 'settings.ai', choices: { off: 'settings.ai_off', bills: 'settings.ai_bills' } },
+  // ---- Reading documents: the optional Gemini key reads a receipt or bill
+  // when the free reading left something unsure ('hard'), every one, or none.
+  'intake.ai': {
+    area: 'reading', kind: 'choice', start: 'hard', label: 'settings.ai', help: 'settings.ai_help',
+    choices: { hard: 'settings.ai_hard', always: 'settings.ai_always', never: 'settings.ai_never' },
+  },
   'intake.gemini_key': { area: 'reading', kind: 'secret', max: 200, prop: 'GEMINI_KEY', start: '', label: 'settings.ai_key', help: 'settings.ai_key_help' },
 
   // ---- Signing in: how long a sign-in lasts, and how many wrong passwords
@@ -198,7 +203,10 @@ export const SETTINGS = Object.freeze({
   'start.done': { kind: 'list', start: [] },
   // Performance reviews: what each person is scored on (1–5), and whether
   // they give their own view first.
-  'performance.criteria': { kind: 'list', start: ['Punctuality', 'Task completion', 'Work quality', 'Teamwork', 'Customer care'] },
+  'performance.criteria': {
+    kind: 'list',
+    start: ['Punctuality', 'Task completion', 'Work quality', 'Responsibility', 'Customer interaction', 'Teamwork', 'Communication', 'Policy compliance'],
+  },
   'performance.self_assessment': { kind: 'bool', start: true },
   // A new person's onboarding checklist.
   'onboarding.steps': {

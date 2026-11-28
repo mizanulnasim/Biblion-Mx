@@ -66,3 +66,13 @@ test('one person can have their own value, shown in Setup and reset there', () =
   assert.deepEqual(own(null).data.find((i) => i.key === 'staff.self_edit').own, []);
   assert.equal(s.call(s.staff, 'meta.get').data.settings['staff.self_edit'], true);
 });
+
+test('to start, a manager\'s money entries follow "other entries": a shareholder confirms', () => {
+  const s = shop();
+  setSettings(s, 'approvals', { 'approve.rule.other': 'shareholder' });
+  assert.equal(settingsOf(s, 'approvals')['approve.rule.expense'], 'same');
+  const boot = s.call(s.manager, 'money.boot').data;
+  assert.equal(boot.approval.rules.expense, 'shareholder');
+  setSettings(s, 'approvals', { 'approve.rule.expense': 'final' });
+  assert.equal(s.call(s.manager, 'money.boot').data.approval.rules.expense, 'final');
+});

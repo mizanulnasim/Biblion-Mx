@@ -104,10 +104,10 @@ test('a discarded upload lets the same file come again; the same bKash TrxID is 
 
 test('the optional Gemini reading fills what the text didn\'t; the key is never shown', () => {
   const s = withSuppliers();
-  assert.equal(s.call(s.manager, 'settings.reading.save', { 'intake.ai': 'bills' }).error.code, 'FORBIDDEN');
-  s.call(s.owner, 'settings.reading.save', { 'intake.ai': 'bills', 'intake.gemini_key': 'secret-key-123' });
+  assert.equal(s.call(s.manager, 'settings.reading.save', { 'intake.ai': 'always' }).error.code, 'FORBIDDEN');
+  s.call(s.owner, 'settings.reading.save', { 'intake.ai': 'always', 'intake.gemini_key': 'secret-key-123' });
   const shown = s.call(s.owner, 'settings.view');
-  assert.deepEqual(shown.data.areas.reading.map((i) => i.value), ['bills', true]);
+  assert.deepEqual(shown.data.areas.reading.map((i) => i.value), ['always', true]);
   assert.ok(!JSON.stringify(shown).includes('secret-key-123'));
   s.state.fetch['https://generativelanguage.googleapis.com/'] = {
     candidates: [{ content: { parts: [{ text: JSON.stringify({ date: '2026-11-19', total: 777, bill_no: 'X9', seller: 'Milk Vita Ltd' }) }] } }],

@@ -13,7 +13,10 @@ import { bundle, bundleApp } from './bundle.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const LANGS = ['en', 'bn'];
-const BRAND_ACCENT = '#4f46e5';
+import { SETTINGS } from '../shared/schema/settings.js';
+
+// Biblion's colour: everyone's starting accent, the browser bar and the splash.
+const BRAND_ACCENT = SETTINGS.accent.start;
 const ICON_BACKGROUND = '#ffffff';
 
 const hash = (text) => crypto.createHash('sha256').update(text).digest('hex').slice(0, 10);

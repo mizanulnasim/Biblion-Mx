@@ -3,7 +3,7 @@
    the person's setting (--accent, set at start-up). */
 
 :root {
-  --accent: #4f46e5;
+  --accent: #0f3d34;
   --on-accent: #ffffff;
 
   --bg: #f6f7f9;
@@ -12,7 +12,7 @@
   --text: #16181d;
   --text-muted: #5b6170;
   --border: #d9dce3;
-  --focus: #4f46e5;
+  --focus: #0f3d34;
 
   --ok-bg: #e3f4ea;
   --ok-text: #14633a;

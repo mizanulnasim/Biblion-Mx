@@ -62,10 +62,12 @@ function matchBook(books, name) {
     || null;
 }
 
-// The optional Gemini reading, for receipts and bills only.
-function readWithAi(db, file) {
+// The optional Gemini reading, for receipts and bills only: when the free
+// reading left something unsure, for every one, or never (intake.ai).
+function readWithAi(db, file, found) {
   const key = getProp('GEMINI_KEY');
-  if (!key || setting(db, 'intake.ai') !== 'bills') return null;
+  const mode = setting(db, 'intake.ai');
+  if (!key || mode === 'never' || (mode === 'hard' && !found.unsure.length)) return null;
   try {
     const res = postJson(`${GEMINI}?key=${encodeURIComponent(key)}`, {
       contents: [{
@@ -131,7 +133,7 @@ function prepare(db, doc, kind) {
   const found = { ...extract(doc.text, kind, suppliers), text: doc.text };
   let aiUsed = false;
   if (def.ai) {
-    const ai = readWithAi(db, db.get('Files', doc.file_id));
+    const ai = readWithAi(db, db.get('Files', doc.file_id), found);
     if (ai) {
       aiUsed = true;
       if (ai.date && !found.date) found.date = ai.date;

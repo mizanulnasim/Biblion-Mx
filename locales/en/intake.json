@@ -74,8 +74,6 @@
   "dup.trx_id": "This bKash transaction is already entered ({id}).",
   "settings.intake_intro": "Text is read by Google Drive for free. A Gemini key is optional; it is used only for receipts and bills, never for staff papers.",
   "settings.ai": "Use Gemini",
-  "settings.ai_off": "No",
-  "settings.ai_bills": "For receipts and bills",
   "settings.ai_key": "Gemini key",
   "settings.ai_key_help": "From Google AI Studio. Kept on the server and never shown again.",
   "settings.ai_key_set": "A key is saved. Type a new one to replace it.",

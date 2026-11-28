@@ -28,6 +28,10 @@ export function personalSettings(db, user) {
 
 export function approvalSettings(db) {
   const rules = {};
-  for (const rule of APPROVAL_RULES) rules[rule] = setting(db, `approve.rule.${rule}`);
+  const other = setting(db, 'approve.rule.other');
+  for (const rule of APPROVAL_RULES) {
+    const value = setting(db, `approve.rule.${rule}`);
+    rules[rule] = value === 'same' ? other : value;
+  }
   return { limit: setting(db, 'approve.money_limit'), rules };
 }

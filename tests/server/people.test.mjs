@@ -55,7 +55,7 @@ test('a review: own view first, scored, shared with the facts, acknowledged; nob
   const s = team();
   const id = s.call(s.manager, 'reviews.start', { staff_id: s.ids.sumi, from: plus(today(), -30), to: today() }).data.record_id;
   assert.equal(s.call(s.manager, 'reviews.start', { staff_id: s.ids.rafi, from: today(), to: today() }).data.error.code, 'OWN_ENTRY');
-  const lines = (n) => Array.from({ length: 5 }, () => ({ score: n, note: '' }));
+  const lines = (n) => Array.from({ length: 8 }, () => ({ score: n, note: '' }));
   assert.equal(s.call(s.manager, 'reviews.score', { id, lines: lines(4), share: true }).data.error.code, 'CONFLICT');
   s.call(s.staff, 'reviews.self', { id, lines: lines(5) });
   // Before it is shared, the person doesn't see the manager's scores.

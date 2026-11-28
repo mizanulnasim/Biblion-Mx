@@ -35,6 +35,10 @@ export function shop() {
     rahim: id(call(owner, 'setup.contact.save', { name: 'Rahim', phone: '01711000000', opening_due: 300, status: 'active' })),
     karim: id(call(owner, 'setup.shareholder.save', { name: 'Karim', status: 'active' })),
   };
+  // Money tests start from a manager's entries being final; a shareholder
+  // confirming them is the rulebook's start (tested in money.test.mjs).
+  const approvals = Object.fromEntries(call(owner, 'settings.view').data.areas.approvals.map((i) => [i.key, i.value]));
+  call(owner, 'settings.approvals.save', { ...approvals, 'approve.rule.other': 'final' });
   return { state, server, call, owner, manager: login('manager', 'manager-pass'), staff: login('staff', 'staff-pass'), ids };
 }
 
