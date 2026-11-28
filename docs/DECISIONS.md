@@ -440,3 +440,6 @@ Built exactly as v1: net sales + other income + interest on loans shareholders t
 
 ### Month-end report files (28 Nov 2026)
 Closing a month keeps its monthly, shareholders' and salary reports as PDF and Excel files in Drive (Monthly reports, by year), listed on the month closing page, and emails them to the shareholders who set an address in My settings.
+
+### The full specification compared with v2 (28 Nov 2026)
+`BIBLION_SPECIFICATION.md` was compared with v2 item by item: 67 things done differently (D1–D67) and 131 not in v2 (M1–M131). The owner chose for every one, one by one; the list and every choice are in `docs/SPEC_COMPARISON.md`. Where a choice there differs from an earlier decision in this file, the later choice stands (for example the vendor tracker, M48, replaces "publishers only"; reading CVs, M103, is allowed with a tick on each upload; notifications, D11, replace Home-only messages).
