@@ -9,6 +9,8 @@ import { createDatabase, isInitialized, newId } from '../store/db.js';
 import { deleteProp, getProp, setProp } from '../platform.js';
 import { passwordFields } from './auth.js';
 import { seedLists } from './lists.js';
+import { seedStart } from './start-lists.js';
+import { dhakaDate } from '../../shared/hr/attendance.js';
 
 function hasOwner(db) {
   return isInitialized() && db.all('Users').length > 0;
@@ -46,6 +48,7 @@ function setupOwner(ctx, input) {
     ...passwordFields(input.password),
   });
   seedLists(db);
+  seedStart(db, id, dhakaDate(db.now.getTime()));
   deleteProp('SETUP_CODE');
   deleteProp('SETUP_FAILS');
   return saved(id);

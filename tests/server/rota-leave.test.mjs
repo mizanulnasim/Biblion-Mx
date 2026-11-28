@@ -164,9 +164,13 @@ test('a public holiday when the shop closes is not a working day', () => {
 test('kinds of leave: a shareholder adds one; it is paid or not, from the balance or not, half days or not', () => {
   const s = team();
   const monday = nextWeekday(1, 3);
-  const sick = s.call(s.owner, 'leave.type.save', { name: 'Sick leave', paid: true, from_balance: false, half_days: false, status: 'active' }).data.record_id;
+  const sick = s.call(s.owner, 'leave.type.save', { name: 'Exam leave', paid: true, from_balance: false, half_days: false, status: 'active' }).data.record_id;
   assert.equal(s.call(s.manager, 'leave.type.save', { name: 'x', status: 'active' }).error.code, 'FORBIDDEN');
-  assert.deepEqual(s.call(s.staff, 'leave.mine').data.types.map((x) => x.id), ['paid', 'unpaid', sick]);
+  // Paid and Unpaid are built in; the first setup added five (rulebook S3).
+  const types = s.call(s.staff, 'leave.mine').data.types;
+  assert.deepEqual(types.slice(0, 2).map((x) => x.id), ['paid', 'unpaid']);
+  assert.deepEqual(types.slice(2, 7).map((x) => x.name), ['Annual leave', 'Casual leave', 'Sick leave', 'Emergency leave', 'Half-day leave']);
+  assert.equal(types[7].id, sick);
   // Not from the balance, so the balance doesn't change.
   const asked = s.call(s.staff, 'leave.apply', { kind: sick, from: monday, to: plus(monday, 1), reason: 'Fever' }).data;
   s.call(s.manager, 'leave.decide', { id: asked.record_id, decision: 'accept' });

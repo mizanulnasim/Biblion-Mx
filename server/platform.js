@@ -151,3 +151,24 @@ export function postJson(url, body) {
   const res = UrlFetchApp.fetch(url, { method: 'post', contentType: 'application/json', payload: JSON.stringify(body), muteHttpExceptions: true });
   return { status: res.getResponseCode(), body: JSON.parse(res.getContentText() || 'null') };
 }
+
+// ---- Deploying (server/kernel/deploy.js) ----
+
+const HOURLY = 'jobHourly';
+
+export function hasHourlyTrigger() {
+  return ScriptApp.getProjectTriggers().some((t) => t.getHandlerFunction() === HOURLY);
+}
+
+export function addHourlyTrigger() {
+  ScriptApp.newTrigger(HOURLY).timeBased().everyHours(1).create();
+}
+
+export function mailQuota() {
+  return MailApp.getRemainingDailyQuota();
+}
+
+// The deployer reads it in the script editor's execution log.
+export function report(text) {
+  Logger.log(text);
+}

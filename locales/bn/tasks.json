@@ -136,5 +136,6 @@
   "err.month_order": "মাস ক্রমানুসারে বন্ধ ও খোলা হয়: আগে {month} দেখুন।",
   "val.shares_total": "অংশের মোট {total}%; এটি ১০০% হতে হবে।",
   "val.month_closed": "এটি একটি বন্ধ মাসে পড়ে ({date} পর্যন্ত)।",
-  "tasks.link.month_closing": "মাস বন্ধ করুন"
+  "tasks.link.month_closing": "মাস বন্ধ করুন",
+  "tasks.anyone_owner": "যেকোনো মালিক"
 }

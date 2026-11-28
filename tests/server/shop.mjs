@@ -1,6 +1,6 @@
 // A shop on the real server bundle, ready for money tests: an owner, a
-// manager and a staff member signed in; a cash drawer (opening Tk 1,000)
-// and bKash; categories Milk and Rent (Rent always needs a shareholder);
+// manager and a staff member signed in; the starting lists, with the cash
+// drawer opening at Tk 1,000; categories Milk and Rent (Rent always needs a shareholder);
 // Rahim with a Tk 300 due; shareholder Karim.
 
 import test from 'node:test';
@@ -27,11 +27,16 @@ export function shop() {
   const id = (reply) => reply.data.record_id;
   call(owner, 'users.save', { display_name: 'Manager', username: 'manager', role_id: 'ROL-MANAGER', status: 'active', password: 'manager-pass' });
   call(owner, 'users.save', { display_name: 'Staff', username: 'staff', role_id: 'ROL-STAFF', status: 'active', password: 'staff-pass' });
+  // The first setup made Biblion's starting lists (rulebook S3): the cash
+  // drawer, bKash and Rent are those, changed here.
+  const start = call(owner, 'setup.money').data;
+  const named = (list, name) => list.find((x) => x.name === name);
+  const change = (action, row, fields) => id(call(owner, action, { ...row, ...fields }));
   const ids = {
-    cash: id(call(owner, 'setup.account.save', { name: 'Cash drawer', kind: 'drawer', opening: 1000, status: 'active' })),
-    bkash: id(call(owner, 'setup.account.save', { name: 'bKash', kind: 'bkash', status: 'active' })),
+    cash: change('setup.account.save', named(start.accounts, 'Cash drawer'), { opening: 1000 }),
+    bkash: named(start.accounts, 'bKash').id,
     milk: id(call(owner, 'setup.category.save', { name: 'Milk', area: 'cafe', status: 'active' })),
-    rent: id(call(owner, 'setup.category.save', { name: 'Rent', area: 'shared', needs_shareholder: true, status: 'active' })),
+    rent: change('setup.category.save', named(start.categories, 'Rent'), { needs_shareholder: true }),
     rahim: id(call(owner, 'setup.contact.save', { name: 'Rahim', phone: '01711000000', opening_due: 300, status: 'active' })),
     karim: id(call(owner, 'setup.shareholder.save', { name: 'Karim', status: 'active' })),
   };

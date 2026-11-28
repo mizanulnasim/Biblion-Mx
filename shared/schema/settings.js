@@ -44,9 +44,9 @@ export const SETTINGS = Object.freeze({
   // ---- The shop ----
   'shop.name': { area: 'shop', kind: 'text', max: 80, required: true, start: 'Biblion', label: 'shop.name' },
   'shop.tagline': { area: 'shop', kind: 'text', max: 120, start: 'Bookstore café and cultural space', label: 'shop.tagline', help: 'shop.tagline_help' },
-  'shop.address': { area: 'shop', kind: 'long', max: 300, start: '', label: 'shop.address' },
-  'shop.phone': { area: 'shop', kind: 'text', max: 40, start: '', label: 'shop.phone' },
-  'shop.email': { area: 'shop', kind: 'email', start: '', label: 'shop.email' },
+  'shop.address': { area: 'shop', kind: 'long', max: 300, start: 'House# 1/2, Block# A (Ja), Avenue# 5, Section# 6, Mirpur, Dhaka 1216', label: 'shop.address' },
+  'shop.phone': { area: 'shop', kind: 'text', max: 40, start: '+880 1339-697905', label: 'shop.phone' },
+  'shop.email': { area: 'shop', kind: 'email', start: 'biblion.bacc@gmail.com', label: 'shop.email' },
   'staff.number_prefix': { area: 'shop', kind: 'text', max: 6, required: true, start: 'BIB', label: 'shop.number_prefix', help: 'shop.number_help' },
   'staff.number_digits': { area: 'shop', kind: 'int', min: 1, max: 8, required: true, start: 4, label: 'shop.number_digits' },
   'staff.self_edit': { area: 'shop', kind: 'bool', personal: true, start: true, label: 'shop.self_edit', help: 'shop.self_edit_help' },

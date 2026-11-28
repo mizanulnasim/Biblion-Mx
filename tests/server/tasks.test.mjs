@@ -21,7 +21,9 @@ function team() {
   return s;
 }
 
-const mine = (s, who) => s.call(who, 'tasks.mine').data.items;
+// The person's tasks, less the starting routine ones (rulebook S3).
+const ROUTINE = new Set(['Café closing count', 'Day closing', 'Electricity bill', 'Print the monthly accounts', 'Month closing']);
+const mine = (s, who) => s.call(who, 'tasks.mine').data.items.filter((t) => !ROUTINE.has(t.title));
 
 test('a daily task is made for today and tomorrow, once, and only on working days', () => {
   const s = team();

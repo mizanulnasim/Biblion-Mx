@@ -21,6 +21,10 @@ function books() {
   s.call(s.owner, 'start.date.save', { start_date: plus(today(), -200) });
   s.ids.cat = s.call(s.owner, 'setup.category.save', { name: 'Hall hire costs', area: 'shared', status: 'active' }).data.record_id;
   s.ids.nadia = s.call(s.owner, 'setup.shareholder.save', { name: 'Nadia', status: 'active', salary: 5000 }).data.record_id;
+  // Only Karim and Nadia here: the starting shareholders draw no salary.
+  for (const h of s.call(s.owner, 'setup.money').data.shareholders) {
+    if (h.id !== s.ids.karim && h.id !== s.ids.nadia) s.call(s.owner, 'setup.shareholder.save', { ...h, salary: 0 });
+  }
   return s;
 }
 

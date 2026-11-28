@@ -95,7 +95,11 @@ test('letters are filled from the record and kept as issued; templates refuse un
 
 test('the shop\'s details for the letterhead: set by a shareholder, sent to everyone', () => {
   const s = team();
-  assert.deepEqual(s.call(s.staff, 'meta.get').data.shop, { name: 'Biblion', tagline: 'Bookstore café and cultural space', address: '', phone: '', email: '' });
+  // The first setup fills in Biblion's own details (rulebook S3).
+  assert.deepEqual(s.call(s.staff, 'meta.get').data.shop, {
+    name: 'Biblion', tagline: 'Bookstore café and cultural space', address: 'House# 1/2, Block# A (Ja), Avenue# 5, Section# 6, Mirpur, Dhaka 1216',
+    phone: '+880 1339-697905', email: 'biblion.bacc@gmail.com',
+  });
   assert.equal(s.call(s.manager, 'settings.shop.save', { 'shop.name': 'x' }).error.code, 'FORBIDDEN');
   setSettings(s, 'shop', { 'shop.address': 'House 1, Road 2, Dhaka', 'shop.phone': '01700000000', 'shop.email': 'shop@example.com' });
   assert.equal(s.call(s.staff, 'meta.get').data.shop.address, 'House 1, Road 2, Dhaka');

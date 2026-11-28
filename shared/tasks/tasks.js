@@ -70,4 +70,4 @@ export const TASK_LINKS = Object.freeze({
 });
 
 // The roles a task can be given to (anyone with that role may do it).
-export const TASK_ROLES = Object.freeze(['manager', 'staff']);
+export const TASK_ROLES = Object.freeze(['owner', 'manager', 'staff']);

@@ -145,7 +145,8 @@ test('a bKash cash out is a transfer from bKash to the cash drawer; a payment is
 
 test('a courier slip is an expense in the shipping category, paid on arrival', () => {
   const s = withSuppliers();
-  const ship = s.call(s.owner, 'setup.category.save', { name: 'Book shipping', area: 'books', status: 'active' }).data.record_id;
+  // The starting "Transport & delivery" category.
+  const ship = s.call(s.owner, 'setup.money').data.categories.find((c) => c.name === 'Transport & delivery').id;
   const p = propose(s, 'courier.jpg', 'Sundarban Express\nConsignment No. 900100002000111/1\nBooking Date: 11-Oct-2026\nFrom: SOME PROKASHONI\nTo-Pay Payable : 150.00', 'courier_slip').proposal;
   assert.deepEqual([p.entry.kind, p.entry.category_id, p.entry.amount, p.entry.note, p.paid], ['expense', ship, 150, 'SOME PROKASHONI', 'now']);
 });

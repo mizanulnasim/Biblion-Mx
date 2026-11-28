@@ -27,7 +27,7 @@ const STATUS = {
   skipped: ['tasks.status.skipped', 'muted'],
 };
 // "Anyone who is a …", for a task given to a role.
-const ROLE_ANYONE = { manager: 'tasks.anyone_manager', staff: 'tasks.anyone_staff' };
+const ROLE_ANYONE = { owner: 'tasks.anyone_owner', manager: 'tasks.anyone_manager', staff: 'tasks.anyone_staff' };
 const WEEKDAYS = ['date.wd.sun', 'date.wd.mon', 'date.wd.tue', 'date.wd.wed', 'date.wd.thu', 'date.wd.fri', 'date.wd.sat'];
 const shortDate = (date) => dateShort(`${date}T06:00:00Z`);
 

@@ -51,7 +51,8 @@ test('shareholders\' opening figures and the cash they hold count in their accou
   assert.equal(st.owed_to_them, 5000);
   assert.equal(st.owes_business, 2500);
   assert.equal(st.settle, 2500);
-  assert.equal(step(s, 'shareholders').info.count, 1);
+  // Karim, and the three starting shareholders with their "Cash with …".
+  assert.equal(step(s, 'shareholders').info.count, 4);
 });
 
 test('opening stock: counted, sent, approved by someone else, dated the start date', () => {

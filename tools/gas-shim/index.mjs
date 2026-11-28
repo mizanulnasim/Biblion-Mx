@@ -200,7 +200,16 @@ export function gasGlobals(state) {
       },
     },
     // Emails are kept, not sent.
-    MailApp: { sendEmail: (mail) => { (state.mails ||= []).push({ ...mail, attachments: (mail.attachments || []).map((a) => a.getName()) }); } },
+    MailApp: {
+      sendEmail: (mail) => { (state.mails ||= []).push({ ...mail, attachments: (mail.attachments || []).map((a) => a.getName()) }); },
+      getRemainingDailyQuota: () => 100,
+    },
+    // Triggers are kept by handler name; the log keeps what was written.
+    ScriptApp: {
+      getProjectTriggers: () => (state.triggers || []).map((name) => ({ getHandlerFunction: () => name })),
+      newTrigger: (name) => ({ timeBased: () => ({ everyHours: () => ({ create: () => { (state.triggers ||= []).push(name); } }) }) }),
+    },
+    Logger: { log: (text) => { (state.log ||= []).push(String(text)); } },
     SpreadsheetApp: {
       openById(id) {
         if (!state.books[id]) throw new Error(`No spreadsheet ${id}`);
@@ -242,5 +251,7 @@ export function loadServer(bundlePath, state) {
     post: (body) => JSON.parse(context.doPost({ postData: { contents: typeof body === 'string' ? body : JSON.stringify(body) } }).getContent()),
     get: () => JSON.parse(context.doGet().getContent()),
     job: () => context.jobHourly(),
+    initialize: () => context.initialize(),
+    selfTest: () => context.runSelfTest(),
   };
 }
