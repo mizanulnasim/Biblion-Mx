@@ -59,6 +59,8 @@ function checkModules(result) {
       for (const name of m[1].split(',').map((n) => n.trim().split(/\s+as\s+/)[0]).filter(Boolean)) imported.add(`${from}#${name}`);
     }
   }
+  // A page declared for the router is used: the build's route list loads it.
+  for (const r of result.routes) imported.add(`${path.join(ROOT, r.module)}#${r.name}`);
   const entries = new Set([path.join(ROOT, 'server', 'main.js')]);
   const seen = new Set();
   for (const mod of shipped) {

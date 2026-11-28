@@ -9,7 +9,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { bundle } from './bundle.mjs';
+import { bundle, bundleApp } from './bundle.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const LANGS = ['en', 'bn'];
@@ -77,8 +77,21 @@ export function build({ apiUrl = '/api', outDir = path.join(ROOT, 'dist') } = {}
       return file;
     };
 
-    const client = bundle('client/src/main.js', 'browser');
-    const js = emit('app', 'js', client.code);
+    // Every page the app has, read from its declaration (path, title and
+    // permission come first); its code loads when the page is first opened.
+    const PAGE = /export const (\w+Page) = \{\s*path: '([^']+)',\s*title: '([^']+)',(?:\s*perm: '([^']+)',)?/g;
+    const pagesDir = path.join(ROOT, 'client', 'src', 'pages');
+    const declared = fs.readdirSync(pagesDir).sort().flatMap((f) => [...read(`client/src/pages/${f}`).matchAll(PAGE)]
+      .map((m) => ({ file: path.join(pagesDir, f), name: m[1], path: m[2], title: m[3], perm: m[4] || '' })));
+    const app = bundleApp('client/src/main.js', [...new Set(declared.map((d) => d.file))]);
+    const js = emit('app', 'js', app.core.code);
+    fs.mkdirSync(path.join(web, 'pages'), { recursive: true });
+    const chunkFile = new Map(app.chunks.map((c) => [c.file, emit(`pages/${path.basename(c.file, '.js')}`, 'js', c.code)]));
+    const routes = declared.map((d) => ({
+      path: d.path, title: d.title, perm: d.perm, name: d.name,
+      module: path.relative(ROOT, d.file).split(path.sep).join('/'), chunk: chunkFile.get(d.file) || '',
+    }));
+    const client = { modules: [...app.core.modules, ...app.chunks.flatMap((c) => c.modules)] };
     const css = emit('app', 'css', `${read('client/styles/tokens.css')}\n${read('client/styles/app.css')}`);
     const locales = {};
     for (const lang of LANGS) locales[lang] = emit(`locales/${lang}`, 'json', JSON.stringify(loadLocale(lang)));
@@ -89,7 +102,7 @@ export function build({ apiUrl = '/api', outDir = path.join(ROOT, 'dist') } = {}
     });
 
     const id = hash(hashed.join('|') + assets.join('|') + read('client/sw.js') + read('client/index.html'));
-    const buildInfo = { id, locales };
+    const buildInfo = { id, locales, routes };
     fs.writeFileSync(path.join(web, 'index.html'), read('client/index.html')
       .replace('{{THEME_COLOR}}', BRAND_ACCENT)
       .replace('{{CSS}}', css)
@@ -112,7 +125,7 @@ export function build({ apiUrl = '/api', outDir = path.join(ROOT, 'dist') } = {}
     fs.writeFileSync(path.join(gas, 'Code.js'), `var BIBLION_LOCALES = ${JSON.stringify(serverLocales)};\nvar BIBLION_LOGO = ${JSON.stringify(logo)};\nvar BIBLION_TOKENS = ${JSON.stringify(tokens)};\n${server.code}`);
     fs.copyFileSync(path.join(ROOT, 'server/appsscript.json'), path.join(gas, 'appsscript.json'));
 
-    return { id, web, gas, client: client.modules, server: server.modules };
+    return { id, web, gas, client: client.modules, server: server.modules, routes };
   } finally {
     process.chdir(cwd);
   }

@@ -10,55 +10,11 @@ import { mountShell } from './ui/shell.js';
 import { confirmDialog } from './ui/dialog.js';
 import { toast } from './ui/toast.js';
 import { showSetup, showSignIn } from './pages/signin.js';
-import { homePage } from './pages/home.js';
-import { usersPage } from './pages/users.js';
-import { activityPage } from './pages/activity.js';
-import { savedPage } from './pages/saved.js';
-import { mePage } from './pages/me.js';
-import { staffChangesPage, staffPage } from './pages/staff.js';
-import { myAttendancePage } from './pages/my-attendance.js';
-import { attendancePage, attendancePersonPage } from './pages/attendance.js';
-import { settingsAttendancePage } from './pages/settings-attendance.js';
 import { mountKiosk } from './pages/kiosk.js';
-import { rotaPage } from './pages/rota.js';
-import { leavePage } from './pages/leave.js';
-import { settingsLeavePage } from './pages/settings-leave.js';
-import { payrollPage } from './pages/payroll.js';
-import { myPayPage, payslipPage } from './pages/payslip.js';
-import { settingsPayrollPage } from './pages/settings-payroll.js';
-import { settingsShopPage } from './pages/settings-shop.js';
-import { repeatingTasksPage, tasksPage } from './pages/tasks.js';
-import { leavingOnePage, leavingPage, myLeavingPage } from './pages/leaving.js';
-import { letterPage, settingsLettersPage, staffLettersPage } from './pages/letters.js';
-import { manageNoticesPage, noticesPage } from './pages/notices.js';
-import { reviewsPage, settingsReviewsPage } from './pages/reviews.js';
-import { recruitmentPage, settingsOnboardingPage } from './pages/recruitment.js';
-import { moneyPage } from './pages/money.js';
-import { moneyFormPage } from './pages/money-form.js';
-import { setupMoneyPage } from './pages/setup-money.js';
-import { approvalsPage } from './pages/approvals.js';
-import { dailyPage } from './pages/daily.js';
-import { closingPage } from './pages/closing.js';
-import { monthClosingPage, shareholdersPage } from './pages/month.js';
-import { startPage } from './pages/start.js';
-import { reportsPage } from './pages/reports.js';
-import { booksPage } from './pages/books.js';
-import { deliveriesPage, deliveryPage } from './pages/delivery.js';
-import { bookSalesPage } from './pages/book-sales.js';
-import { suppliersPage } from './pages/suppliers.js';
-import { requisitionPage, requisitionsPage } from './pages/requisitions.js';
-import { orderFormPage, ordersPage } from './pages/special-orders.js';
-import { stocktakePage } from './pages/stocktake.js';
-import { settingsBooksPage } from './pages/settings-books.js';
-import { uploadPage, uploadsPage } from './pages/upload.js';
-import { uploadDocPage } from './pages/upload-doc.js';
-import { settingsIntakePage } from './pages/settings-intake.js';
-import { cafeCountPage } from './pages/cafe-count.js';
-import { cafeItemsPage } from './pages/cafe-items.js';
-import { cafeOrderPage, cafeOrdersPage } from './pages/cafe-orders.js';
-import { settingsCafePage } from './pages/settings-cafe.js';
 import { NAV, NAV_GROUPS } from './pages/nav.js';
+import { pageRoutes } from './core/pages.js';
 import { html, render } from './ui/html.js';
+import { errorBox } from './ui/feedback.js';
 
 const root = document.getElementById('app');
 let shell = null;
@@ -70,6 +26,11 @@ const notFound = {
     render(el, html`<div class="empty"><p>${t('common.not_found')}</p><a class="btn" href="#/">${t('nav.home')}</a></div>`);
   },
 };
+
+// A page whose code couldn't be loaded (offline before it was ever kept).
+function pageFailed(err, el) {
+  render(el, html`<div class="empty">${errorBox(t('err.network'))}<button type="button" class="btn" onclick="location.reload()">${t('common.retry')}</button></div>`);
+}
 
 async function signOut() {
   await refreshQueueCount();
@@ -119,7 +80,7 @@ async function startSession({ token, meta }) {
   shell = mountShell(root, { items: NAV, groups: NAV_GROUPS, onSignOut: signOut });
   startRouter({
     // Pages a person has no permission for are not routes for them at all.
-    routes: [homePage, startPage, reportsPage, dailyPage, closingPage, monthClosingPage, shareholdersPage, booksPage, deliveryPage, deliveriesPage, bookSalesPage, suppliersPage, requisitionsPage, requisitionPage, orderFormPage, ordersPage, stocktakePage, settingsBooksPage, uploadPage, uploadsPage, uploadDocPage, settingsIntakePage, cafeCountPage, cafeItemsPage, cafeOrdersPage, cafeOrderPage, settingsCafePage, staffPage, staffChangesPage, myAttendancePage, attendancePage, attendancePersonPage, settingsAttendancePage, rotaPage, leavePage, settingsLeavePage, payrollPage, payslipPage, myPayPage, settingsPayrollPage, tasksPage, repeatingTasksPage, leavingPage, leavingOnePage, myLeavingPage, letterPage, staffLettersPage, settingsLettersPage, settingsShopPage, noticesPage, manageNoticesPage, reviewsPage, settingsReviewsPage, recruitmentPage, settingsOnboardingPage, moneyPage, moneyFormPage, setupMoneyPage, approvalsPage, usersPage, activityPage, savedPage, mePage].filter((p) => !p.perm || can(p.perm)).concat(notFound),
+    routes: pageRoutes(can, pageFailed).concat(notFound),
     outlet: shell.outlet,
     onChange: (page, path) => shell.setPage(page, path),
     confirmLeave: () => confirmDialog({ title: t('guard.title'), body: t('guard.body'), ok: t('guard.leave'), tone: 'danger' }),

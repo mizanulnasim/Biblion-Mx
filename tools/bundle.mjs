@@ -83,3 +83,55 @@ export function bundle(entry, format) {
   }
   return { code, modules };
 }
+
+// The app in pieces, so a page's code loads only when the page is opened:
+//   core    the entry's modules, plus every module two or more pages share;
+//   chunks  one per page module, holding the modules only that page uses.
+// Core modules are registered on window.__bm.m (by path), and a chunk takes
+// what it needs from there; a loaded chunk puts its page module's exports
+// on window.__bm.pages.
+export function bundleApp(entry, pageFiles) {
+  const relOf = (file) => path.relative(process.cwd(), file).split(path.sep).join('/');
+  const closure = (roots) => {
+    const order = [];
+    const seen = new Set();
+    for (const root of roots) for (const m of collect(root)) if (!seen.has(m.file)) { seen.add(m.file); order.push(m); }
+    return order;
+  };
+  let coreRoots = [path.resolve(entry)];
+  let core;
+  let chunkMods;
+  // Grow the core until no module is left shared between pages.
+  for (;;) {
+    core = closure(coreRoots);
+    const inCore = new Set(core.map((m) => m.file));
+    chunkMods = pageFiles.filter((f) => !inCore.has(path.resolve(f)))
+      .map((f) => ({ file: path.resolve(f), modules: collect(f).filter((m) => !inCore.has(m.file)) }));
+    const uses = new Map();
+    for (const c of chunkMods) for (const m of c.modules) uses.set(m.file, (uses.get(m.file) || 0) + 1);
+    const shared = [...uses].filter(([, n]) => n > 1).map(([f]) => f);
+    if (!shared.length) break;
+    coreRoots = [...coreRoots, ...shared];
+  }
+  const coreFiles = new Set(core.map((m) => m.file));
+  const ids = new Map(core.map((m, i) => [m.file, `__m${i}`]));
+  const unit = (m, local) => {
+    const head = m.imports.map((imp) => {
+      const names = imp.names.map((n) => (n.name === n.local ? n.name : `${n.name}: ${n.local}`)).join(', ');
+      return `const { ${names} } = ${local.has(imp.from) ? local.get(imp.from) : `__bm.m['${relOf(imp.from)}']`};`;
+    }).join('\n');
+    return `// ${relOf(m.file)}\nconst ${local.get(m.file)} = (function () {\n${head}\n${m.body.trim()}\nreturn Object.freeze({ ${m.exports.join(', ')} });\n})();`;
+  };
+  const coreCode = `(function () {\n'use strict';\nconst __bm = (window.__bm = window.__bm || { m: {}, pages: {} });\n${
+    core.map((m) => `${unit(m, ids)}\n__bm.m['${relOf(m.file)}'] = ${ids.get(m.file)};`).join('\n\n')}\n})();\n`;
+  const chunks = chunkMods.map((c) => {
+    const local = new Map(c.modules.map((m, i) => [m.file, `__c${i}`]));
+    const body = c.modules.map((m) => unit(m, local)).join('\n\n');
+    return {
+      file: c.file,
+      modules: c.modules,
+      code: `(function () {\n'use strict';\nconst __bm = window.__bm;\n${body}\n__bm.pages['${relOf(c.file)}'] = ${local.get(c.file)};\n})();\n`,
+    };
+  });
+  return { core: { code: coreCode, modules: core }, chunks, coreFiles };
+}
