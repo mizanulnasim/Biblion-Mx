@@ -1,0 +1,422 @@
+// Payroll: each accounting month's payslip per person, each person's
+// salary history and pay account.
+//
+// A payslip is worked out from the salary in force on each day (its
+// history, in parts, from dates), the days employed, and the unpaid leave
+// and absent days a shareholder chooses to cut when paying
+// (shared/hr/pay.js). Until it is issued it is a draft that follows
+// attendance and leave; once issued its figures stay as they were. A
+// month's salary not fully paid some days after the month ends is overdue,
+// issued or not (owner decision).
+// Advances may be repaid in instalments: the month's instalment is
+// suggested as a deduction. Food allowance is shown by week from Saturday.
+//
+// The pay account: what the shop owes the person (starting balance +
+// issued payslips + food allowance earned − salary and food paid −
+// deductions) and the advance they owe back (starting advance + advances −
+// deductions). Payments are money entries (Salary paid, Food allowance
+// paid, Advance given, Salary deduction); Bonus paid is paid as it is given.
+//
+// Everyone sees their own payslips and pay account without a permission.
+
+import { AppError } from '../../shared/contract/errors.js';
+import { saved } from '../../shared/contract/reply.js';
+import { dhakaDate } from '../../shared/hr/attendance.js';
+import { leaveDays } from '../../shared/hr/leave.js';
+import { addDays, datesBetween } from '../../shared/hr/plan.js';
+import { employedDates, foodEarned, foodRateOf, foodWeeks, instalmentDue, payslipFigures, periodKey, periodOf, salaryOn, salaryTotal } from '../../shared/hr/pay.js';
+import { payEffect } from '../../shared/money/kinds.js';
+import { setting } from '../kernel/settings.js';
+import { attendanceMonth } from './attendance.js';
+import { planner } from './rota.js';
+import { joinedOn, staffOfUser } from './staff.js';
+import { tell } from '../kernel/notify.js';
+
+const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
+// The weeks of food allowance shown on a pay account.
+const FOOD_WEEKS_SHOWN = 6;
+const counts = (e) => e.status === 'active';
+const today = (db) => dhakaDate(db.now.getTime());
+
+const period = (db, key) => periodOf(key, setting(db, 'accounting.month_start_day'));
+const thisPeriod = (db) => periodKey(today(db), setting(db, 'accounting.month_start_day'));
+
+// A person's salary history, oldest first. Before any change was recorded,
+// the staff record's salary, in one part.
+function salaryChanges(db, staff) {
+  const rows = db.all('Salary_Changes').filter((c) => c.staff_id === staff.id).sort((a, b) => (a.from < b.from ? -1 : 1));
+  if (rows.length || !staff.salary) return rows;
+  return [{ from: joinedOn(staff), parts: [{ name: '', amount: staff.salary }], total: staff.salary }];
+}
+
+function partsOn(changes, date) {
+  let found = changes[0] || null;
+  for (const c of changes) if (c.from <= date) found = c;
+  return found ? found.parts : [];
+}
+
+// The figures a payslip for this person and month would have now; the
+// unpaid leave and absent days found, all cut unless `cut` says otherwise.
+function draft(db, staff, month, p = planner(db), cut = {}) {
+  const per = period(db, month);
+  const employed = employedDates(per, joinedOn(staff), staff.left_on);
+  const changes = salaryChanges(db, staff);
+  // Unpaid leave, whole days and half days (counted 0.5).
+  const unpaid = employed.map((d) => ({ date: d, plan: p.plan(staff, d) })).filter((x) => x.plan.leave_kind === 'unpaid');
+  const att = attendanceMonth(db, staff, { from: per.from, to: per.to });
+  const absent = att.days.filter((d) => d.state === 'absent').length;
+  // Overtime is paid only to people with an hourly rate; all of it unless
+  // `cut` says how many hours.
+  const rate = staff.overtime_rate || 0;
+  const overtimeHours = rate ? (cut.overtime ?? Math.round((att.totals.overtime_min / 60) * 100) / 100) : 0;
+  const leaveTaken = leaveDays(unpaid.map((x) => ({ ...p.base(staff, x.date), half: x.plan.half_leave || '' })), setting(db, 'leave.day_counting'));
+  const leaveCut = cut.leave ?? leaveTaken;
+  const absentCut = cut.absent ?? 0;
+  return {
+    month, period_from: per.from, period_to: per.to, parts: partsOn(changes, employed.length ? employed[employed.length - 1] : per.to),
+    leave_days: leaveTaken, absent_days: absent, unpaid_leave_days: leaveCut, unpaid_absent_days: absentCut,
+    overtime_min: att.totals.overtime_min, overtime_hours: overtimeHours, overtime_rate: rate,
+    ...payslipFigures({
+      period_days: per.days, day_salaries: employed.map((d) => salaryOn(changes, d)),
+      divisor_rule: setting(db, 'payroll.unpaid_divisor'), unpaid_leave_days: leaveCut, unpaid_absent_days: absentCut,
+      overtime_pay: Math.round(overtimeHours * rate),
+    }),
+  };
+}
+
+// The person's food allowance a day, by date.
+const foodRate = (db, staff) => foodRateOf(setting(db, 'food.rates'), salaryChanges(db, staff));
+
+// Days that earn food allowance, from joining to today (or leaving).
+function foodDates(db, staff, p) {
+  const last = staff.left_on && staff.left_on < today(db) ? staff.left_on : today(db);
+  const all = joinedOn(staff) <= last ? datesBetween(joinedOn(staff), last) : [];
+  const rule = setting(db, 'food.unpaid_rule');
+  if (rule === 'every_day') return all;
+  if (rule === 'skip_unpaid') return all.filter((d) => !(p.plan(staff, d).kind === 'leave' && p.plan(staff, d).leave_kind === 'unpaid'));
+  const worked = new Set(db.all('Punches').filter((x) => x.staff_id === staff.id && x.type === 'in' && (x.status === 'ok' || x.status === 'check')).map((x) => x.date));
+  return all.filter((d) => worked.has(d));
+}
+
+// A person's pay for an accounting month, for the month's figures: the
+// issued payslip's net (else the draft's) and the food allowance earned in it.
+export function monthPay(db, staff, month, p = planner(db)) {
+  const per = period(db, month);
+  if (!employedDates(per, joinedOn(staff), staff.left_on).length) return { net: 0, food: 0 };
+  const slip = db.all('Payslips').find((s) => s.staff_id === staff.id && s.month === month && s.status === 'issued');
+  const net = slip ? slip.net : salaryChanges(db, staff).length ? draft(db, staff, month, p).net : 0;
+  const food = foodEarned(foodRate(db, staff), foodDates(db, staff, p).filter((d) => d >= per.from && d <= per.to));
+  return { net, food };
+}
+
+export function payAccount(db, staff, p = planner(db)) {
+  const opening = db.all('Pay_Openings').find((o) => o.staff_id === staff.id) || { owed: 0, advance: 0 };
+  const slips = db.all('Payslips').filter((s) => s.staff_id === staff.id && s.status === 'issued');
+  const entries = db.all('Transactions').filter((e) => counts(e) && e.party_id === staff.id);
+  const food = foodEarned(foodRate(db, staff), foodDates(db, staff, p));
+  // A confirmed final settlement adds unused leave paid out and takes off
+  // notice short (server/modules/separation.js).
+  const settled = db.all('Separations').filter((x) => x.staff_id === staff.id && (x.status === 'settled' || x.status === 'completed'))
+    .reduce((t, x) => t + x.settlement.leave_pay - x.settlement.notice_cut, 0);
+  let owed = (opening.owed || 0) + slips.reduce((t, s) => t + s.net, 0) + food + settled;
+  let advance = opening.advance || 0;
+  for (const e of entries) {
+    const effect = payEffect(e);
+    owed += effect.owed;
+    advance += effect.advance;
+  }
+  const sum = (kind) => entries.filter((e) => e.kind === kind).reduce((t, e) => t + e.amount, 0);
+  // The advance instalment due this month, less deductions already made in it.
+  const per = period(db, thisPeriod(db));
+  const deductedNow = entries.filter((e) => e.kind === 'staff_deduction' && e.date >= per.from && e.date <= per.to).reduce((t, e) => t + e.amount, 0);
+  const advances = [
+    ...(opening.advance ? [{ date: '', amount: opening.advance, instalment: 0 }] : []),
+    ...entries.filter((e) => e.kind === 'staff_advance').map((e) => ({ date: e.date, amount: e.amount, instalment: (e.details && e.details.instalment) || 0 })),
+  ];
+  const due = Math.max(0, instalmentDue(advances, sum('staff_deduction') - deductedNow) - deductedNow);
+  return {
+    opening_owed: opening.owed || 0, opening_advance: opening.advance || 0, payslips: slips.reduce((t, s) => t + s.net, 0), food_earned: food, settlement: settled,
+    salary_paid: sum('salary_paid'), food_paid: sum('food_paid'), deductions: sum('staff_deduction'), advances: sum('staff_advance'), bonuses: sum('bonus_paid'),
+    owed: Math.round(owed), advance: Math.round(advance), instalment_due: Math.min(due, Math.round(advance)),
+    food_weeks: foodWeeks(foodRate(db, staff), foodDates(db, staff, p)).slice(-FOOD_WEEKS_SHOWN),
+  };
+}
+
+const slipView = (s) => ({
+  id: s.id, month: s.month, period_from: s.period_from, period_to: s.period_to, staff_id: s.staff_id, salary: s.salary, parts: s.parts || [],
+  month_days: s.month_days, divisor: s.divisor, employed_days: s.employed_days, base: s.base, leave_days: s.leave_days,
+  unpaid_leave_days: s.unpaid_leave_days, absent_days: s.absent_days, unpaid_absent_days: s.unpaid_absent_days,
+  unpaid_cut: s.unpaid_cut, overtime_min: s.overtime_min || 0, overtime_hours: s.overtime_hours || 0, overtime_rate: s.overtime_rate || 0, overtime_pay: s.overtime_pay || 0,
+  net: s.net, note: s.note, status: s.status, cancel_reason: s.cancel_reason, issued_at: s.issued_at,
+});
+
+const paidFor = (db, staffId, month) => db.all('Transactions')
+  .filter((e) => counts(e) && e.kind === 'salary_paid' && e.party_id === staffId && e.period === month).reduce((t, e) => t + e.amount, 0);
+
+// The last day a month's salary may be paid: this many days after the
+// month ends (the 11 Nov – 10 Dec month is due by 17 Dec).
+const dueBy = (db, per) => addDays(per.to, setting(db, 'payroll.overdue_days'));
+// Whether a month's salary is overdue: some still to pay after it was due.
+const overdue = (db, per, toPay) => toPay > 0 && today(db) > dueBy(db, per);
+// How many accounting months back to look for overdue salaries.
+const OVERDUE_MONTHS = 12;
+
+// The month's payroll: everyone employed in it, with their draft or issued
+// payslip, what has been paid for the month (and whether it is overdue),
+// and their pay account.
+function monthView(ctx, input) {
+  const { db } = ctx;
+  const month = input.month || thisPeriod(db);
+  const per = period(db, month);
+  const p = planner(db);
+  const slips = db.all('Payslips').filter((s) => s.month === month && s.status === 'issued');
+  const rows = db.all('Staff')
+    .filter((s) => employedDates(per, joinedOn(s), s.left_on).length && (s.status === 'active' || (s.left_on && s.left_on >= per.from)))
+    .filter((s) => s.salary || salaryChanges(db, s).length || slips.some((x) => x.staff_id === s.id))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((s) => {
+      const slip = slips.find((x) => x.staff_id === s.id);
+      const figures = slip ? slipView(slip) : draft(db, s, month, p);
+      const paid = paidFor(db, s.id, month);
+      const toPay = Math.max(0, figures.net - paid);
+      return {
+        staff: { id: s.id, name: s.name, position: s.position, status: s.status }, issued: Boolean(slip), slip: figures,
+        paid, to_pay: toPay, overdue: overdue(db, per, toPay), account: payAccount(db, s, p),
+      };
+    });
+  return { month, current: thisPeriod(db), period_from: per.from, period_to: per.to, due_by: dueBy(db, per), rows };
+}
+
+// The month's salaries for the salary report: each person's payslip (or
+// draft), paid for the month and still to pay; food allowance earned and
+// paid in it; and their advance before, given, taken back and after.
+export function salaryReport(db, month) {
+  const view = monthView({ db }, { month });
+  const p = planner(db);
+  const inP = (e) => e.date >= view.period_from && e.date <= view.period_to;
+  return {
+    period_from: view.period_from, period_to: view.period_to, due_by: view.due_by,
+    rows: view.rows.map((r) => {
+      const staff = db.get('Staff', r.staff.id);
+      const mine = db.all('Transactions').filter((e) => counts(e) && e.party_id === staff.id);
+      const sum = (kind, f) => mine.filter((e) => e.kind === kind && f(e)).reduce((t, e) => t + e.amount, 0);
+      const opening = (db.all('Pay_Openings').find((o) => o.staff_id === staff.id) || { advance: 0 }).advance || 0;
+      const advanceTo = (date) => opening + mine.filter((e) => e.date <= date).reduce((t, e) => t + payEffect(e).advance, 0);
+      return {
+        name: r.staff.name, position: r.staff.position || '', salary: r.slip.salary, net: r.slip.net, paid: r.paid, to_pay: r.to_pay, overdue: r.overdue,
+        food_earned: monthPay(db, staff, month, p).food, food_paid: sum('food_paid', inP),
+        advance_before: Math.round(advanceTo(addDays(view.period_from, -1))), advance_given: sum('staff_advance', inP),
+        deducted: sum('staff_deduction', inP), advance_after: Math.round(advanceTo(view.period_to)),
+      };
+    }),
+  };
+}
+
+// What the shop owed a person in pay at the end of a date: their opening
+// figure, payslips for months ended by then, food allowance earned to it
+// and a settlement on leaving by its last day, less pay given by then.
+function staffOwedOn(db, staff, date, p) {
+  const opening = (db.all('Pay_Openings').find((o) => o.staff_id === staff.id) || { owed: 0 }).owed || 0;
+  const slips = db.all('Payslips').filter((x) => x.staff_id === staff.id && x.status === 'issued' && x.period_to <= date).reduce((t, x) => t + x.net, 0);
+  const food = foodEarned(foodRate(db, staff), foodDates(db, staff, p).filter((d) => d <= date));
+  const settled = db.all('Separations').filter((x) => x.staff_id === staff.id && (x.status === 'settled' || x.status === 'completed') && x.last_day <= date)
+    .reduce((t, x) => t + x.settlement.leave_pay - x.settlement.notice_cut, 0);
+  const paid = db.all('Transactions').filter((e) => counts(e) && e.party_id === staff.id && e.date <= date).reduce((t, e) => t + payEffect(e).owed, 0);
+  return Math.round(opening + slips + food + settled + paid);
+}
+
+// A person's pay over a range of dates, for the payables report: owed
+// before it, earned in it (payslips for months ending in it, food
+// allowance, a leaving settlement), paid, taken back from advances, and
+// owed at its end.
+export function staffPayFigures(db, staff, from, to, p = planner(db)) {
+  const inR = (d) => d >= from && d <= to;
+  const slips = db.all('Payslips').filter((x) => x.staff_id === staff.id && x.status === 'issued' && inR(x.period_to)).reduce((t, x) => t + x.net, 0);
+  const food = foodEarned(foodRate(db, staff), foodDates(db, staff, p).filter(inR));
+  const settled = db.all('Separations').filter((x) => x.staff_id === staff.id && (x.status === 'settled' || x.status === 'completed') && inR(x.last_day))
+    .reduce((t, x) => t + x.settlement.leave_pay - x.settlement.notice_cut, 0);
+  const sum = (kinds) => db.all('Transactions').filter((e) => counts(e) && e.party_id === staff.id && kinds.includes(e.kind) && inR(e.date)).reduce((t, e) => t + e.amount, 0);
+  return {
+    start: staffOwedOn(db, staff, addDays(from, -1), p), earned: Math.round(slips + food + settled), paid: sum(['salary_paid', 'food_paid']),
+    other: sum(['staff_deduction']), end: staffOwedOn(db, staff, to, p),
+  };
+}
+
+// The day the app's records start: the setting, else the day it was set up.
+function recordsStart(db) {
+  const set = setting(db, 'accounting.start_date');
+  if (set) return set;
+  const setUp = db.all('Users').reduce((first, u) => (u.created_at < first ? u.created_at : first), db.nowIso);
+  return dhakaDate(Date.parse(setUp));
+}
+
+// The months before this one whose due date has passed, newest first, from
+// the month the app was set up (pay before it is in the starting balances).
+function pastDue(db) {
+  const startDay = setting(db, 'accounting.month_start_day');
+  const firstMonth = periodKey(recordsStart(db), startDay);
+  const out = [];
+  let per = period(db, thisPeriod(db));
+  for (let i = 0; i < OVERDUE_MONTHS; i++) {
+    per = period(db, periodKey(addDays(per.from, -1), startDay));
+    if (per.key < firstMonth) break;
+    if (today(db) > dueBy(db, per)) out.push(per);
+  }
+  return out;
+}
+
+// A person's overdue salaries: [{month, due_by, left, issued}].
+function overdueFor(db, staff, p) {
+  return pastDue(db).filter((per) => employedDates(per, joinedOn(staff), staff.left_on).length).map((per) => {
+    const slip = db.all('Payslips').find((s) => s.staff_id === staff.id && s.month === per.key && s.status === 'issued');
+    const net = slip ? slip.net : salaryChanges(db, staff).length ? draft(db, staff, per.key, p).net : 0;
+    return { month: per.key, due_by: dueBy(db, per), left: Math.max(0, net - paidFor(db, staff.id, per.key)), issued: Boolean(slip) };
+  }).filter((x) => x.left > 0);
+}
+
+// Every month's salary overdue, person by person (for the daily email).
+export function salaryOverdueList(db) {
+  const p = planner(db);
+  return db.all('Staff').filter((s) => s.status === 'active' || s.left_on)
+    .flatMap((s) => overdueFor(db, s, p).map((x) => ({ name: s.name, month: x.month, left: x.left, due_by: x.due_by })));
+}
+
+// For Home: how many months' salaries are overdue, across everyone.
+export function salaryOverdue(ctx) {
+  const { db } = ctx;
+  if (!ctx.can('payroll.view')) return 0;
+  const p = planner(db);
+  return db.all('Staff').filter((s) => s.status === 'active' || s.left_on).reduce((n, s) => n + overdueFor(db, s, p).length, 0);
+}
+
+function issue(ctx, input) {
+  const { db } = ctx;
+  const staff = db.get('Staff', input.staff_id);
+  if (!staff) throw new AppError('NOT_FOUND');
+  if (staff.user_id === ctx.user.id) throw new AppError('OWN_ENTRY');
+  if (input.month > thisPeriod(db)) throw fieldError('month', 'val.not_future');
+  if (!salaryChanges(db, staff).length) throw fieldError('staff_id', 'val.no_salary');
+  if (db.all('Payslips').some((s) => s.staff_id === staff.id && s.month === input.month && s.status === 'issued')) throw new AppError('CONFLICT', { by: '' });
+  const found = draft(db, staff, input.month);
+  const leave = input.unpaid_leave_days ?? found.leave_days;
+  if (leave > found.leave_days) throw fieldError('unpaid_leave_days', 'val.max', { max: found.leave_days });
+  if (input.unpaid_absent_days > found.absent_days) throw fieldError('unpaid_absent_days', 'val.max', { max: found.absent_days });
+  const overtime = input.overtime_hours ?? found.overtime_hours;
+  if (overtime > found.overtime_hours) throw fieldError('overtime_hours', 'val.max', { max: found.overtime_hours });
+  const d = draft(db, staff, input.month, planner(db), { leave, absent: input.unpaid_absent_days, overtime });
+  const row = db.insert('Payslips', {
+    ...d, staff_id: staff.id, note: input.note || '', status: 'issued', cancel_reason: '', issued_by: ctx.user.id, issued_at: db.nowIso,
+  });
+  tell(ctx, staff.user_id, 'hr', 'msg.payslip_issued', { month: { mo: input.month }, net: { m: row.net } }, `/payslip?id=${row.id}`);
+  return saved(row.id, { net: row.net });
+}
+
+function cancel(ctx, { id, reason }) {
+  const { db } = ctx;
+  const slip = db.get('Payslips', id);
+  if (!slip) throw new AppError('NOT_FOUND');
+  if (slip.status !== 'issued') throw new AppError('CONFLICT', { by: '' });
+  db.setReason(reason);
+  db.update('Payslips', slip, { status: 'cancelled', cancel_reason: reason });
+  return saved(slip.id);
+}
+
+// One payslip, as a document: the person's own, or anyone's with payroll.view.
+function payslip(ctx, { id }) {
+  const { db } = ctx;
+  const slip = db.get('Payslips', id);
+  if (!slip) throw new AppError('NOT_FOUND');
+  const staff = db.get('Staff', slip.staff_id);
+  if (staff.user_id !== ctx.user.id && !ctx.can('payroll.view')) throw new AppError('FORBIDDEN');
+  const inPeriod = (date) => date >= slip.period_from && date <= slip.period_to;
+  const inMonth = db.all('Transactions').filter((e) => counts(e) && e.party_id === staff.id
+    && (e.kind === 'salary_paid' ? e.period === slip.month : inPeriod(e.date) && ['staff_deduction', 'bonus_paid', 'food_paid', 'staff_advance'].includes(e.kind)));
+  return {
+    staff: { number: staff.number, name: staff.name, name_bn: staff.name_bn, position: staff.position, joined_on: joinedOn(staff) },
+    slip: slipView(slip),
+    entries: inMonth.sort((a, b) => (a.date < b.date ? -1 : 1)).map((e) => ({ date: e.date, kind: e.kind, amount: e.amount })),
+  };
+}
+
+function mine(ctx) {
+  const { db } = ctx;
+  const me = staffOfUser(db, ctx.user.id);
+  if (!me) throw new AppError('NO_STAFF');
+  const slips = db.all('Payslips').filter((s) => s.staff_id === me.id && s.status === 'issued').sort((a, b) => (a.month < b.month ? 1 : -1));
+  return { staff: { id: me.id, name: me.name }, account: payAccount(db, me), payslips: slips.map(slipView), overdue: overdueFor(db, me, planner(db)) };
+}
+
+function saveOpening(ctx, input) {
+  const { db } = ctx;
+  const staff = db.get('Staff', input.staff_id);
+  if (!staff) throw new AppError('NOT_FOUND');
+  if (staff.user_id === ctx.user.id) throw new AppError('OWN_ENTRY');
+  const row = db.all('Pay_Openings').find((o) => o.staff_id === staff.id);
+  const fields = { owed: input.owed || 0, advance: input.advance || 0 };
+  if (row) db.update('Pay_Openings', row, fields);
+  else db.insert('Pay_Openings', { staff_id: staff.id, ...fields });
+  return saved(staff.id, payAccount(db, staff));
+}
+
+// ---- Salary history ----------------------------------------------------------
+
+// Keeps the staff record's salary to the one in force today (also run by
+// the hourly job, for changes from a later date). Returns how many changed.
+export function syncSalaries(db) {
+  let changed = 0;
+  for (const staff of db.all('Staff')) {
+    const changes = db.all('Salary_Changes').filter((c) => c.staff_id === staff.id);
+    if (!changes.length) continue;
+    const now = salaryOn(changes, today(db));
+    if (now !== staff.salary) {
+      db.update('Staff', staff, { salary: now });
+      changed++;
+    }
+  }
+  return changed;
+}
+
+function history(ctx, { staff_id: staffId }) {
+  const { db } = ctx;
+  const staff = db.get('Staff', staffId);
+  if (!staff) throw new AppError('NOT_FOUND');
+  return {
+    staff: { id: staff.id, name: staff.name, salary: staff.salary || 0 },
+    changes: salaryChanges(db, staff).slice().reverse().map((c) => ({ id: c.id || '', from: c.from, parts: c.parts, total: c.total, food_rate: c.food_rate ?? null, note: c.note || '' })),
+  };
+}
+
+function changeSalary(ctx, input) {
+  const { db } = ctx;
+  const staff = db.get('Staff', input.staff_id);
+  if (!staff) throw new AppError('NOT_FOUND');
+  if (staff.user_id === ctx.user.id) throw new AppError('OWN_ENTRY');
+  if (!input.parts.length) throw fieldError('parts', 'val.required');
+  if (input.from < joinedOn(staff)) throw fieldError('from', 'val.before_joining');
+  // A change before an issued payslip's month would leave that payslip wrong.
+  const issued = db.all('Payslips').filter((s) => s.staff_id === staff.id && s.status === 'issued' && s.period_to >= input.from);
+  if (issued.length) throw fieldError('from', 'val.payslip_issued', { month: issued[0].month });
+  const fields = {
+    parts: input.parts.map((x) => ({ name: x.name || '', amount: x.amount })), total: salaryTotal(input.parts), food_rate: input.food_rate,
+    note: input.note || '', entered_by: ctx.user.id,
+  };
+  const same = db.all('Salary_Changes').find((c) => c.staff_id === staff.id && c.from === input.from);
+  // The first recorded change keeps the salary from joining until it.
+  if (!db.all('Salary_Changes').some((c) => c.staff_id === staff.id) && staff.salary && input.from > joinedOn(staff)) {
+    db.insert('Salary_Changes', { staff_id: staff.id, from: joinedOn(staff), parts: [{ name: '', amount: staff.salary }], total: staff.salary, food_rate: null, note: '', entered_by: ctx.user.id });
+  }
+  const row = same ? db.update('Salary_Changes', same, fields) : db.insert('Salary_Changes', { staff_id: staff.id, from: input.from, ...fields });
+  syncSalaries(db);
+  return saved(row.id, { total: fields.total });
+}
+
+export const PAYROLL_HANDLERS = {
+  'payroll.month': monthView,
+  'payroll.issue': issue,
+  'payroll.cancel': cancel,
+  'payroll.payslip': payslip,
+  'payroll.mine': mine,
+  'payroll.opening.save': saveOpening,
+  'salary.history': history,
+  'salary.change': changeSalary,
+};

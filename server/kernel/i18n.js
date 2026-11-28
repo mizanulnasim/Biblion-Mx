@@ -1,0 +1,60 @@
+// Message text on the server, for emails, in a person's language. The
+// build puts the messages in the server bundle as BIBLION_LOCALES.
+
+import { digitsFor, formatMessage, groupDigits } from '../../shared/lib/messages.js';
+import { KINDS } from '../../shared/money/kinds.js';
+
+const WEEKDAYS = ['date.wd.sun', 'date.wd.mon', 'date.wd.tue', 'date.wd.wed', 'date.wd.thu', 'date.wd.fri', 'date.wd.sat'];
+const MONTHS = [
+  'date.mon.jan', 'date.mon.feb', 'date.mon.mar', 'date.mon.apr', 'date.mon.may', 'date.mon.jun',
+  'date.mon.jul', 'date.mon.aug', 'date.mon.sep', 'date.mon.oct', 'date.mon.nov', 'date.mon.dec',
+];
+
+export function text(lang, id, params = {}) {
+  const messages = (globalThis.BIBLION_LOCALES || {})[lang] || {};
+  return id in messages ? formatMessage(lang, messages[id], params) : id;
+}
+
+// "Sat 12 Dec" from "2026-12-12".
+export function dayText(lang, date) {
+  const d = new Date(`${date}T00:00:00Z`);
+  return text(lang, 'date.short', { wd: text(lang, WEEKDAYS[d.getUTCDay()]), day: d.getUTCDate(), mon: text(lang, MONTHS[d.getUTCMonth()]) });
+}
+
+// An amount in a table column: "1,250", "−1,250", or "–" for none.
+export function figureText(lang, amount) {
+  const abs = Math.abs(Math.round(amount * 100)) / 100;
+  if (!abs) return '–';
+  const whole = Math.trunc(abs);
+  const cents = Math.round((abs - whole) * 100);
+  return `${amount < 0 ? '−' : ''}${digitsFor(lang, groupDigits(whole) + (cents ? `.${String(cents).padStart(2, '0')}` : ''))}`;
+}
+
+// "Tk 1,250" or "১,২৫০ টাকা".
+export function moneyText(lang, amount) {
+  const abs = Math.abs(Math.round(amount * 100)) / 100;
+  const whole = Math.trunc(abs);
+  const cents = Math.round((abs - whole) * 100);
+  const figures = digitsFor(lang, groupDigits(whole) + (cents ? `.${String(cents).padStart(2, '0')}` : ''));
+  return text(lang, amount < 0 ? 'money.amount_negative' : 'money.amount', { amount: figures });
+}
+
+// "November 2026" from "2026-11".
+function monthText(lang, month) {
+  return text(lang, 'date.month_year', { mon: text(lang, MONTHS[Number(month.slice(5, 7)) - 1]), year: digitsFor(lang, month.slice(0, 4)) });
+}
+
+// A stored message ({t, p}) in a language: a param {d: date}, {m: amount},
+// {mo: month} or {k: money kind} is written out.
+export function messageText(lang, message) {
+  const params = {};
+  for (const [k, v] of Object.entries(message.p || {})) {
+    if (v && typeof v === 'object') {
+      if ('d' in v) params[k] = dayText(lang, v.d);
+      else if ('m' in v) params[k] = moneyText(lang, v.m);
+      else if ('mo' in v) params[k] = v.mo ? monthText(lang, v.mo) : '';
+      else params[k] = text(lang, KINDS[v.k].label);
+    } else params[k] = v;
+  }
+  return text(lang, message.t, params);
+}
