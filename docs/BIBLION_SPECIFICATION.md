@@ -1315,6 +1315,7 @@ A restore from a downloaded file is also possible.
 | Owners | The Owner role can't lose permissions; the last active owner can't be disabled. |
 | Location | GPS is evidence, not proof. It is recorded with accuracy and distance; suspicious or offline punches need a manager's validation. |
 | Writes | Changes are made one at a time under a lock (a request that waits more than 30 seconds fails cleanly with BUSY). Each change runs inside a rollback journal, so an error part-way leaves no half-made records. A wrong password or PIN still counts towards the lockout. |
+| Speed | Each table is read in one call and kept in Google's script cache for 10 minutes, under a version every write changes, so nobody sees a table as it was before a write. A request's writes wait until it ends, then go in one call per table. |
 | Keys | The Gemini and Google Books keys are kept in the script's properties, never in the app, a sheet or a reply. |
 | Two addresses | The app opened from GitHub Pages or from the Apps Script address uses the same sign-in and the same server checks; each keeps its own sign-in on the device. |
 

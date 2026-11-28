@@ -83,6 +83,10 @@ function makeSheet(sheet) {
       return sheet.cells.reduce((max, line) => Math.max(max, (line || []).length), 0);
     },
     getRange: (row, col, rows = 1, cols = 1) => makeRange(sheet, row, col, rows, cols),
+    getDataRange() {
+      const self = makeSheet(sheet);
+      return makeRange(sheet, 1, 1, Math.max(self.getLastRow(), 1), Math.max(self.getLastColumn(), 1));
+    },
     deleteRow(row) {
       sheet.cells.splice(row - 1, 1);
       sheet.formats.splice(row - 1, 1);
@@ -179,6 +183,7 @@ export function gasGlobals(state) {
         getProperty: (k) => (k in state.props ? state.props[k] : null),
         getProperties: () => ({ ...state.props }),
         setProperty: (k, v) => { state.props[k] = String(v); },
+        setProperties: (values) => { for (const [k, v] of Object.entries(values)) state.props[k] = String(v); },
         deleteProperty: (k) => { delete state.props[k]; },
       }),
     },

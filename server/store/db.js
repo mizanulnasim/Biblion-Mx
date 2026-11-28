@@ -7,7 +7,7 @@
 // - Updates check the record's version (conflict check on every edit).
 
 import { BASE_COLUMNS, TABLES } from './tables.js';
-import { allProps, cacheGetAll, cachePutAll, createSpreadsheet, getProp, openSpreadsheet, setProp, uuid } from '../platform.js';
+import { allProps, cacheGetAll, cachePutAll, createSpreadsheet, getProp, openSpreadsheet, setProp, setProps, uuid } from '../platform.js';
 import { AppError } from '../../shared/contract/errors.js';
 
 const GROUP_NAMES = { core: 'Biblion data · core', accounts: 'Biblion data · accounts', books: 'Biblion data · books', cafe: 'Biblion data · café', hr: 'Biblion data · staff' };
@@ -69,9 +69,10 @@ const CACHE_CHUNK = 90000;
 const CACHE_MAX = 900000;
 
 // actor: {id, name} of the person writing; context: {action, op_id, reason}
-// cache: a read-only request may use the script cache. Each table has a
-// version (a script property) that every write changes, and the cache is
-// keyed by it, so a reader never gets a table as it was before a write.
+// cache: the request may use the script cache. Each table has a version (a
+// script property) that every write changes, and the cache is keyed by it,
+// so a reader never gets a table as it was before a write. A table the
+// request itself changes is read from the sheet from then on.
 // Script property CACHE_OFF turns the cache off.
 export function openDb(now, { cache = false } = {}) {
   const nowIso = now.toISOString();
@@ -79,23 +80,32 @@ export function openDb(now, { cache = false } = {}) {
   const sheets = {};
   const rowsCache = {};
   const fromCache = new Set();
+  // Tables this request changes: read from the sheet from then on.
+  const bypass = new Set();
   let props = null;
   let actor = { id: '', name: '' };
   let context = { action: '', op_id: '' };
   // Every row this request changed, to undo them if it fails part-way:
   // {table, rowNumber, before} (before: null for a row it added).
   let journal = null;
+  // Row writes wait here until flush(): table → Map(rowNumber → values), so
+  // a request makes one sheet call per run of rows instead of several per
+  // row. nextRow: the next empty row of each table. dirty: tables whose
+  // version changes at the flush. flushed: "table:row" already on the sheet.
+  const pending = {};
+  const nextRow = {};
+  const dirty = new Set();
+  const flushed = new Set();
 
-  const useCache = () => {
-    if (!cache) return false;
+  const useCache = (table) => {
+    if (!cache || bypass.has(table)) return false;
     if (!props) props = allProps();
     return !props.CACHE_OFF;
   };
   const versionKey = (table) => `TV_${table}`;
-  // A new version for a table this request changed.
+  // A table this request changed gets a new version at the flush.
   function touched(table) {
-    setProp(versionKey(table), uuid());
-    if (props) delete props[versionKey(table)];
+    dirty.add(table);
   }
 
   function cached(table) {
@@ -130,15 +140,24 @@ export function openDb(now, { cache = false } = {}) {
     return spreadsheets[group];
   }
 
-  // Returns {sheet, header: [names]} and adds any missing columns.
-  function open(table) {
+  // Returns {sheet, header: [names], rows} and adds any missing columns.
+  // withRows: read the whole sheet in one call (rows: the values under
+  // the header); otherwise only the header is read.
+  function open(table, withRows = false) {
     if (sheets[table]) return sheets[table];
     const book = spreadsheet(TABLES[table].group);
     let sheet = book.getSheetByName(table);
     const wanted = COLUMNS[table].map((c) => c.name);
     let header = [];
+    let rows = null;
     if (!sheet) {
       sheet = book.insertSheet(table);
+      if (withRows) rows = [];
+    } else if (withRows) {
+      const grid = sheet.getDataRange().getValues();
+      header = grid[0].map(String);
+      while (header.length && header[header.length - 1] === '') header.pop();
+      rows = grid.slice(1);
     } else if (sheet.getLastColumn() > 0) {
       header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(String);
     }
@@ -147,7 +166,7 @@ export function openDb(now, { cache = false } = {}) {
       sheet.getRange(1, header.length + 1, 1, missing.length).setValues([missing]);
       header = header.concat(missing);
     }
-    sheets[table] = { sheet, header };
+    sheets[table] = { sheet, header, rows };
     return sheets[table];
   }
 
@@ -168,7 +187,7 @@ export function openDb(now, { cache = false } = {}) {
 
   function all(table) {
     if (rowsCache[table]) return rowsCache[table];
-    if (useCache()) {
+    if (useCache(table)) {
       const hit = cached(table);
       if (hit) {
         fromCache.add(table);
@@ -176,10 +195,22 @@ export function openDb(now, { cache = false } = {}) {
         return rowsCache[table];
       }
     }
-    const { sheet, header } = open(table);
-    const last = sheet.getLastRow();
-    const values = last > 1 ? sheet.getRange(2, 1, last - 1, header.length).getValues() : [];
-    if (useCache()) keep(table, header, values);
+    flushTable(table);
+    const wasOpen = Boolean(sheets[table]);
+    const opened = open(table, true);
+    const { sheet, header } = opened;
+    let values;
+    if (!wasOpen && opened.rows) {
+      // Read with the header just now: drop trailing empty rows, and pad or
+      // cut each row to the header (new columns are empty).
+      values = opened.rows.map((v) => header.map((_, i) => (i < v.length ? v[i] : '')));
+      while (values.length && values[values.length - 1].every((v) => v === '' || v === null)) values.pop();
+      opened.rows = null;
+    } else {
+      const last = sheet.getLastRow();
+      values = last > 1 ? sheet.getRange(2, 1, last - 1, header.length).getValues() : [];
+    }
+    if (useCache(table)) keep(table, header, values);
     rowsCache[table] = values.map((v, i) => readRow(table, header, v, i + 2));
     return rowsCache[table];
   }
@@ -187,6 +218,7 @@ export function openDb(now, { cache = false } = {}) {
   // A table about to be changed is read again from the sheet if this
   // request had it from the cache, so nothing stale is written back.
   function fresh(table) {
+    bypass.add(table);
     if (!fromCache.has(table)) return;
     fromCache.delete(table);
     delete rowsCache[table];
@@ -195,8 +227,9 @@ export function openDb(now, { cache = false } = {}) {
   // Finds the first row whose column equals value, without reading the
   // table (from the whole table when it can come from the cache).
   function findOne(table, column, value) {
-    if (!rowsCache[table] && useCache()) all(table);
+    if (!rowsCache[table] && useCache(table)) all(table);
     if (rowsCache[table]) return rowsCache[table].find((r) => r[column] === value) || null;
+    flushTable(table);
     const { sheet, header } = open(table);
     const col = header.indexOf(column) + 1;
     const last = sheet.getLastRow();
@@ -211,14 +244,46 @@ export function openDb(now, { cache = false } = {}) {
     return findOne(table, 'id', id);
   }
 
+  function encodeRow(table, row) {
+    const t = types(table);
+    return open(table).header.map((name) => (t[name] ? encode(t[name], row[name]) : ''));
+  }
+
   function writeRow(table, rowNumber, row) {
+    (pending[table] ||= new Map()).set(rowNumber, encodeRow(table, row));
+  }
+
+  // Writes a table's waiting rows, one sheet call per run of rows.
+  function flushTable(table) {
+    const rows = pending[table];
+    if (!rows || !rows.size) return;
+    delete pending[table];
     const { sheet, header } = open(table);
     const t = types(table);
-    const values = header.map((name) => (t[name] ? encode(t[name], row[name]) : ''));
     const formats = header.map((name) => (t[name] === 'n' ? 'General' : '@'));
-    const range = sheet.getRange(rowNumber, 1, 1, header.length);
-    range.setNumberFormats([formats]);
-    range.setValues([values]);
+    const numbers = [...rows.keys()].sort((a, b) => a - b);
+    for (let i = 0; i < numbers.length;) {
+      let j = i;
+      while (j + 1 < numbers.length && numbers[j + 1] === numbers[j] + 1) j++;
+      const run = numbers.slice(i, j + 1);
+      const range = sheet.getRange(run[0], 1, run.length, header.length);
+      range.setNumberFormats(run.map(() => formats));
+      range.setValues(run.map((n) => rows.get(n)));
+      for (const n of run) flushed.add(`${table}:${n}`);
+      i = j + 1;
+    }
+  }
+
+  // Everything waiting goes to the sheets, and changed tables get new
+  // versions (one property write).
+  function flush() {
+    for (const table of Object.keys(pending)) flushTable(table);
+    if (!dirty.size) return;
+    const versions = {};
+    for (const table of dirty) versions[versionKey(table)] = uuid();
+    dirty.clear();
+    setProps(versions);
+    if (props) for (const key of Object.keys(versions)) delete props[key];
   }
 
   function publicView(table, row) {
@@ -248,7 +313,6 @@ export function openDb(now, { cache = false } = {}) {
 
   function insert(table, data) {
     fresh(table);
-    const { sheet } = open(table);
     const row = {
       ...data,
       id: data.id || newId(TABLES[table].prefix),
@@ -258,7 +322,11 @@ export function openDb(now, { cache = false } = {}) {
       updated_by: actor.id,
       version: 1,
     };
-    const rowNumber = Math.max(sheet.getLastRow(), 1) + 1;
+    if (!nextRow[table]) {
+      flushTable(table);
+      nextRow[table] = Math.max(open(table).sheet.getLastRow(), 1) + 1;
+    }
+    const rowNumber = nextRow[table]++;
     writeRow(table, rowNumber, row);
     if (journal) journal.push({ table, rowNumber, before: null });
     touched(table);
@@ -327,22 +395,32 @@ export function openDb(now, { cache = false } = {}) {
       if (!journal) return;
       const done = journal;
       journal = null;
-      for (const j of done.filter((x) => x.before)) writeRow(j.table, j.rowNumber, j.before);
-      for (const j of done.filter((x) => !x.before).sort((a, b) => b.rowNumber - a.rowNumber)) open(j.table).sheet.deleteRow(j.rowNumber);
+      const onSheet = (j) => flushed.has(`${j.table}:${j.rowNumber}`);
+      // Rows not yet written are simply dropped; written ones are undone.
+      for (const j of done) if (pending[j.table]) pending[j.table].delete(j.rowNumber);
+      for (const j of done.filter((x) => x.before && onSheet(x))) {
+        writeRow(j.table, j.rowNumber, j.before);
+        flushTable(j.table);
+      }
+      for (const j of done.filter((x) => !x.before && onSheet(x)).sort((a, b) => b.rowNumber - a.rowNumber)) open(j.table).sheet.deleteRow(j.rowNumber);
       for (const table of new Set(done.map((j) => j.table))) {
         delete rowsCache[table];
+        delete nextRow[table];
         touched(table);
       }
+      flush();
     },
     // Changes so far stay even if the write then fails (a wrong password
     // still counts towards the lockout).
     commit() {
+      flush();
       if (journal) journal = [];
     },
     // The reason given for this write (a cancellation, a duplicate), kept in the activity log.
     setReason(reason) {
       context = { ...context, reason };
     },
+    flush,
     all,
     get,
     findOne,

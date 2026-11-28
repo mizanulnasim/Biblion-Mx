@@ -27,6 +27,7 @@ export function runJobs() {
       db.setActor({ id: 'SYSTEM', display_name: 'Biblion' });
       db.setContext({ action: `job.${job.id}`, op_id: '' });
       results[job.id] = job.run(db);
+      db.flush();
       if (results[job.id]) bumpArea(job.area);
     }
     return results;

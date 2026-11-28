@@ -14,6 +14,11 @@ export function setProp(key, value) {
   props().setProperty(key, String(value));
 }
 
+// Several properties in one call.
+export function setProps(values) {
+  props().setProperties(Object.fromEntries(Object.entries(values).map(([k, v]) => [k, String(v)])));
+}
+
 export function deleteProp(key) {
   props().deleteProperty(key);
 }
