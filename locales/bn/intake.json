@@ -3,8 +3,6 @@
   "nav.upload_hint": "বিল, রসিদ, চালান বা স্লিপ: ছবি, PDF বা CSV",
   "nav.uploads": "আপলোড",
   "nav.uploads_hint": "যাচাইয়ের অপেক্ষায় থাকা ডকুমেন্ট, আর যা শেষ",
-  "nav.settings_intake": "সেটিংস: ডকুমেন্ট পড়া",
-  "nav.settings_intake_hint": "রসিদ ও বিলের জন্য ঐচ্ছিক জেমিনি কী",
   "intake.kind.expense": "খরচের রসিদ",
   "intake.kind.utility_bill": "ইউটিলিটি বিল",
   "intake.kind.vendor_bill": "ভেন্ডরের বিল",

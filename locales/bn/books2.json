@@ -6,8 +6,6 @@
   "nav.order_hint": "গ্রাহক এমন বই চান যা দোকানে নেই",
   "nav.stocktake": "স্টক গণনা",
   "nav.stocktake_hint": "সব বই গুনে স্টক ঠিক করুন",
-  "nav.settings_books": "সেটিংস: বই",
-  "nav.settings_books_hint": "কখন রিকুইজিশন নিজে থেকে তৈরি হবে",
   "books.move.count": "স্টক গণনা",
   "val.draft_exists": "এই প্রকাশকের একটি খসড়া আগেই আছে ({number})। সেটা খুলুন।",
   "val.stocktake_open": "স্টক গণনা {number} এখনো খোলা। আগে শেষ বা বাতিল করুন।",

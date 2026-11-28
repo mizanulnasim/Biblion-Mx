@@ -38,3 +38,17 @@ export function shop() {
   return { state, server, call, owner, manager: login('manager', 'manager-pass'), staff: login('staff', 'staff-pass'), ids };
 }
 
+
+// A Setup section's values (key → value), and saving some of them with the
+// rest as they are.
+export function settingsOf(s, area, token = s.owner) {
+  const items = s.call(token, 'settings.view').data.areas[area];
+  return Object.fromEntries(items.map((i) => [i.key, i.value]));
+}
+
+export function setSettings(s, area, changes, token = s.owner) {
+  const values = settingsOf(s, area);
+  // A kept secret shows only as true; leaving it out keeps it.
+  delete values['intake.gemini_key'];
+  return s.call(token, `settings.${area}.save`, { ...values, ...changes });
+}

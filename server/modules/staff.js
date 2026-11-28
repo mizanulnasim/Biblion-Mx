@@ -150,7 +150,7 @@ function myDetails(ctx) {
   const waiting = db.all('Detail_Changes').find((c) => c.staff_id === me.id && c.status === 'waiting');
   const last = db.all('Detail_Changes').filter((c) => c.staff_id === me.id && c.status === 'rejected').sort((a, b) => (a.decided_at < b.decided_at ? 1 : -1))[0];
   return {
-    allowed: setting(db, 'staff.self_edit'), number: me.number, phone: me.phone, email: me.email, address: me.address,
+    allowed: setting(db, 'staff.self_edit', ctx.user), number: me.number, phone: me.phone, email: me.email, address: me.address,
     waiting: waiting ? changeView(waiting) : null, rejected: last && !waiting ? changeView(last) : null,
   };
 }
@@ -158,7 +158,7 @@ function myDetails(ctx) {
 // A new change replaces one still waiting.
 function askDetails(ctx, input) {
   const { db } = ctx;
-  if (!setting(db, 'staff.self_edit')) throw new AppError('FORBIDDEN');
+  if (!setting(db, 'staff.self_edit', ctx.user)) throw new AppError('FORBIDDEN');
   const me = staffOfUser(db, ctx.user.id);
   if (!me) throw new AppError('NO_STAFF');
   const next = { phone: cleanPhone(input.phone), email: input.email || '', address: input.address || '' };

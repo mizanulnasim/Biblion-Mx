@@ -3,8 +3,6 @@
   "nav.upload_hint": "A bill, receipt, challan or slip: photo, PDF or CSV",
   "nav.uploads": "Uploads",
   "nav.uploads_hint": "Documents waiting to be checked, and done",
-  "nav.settings_intake": "Settings: reading documents",
-  "nav.settings_intake_hint": "The optional Gemini key for receipts and bills",
   "intake.kind.expense": "Expense receipt",
   "intake.kind.utility_bill": "Utility bill",
   "intake.kind.vendor_bill": "Vendor bill",

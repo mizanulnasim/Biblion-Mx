@@ -6,8 +6,6 @@
   "nav.order_hint": "A customer wants a book the shop doesn't have",
   "nav.stocktake": "Stock-take",
   "nav.stocktake_hint": "Count every book and correct the stock",
-  "nav.settings_books": "Settings: books",
-  "nav.settings_books_hint": "When requisitions are drafted automatically",
   "books.move.count": "Stock-take",
   "val.draft_exists": "There's already a draft for this publisher ({number}). Open that one.",
   "val.stocktake_open": "Stock-take {number} is still open. Finish or cancel it first.",

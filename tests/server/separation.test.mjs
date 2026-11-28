@@ -2,7 +2,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shop } from './shop.mjs';
+import { shop, setSettings } from './shop.mjs';
 
 const DAY = 86400000;
 const today = () => new Date(Date.now() + 6 * 3600000).toISOString().slice(0, 10);
@@ -17,7 +17,7 @@ function team() {
   s.ids.sumi = add({ name: 'Sumi', user_id: userId('staff'), position: 'Café assistant', salary: 12000, work_start: '10:00', work_end: '18:00' });
   s.ids.rafi = add({ name: 'Rafi', user_id: userId('manager'), salary: 20000 });
   // Calendar months here (the accounting month has its own tests).
-  s.call(s.owner, 'settings.payroll.save', { divisor: 'fixed_30', food_rule: 'every_day', food_rates: [{ from: '2000-01-01', amount: 0 }], month_start_day: 1 });
+  setSettings(s, 'payroll', { 'payroll.unpaid_divisor': 'fixed_30', 'food.unpaid_rule': 'every_day', 'food.rates': [{ from: '2000-01-01', amount: 0 }], 'accounting.month_start_day': 1 });
   return s;
 }
 
@@ -96,7 +96,7 @@ test('letters are filled from the record and kept as issued; templates refuse un
 test('the shop\'s details for the letterhead: set by a shareholder, sent to everyone', () => {
   const s = team();
   assert.deepEqual(s.call(s.staff, 'meta.get').data.shop, { name: 'Biblion', tagline: 'Bookstore café and cultural space', address: '', phone: '', email: '' });
-  assert.equal(s.call(s.manager, 'settings.shop.save', { name: 'x' }).error.code, 'FORBIDDEN');
-  s.call(s.owner, 'settings.shop.save', { ...s.call(s.owner, 'settings.shop').data, address: 'House 1, Road 2, Dhaka', phone: '01700000000', email: 'shop@example.com' });
+  assert.equal(s.call(s.manager, 'settings.shop.save', { 'shop.name': 'x' }).error.code, 'FORBIDDEN');
+  setSettings(s, 'shop', { 'shop.address': 'House 1, Road 2, Dhaka', 'shop.phone': '01700000000', 'shop.email': 'shop@example.com' });
   assert.equal(s.call(s.staff, 'meta.get').data.shop.address, 'House 1, Road 2, Dhaka');
 });

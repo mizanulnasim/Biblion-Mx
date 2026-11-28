@@ -3,7 +3,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shop } from './shop.mjs';
+import { shop, setSettings } from './shop.mjs';
 
 const DAY = 86400000;
 const today = () => new Date(Date.now() + 6 * 3600000).toISOString().slice(0, 10);
@@ -17,7 +17,8 @@ const lastMonth = () => {
 function books() {
   const s = shop();
   // Calendar months, records from 200 days ago; no food allowance.
-  s.call(s.owner, 'settings.payroll.save', { divisor: 'period_days', food_rule: 'every_day', food_rates: [{ from: '2000-01-01', amount: 0 }], month_start_day: 1, start_date: plus(today(), -200) });
+  setSettings(s, 'payroll', { 'payroll.unpaid_divisor': 'period_days', 'food.unpaid_rule': 'every_day', 'food.rates': [{ from: '2000-01-01', amount: 0 }], 'accounting.month_start_day': 1 });
+  s.call(s.owner, 'start.date.save', { start_date: plus(today(), -200) });
   s.ids.cat = s.call(s.owner, 'setup.category.save', { name: 'Hall hire costs', area: 'shared', status: 'active' }).data.record_id;
   s.ids.nadia = s.call(s.owner, 'setup.shareholder.save', { name: 'Nadia', status: 'active', salary: 5000 }).data.record_id;
   return s;
@@ -49,7 +50,7 @@ test('closing: the days must be closed; then figures are kept, entries locked, a
   save(s, { kind: 'income', date: `${month}-03`, amount: 15000 });
   assert.equal(s.call(s.owner, 'month.close', { month }).data.error.code, 'MONTH_NOT_READY');
   // Records start on the 1st of the month; nothing else to close before it.
-  s.call(s.owner, 'settings.payroll.save', { ...s.call(s.owner, 'settings.payroll').data, start_date: plus(today(), 1) });
+  s.call(s.owner, 'start.date.save', { start_date: plus(today(), 1) });
   const closed = s.call(s.owner, 'month.close', { month }).data;
   assert.equal(closed.data.profit, 10000);
   // Locked: a manager can't add to it, and the shares can't reach back.
@@ -58,7 +59,7 @@ test('closing: the days must be closed; then figures are kept, entries locked, a
   const nadia = s.call(s.owner, 'shareholders.view').data.statements.find((x) => x.name === 'Nadia');
   assert.deepEqual([nadia.salary, nadia.profit, nadia.owed_to_them], [5000, 5000, 10000]);
   // Overdue days after the month ends (0 here: the month has ended), less what was paid.
-  s.call(s.owner, 'settings.payroll.save', { ...s.call(s.owner, 'settings.payroll').data, overdue_days: 0 });
+  setSettings(s, 'payroll', { 'payroll.overdue_days': 0 });
   const overdue = () => s.call(s.owner, 'shareholders.view').data.statements.find((x) => x.name === 'Nadia').profit_overdue;
   assert.equal(overdue(), 5000);
   save(s, { kind: 'profit_share', date: today(), amount: 3000, party_id: s.ids.nadia });
@@ -74,7 +75,7 @@ test('closing: the days must be closed; then figures are kept, entries locked, a
 test('a loss is made up from later profit before anything is shared', () => {
   const s = books();
   s.call(s.owner, 'shareholders.shares.save', { from: '2000-01-01', shares: [{ shareholder_id: s.ids.karim, percent: 50 }, { shareholder_id: s.ids.nadia, percent: 50 }] });
-  s.call(s.owner, 'settings.payroll.save', { ...s.call(s.owner, 'settings.payroll').data, start_date: plus(today(), 1) });
+  s.call(s.owner, 'start.date.save', { start_date: plus(today(), 1) });
   const month = lastMonth();
   const before = (() => {
     const d = new Date(`${month}-01T00:00:00Z`);
@@ -122,9 +123,9 @@ test('closing keeps the month\'s reports as PDF and Excel, listed on the closing
   const s = books();
   const month = lastMonth();
   s.call(s.owner, 'shareholders.shares.save', { from: '2000-01-01', shares: [{ shareholder_id: s.ids.karim, percent: 100 }] });
-  s.call(s.owner, 'settings.payroll.save', { ...s.call(s.owner, 'settings.payroll').data, start_date: plus(today(), 1) });
+  s.call(s.owner, 'start.date.save', { start_date: plus(today(), 1) });
   s.call(s.owner, 'me.notify', { email: 'owner@example.com', daily: false });
-  s.call(s.owner, 'settings.shop.save', { ...s.call(s.owner, 'settings.shop').data, address: 'House 1, Sample Road' });
+  setSettings(s, 'shop', { 'shop.address': 'House 1, Sample Road' });
   s.call(s.owner, 'month.close', { month });
   const { files } = s.call(s.owner, 'month.view', { month }).data;
   assert.deepEqual(files.map((f) => f.name), [

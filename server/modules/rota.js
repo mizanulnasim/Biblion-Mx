@@ -335,7 +335,7 @@ function unavailable(ctx, { staff_id: staffId }) {
   const staff = staffId ? db.get('Staff', staffId) : mine;
   if (!staff || (staff !== mine && !ctx.can('schedule.manage'))) throw new AppError('NOT_FOUND');
   return {
-    allowed: setting(db, 'rota.self_unavailable') || ctx.can('schedule.manage'),
+    allowed: setting(db, 'rota.self_unavailable', ctx.user) || ctx.can('schedule.manage'),
     items: db.all('Unavailable').filter((u) => u.staff_id === staff.id && u.status === 'active' && (u.date === '' || u.date >= today(db)))
       .map((u) => ({ id: u.id, date: u.date, weekday: u.weekday, note: u.note })),
   };
@@ -346,7 +346,7 @@ function saveUnavailable(ctx, input) {
   const mine = staffOfUser(db, ctx.user.id);
   const staff = input.staff_id ? db.get('Staff', input.staff_id) : mine;
   if (!staff || (staff !== mine && !ctx.can('schedule.manage'))) throw new AppError('NOT_FOUND');
-  if (staff === mine && !setting(db, 'rota.self_unavailable') && !ctx.can('schedule.manage')) throw new AppError('FORBIDDEN');
+  if (staff === mine && !setting(db, 'rota.self_unavailable', ctx.user) && !ctx.can('schedule.manage')) throw new AppError('FORBIDDEN');
   if (Boolean(input.date) === (input.weekday !== null && input.weekday !== undefined)) throw fieldError('date', 'val.required');
   if (input.date && input.date < today(db)) throw fieldError('date', 'val.not_past');
   const row = db.insert('Unavailable', { staff_id: staff.id, date: input.date || '', weekday: input.date ? null : input.weekday, note: input.note || '', status: 'active' });

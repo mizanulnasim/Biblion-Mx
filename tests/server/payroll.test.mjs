@@ -2,7 +2,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shop } from './shop.mjs';
+import { shop, setSettings } from './shop.mjs';
 
 const DAY = 86400000;
 const today = () => new Date(Date.now() + 6 * 3600000).toISOString().slice(0, 10);
@@ -23,7 +23,8 @@ function payroll() {
   s.ids.rafi = add({ name: 'Rafi', user_id: userId('manager'), joined_on: plus(today(), -200), salary: 20000 });
   // No food allowance unless a test sets one; calendar months unless a
   // test sets the 11th (the default).
-  s.call(s.owner, 'settings.payroll.save', { divisor: 'period_days', food_rule: 'every_day', food_rates: [{ from: '2000-01-01', amount: 0 }], month_start_day: 1, start_date: plus(today(), -200) });
+  setSettings(s, 'payroll', { 'payroll.unpaid_divisor': 'period_days', 'food.unpaid_rule': 'every_day', 'food.rates': [{ from: '2000-01-01', amount: 0 }], 'accounting.month_start_day': 1 });
+  s.call(s.owner, 'start.date.save', { start_date: plus(today(), -200) });
   return s;
 }
 
@@ -55,7 +56,7 @@ test('joining in the middle of a month pays the days employed', () => {
   const id = s.call(s.owner, 'staff.save', { name: 'Kamal', status: 'active', joined_on: `${month}-11`, salary: 9000 }).data.record_id;
   const days = daysIn(month) - 10;
   assert.equal(row(s, month, 'Kamal').slip.base, Math.round((9000 * days) / daysIn(month)));
-  s.call(s.owner, 'settings.payroll.save', { divisor: 'fixed_30', food_rule: 'every_day', food_rates: [{ from: '2000-01-01', amount: 0 }] });
+  setSettings(s, 'payroll', { 'payroll.unpaid_divisor': 'fixed_30', 'food.unpaid_rule': 'every_day', 'food.rates': [{ from: '2000-01-01', amount: 0 }] });
   assert.equal(row(s, month, 'Kamal').slip.base, Math.round((9000 * days) / 30));
   assert.ok(id);
 });
@@ -78,13 +79,13 @@ test('the pay account: payslips owed, salary paid for a month, advances recovere
 
 test('food allowance is earned by day from the rate in force', () => {
   const s = payroll();
-  s.call(s.owner, 'settings.payroll.save', { divisor: 'period_days', food_rule: 'every_day', food_rates: [{ from: '2000-01-01', amount: 100 }, { from: plus(today(), -9), amount: 150 }] });
+  setSettings(s, 'payroll', { 'payroll.unpaid_divisor': 'period_days', 'food.unpaid_rule': 'every_day', 'food.rates': [{ from: '2000-01-01', amount: 100 }, { from: plus(today(), -9), amount: 150 }] });
   const earned = row(s, today().slice(0, 7), 'Sumi').account.food_earned;
   assert.equal(earned, 191 * 100 + 10 * 150);
   // Sumi's own rate from 4 days ago (today included: 5 days at 200).
   s.call(s.owner, 'salary.change', { staff_id: s.ids.sumi, from: plus(today(), -4), parts: [{ name: '', amount: 12000 }], food_rate: 200 });
   assert.equal(row(s, today().slice(0, 7), 'Sumi').account.food_earned, 191 * 100 + 5 * 150 + 5 * 200);
-  s.call(s.owner, 'settings.payroll.save', { divisor: 'period_days', food_rule: 'worked_days', food_rates: [{ from: '2000-01-01', amount: 100 }] });
+  setSettings(s, 'payroll', { 'payroll.unpaid_divisor': 'period_days', 'food.unpaid_rule': 'worked_days', 'food.rates': [{ from: '2000-01-01', amount: 100 }] });
   assert.equal(row(s, today().slice(0, 7), 'Sumi').account.food_earned, 0);
 });
 
@@ -153,7 +154,7 @@ test('unpaid leave cut is chosen when paying; an unpaid month is overdue after t
   assert.deepEqual([sumi.slip.leave_days, sumi.slip.unpaid_leave_days], [1, 0]);
   // Last calendar month ended before today; with 0 days allowed it is overdue,
   // with the amount left, for payroll and for the person.
-  s.call(s.owner, 'settings.payroll.save', { ...s.call(s.owner, 'settings.payroll').data, overdue_days: 0 });
+  setSettings(s, 'payroll', { 'payroll.overdue_days': 0 });
   assert.equal(row(s, month, 'Sumi').overdue, true);
   const mine = s.call(s.staff, 'payroll.mine').data.overdue;
   assert.deepEqual(mine.find((o) => o.month === month), { month, due_by: `${month}-${String(daysIn(month)).padStart(2, '0')}`, left: 12000, issued: true });

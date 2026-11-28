@@ -2,7 +2,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shop } from './shop.mjs';
+import { shop, setSettings } from './shop.mjs';
 
 const day = (offset) => new Date(Date.now() + 6 * 3600000 + offset * 86400000).toISOString().slice(0, 10);
 
@@ -102,7 +102,7 @@ test('bills: a vendor purchase, batches with expiry, part then fully bought; exp
 
 test('a manager\'s order waits when a shareholder must confirm; nobody approves their own', () => {
   const s = cafe();
-  s.call(s.owner, 'settings.cafe.save', { approve: 'shareholder', expiry_warn_days: 2, min_history_days: 14 });
+  setSettings(s, 'cafe', { 'approve.cafe_order': 'shareholder' });
   const id = s.call(s.manager, 'cafe.order.new', { cover: '7' }).data.record_id;
   const o = s.call(s.manager, 'cafe.order.get', { id }).data;
   s.call(s.manager, 'cafe.order.save', { id, version: o.version, lines: o.lines.map((l) => ({ item_id: l.item_id, qty: 5, reason: 'Opening stock' })) });

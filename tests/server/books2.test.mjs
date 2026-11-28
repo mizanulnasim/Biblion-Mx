@@ -3,7 +3,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shop } from './shop.mjs';
+import { shop, setSettings } from './shop.mjs';
 
 const today = new Date(Date.now() + 6 * 3600000).toISOString().slice(0, 10);
 
@@ -129,7 +129,7 @@ test('the hourly job drafts requisitions once per week when set to', () => {
   // The requisitions job's result (the hourly run holds other jobs too).
   const job = () => s.server.job().req_auto;
   assert.equal(job(), 0);
-  s.call(s.owner, 'settings.books.save', { req_auto: 'weekly', req_days: 30 });
+  setSettings(s, 'books', { 'books.req_auto': 'weekly' });
   assert.equal(job(), 1);
   assert.equal(job(), 0);
   const drafts = s.call(s.manager, 'books.reqs', { status: 'draft' }).data.items;

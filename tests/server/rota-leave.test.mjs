@@ -2,7 +2,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shop } from './shop.mjs';
+import { shop, setSettings, settingsOf } from './shop.mjs';
 
 const DAY = 86400000;
 const today = () => new Date(Date.now() + 6 * 3600000).toISOString().slice(0, 10);
@@ -28,8 +28,8 @@ function team() {
   s.ids.rafi = add({ name: 'Rafi', user_id: userId('manager'), joined_on: monthsAgo(6) });
   // These tests count leave by full months of service (the default counts
   // calendar months, with the first part month by its days).
-  assert.equal(s.call(s.owner, 'settings.leave').data.timing, 'calendar_month');
-  s.call(s.owner, 'settings.leave.save', { ...s.call(s.owner, 'settings.leave').data, timing: 'service_month' });
+  assert.equal(settingsOf(s, 'leave')['leave.timing'], 'calendar_month');
+  setSettings(s, 'leave', { 'leave.timing': 'service_month' });
   s.ids.morning = s.call(s.manager, 'rota.shift.save', { name: 'Morning', start: '07:00', end: '13:00', status: 'active' }).data.record_id;
   s.ids.late = s.call(s.manager, 'rota.shift.save', { name: 'Late', start: '15:00', end: '23:00', status: 'active' }).data.record_id;
   return s;
@@ -62,7 +62,7 @@ test('choosing a shift: within the days ahead, always confirmed by a manager; sh
   assert.equal(dayOf(s, s.staff, d).shift, 'Late');
   // Late ends at 23:00 and Morning starts at 07:00: 8 hours' rest. With 9
   // needed it is still sent, with a warning the person and the manager see.
-  s.call(s.owner, 'settings.leave.save', { ...s.call(s.owner, 'settings.leave').data, min_rest_hours: 9 });
+  setSettings(s, 'leave', { 'selection.min_rest_hours': 9 });
   assert.deepEqual(s.call(s.staff, 'rota.check', { date: plus(d, 1), value: s.ids.morning }).data.rest, [{ side: 'before', date: d, hours: 8 }]);
   const short = s.call(s.staff, 'rota.request', { kind: 'shift', date: plus(d, 1), shift_id: s.ids.morning }).data;
   assert.deepEqual(short.data.rest, [{ side: 'before', date: d, hours: 8 }]);
@@ -104,7 +104,7 @@ test('moving the weekly day off: notice, same week, from a day off to a working 
   assert.equal(s.call(s.manager, 'rota.decide', { id: asked.record_id, decision: 'accept' }).data.status, 'saved');
   assert.equal(dayOf(s, s.staff, friday).kind, 'work');
   assert.equal(dayOf(s, s.staff, thursday).kind, 'off');
-  s.call(s.owner, 'settings.leave.save', { ...s.call(s.owner, 'settings.leave').data, min_notice_days: 30 });
+  setSettings(s, 'leave', { 'exchange.min_notice_days': 30 });
   const late = s.call(s.staff, 'rota.request', { kind: 'dayoff', date: plus(friday, 7), other_date: plus(friday, 6) }).data;
   assert.equal(late.error.code, 'NOTICE');
 });
@@ -155,7 +155,7 @@ test('a public holiday when the shop closes is not a working day', () => {
   assert.equal(dayOf(s, s.staff, monday).kind, 'work');
   assert.equal(dayOf(s, s.staff, monday).holiday, 'Victory Day');
   assert.equal(s.call(s.staff, 'leave.preview', { from: monday, to: plus(monday, 1) }).data.days, 2);
-  s.call(s.owner, 'settings.leave.save', { ...s.call(s.owner, 'settings.leave').data, holidays: 'closed' });
+  setSettings(s, 'leave', { 'holidays.treatment': 'closed' });
   assert.equal(dayOf(s, s.staff, monday).kind, 'holiday');
   assert.equal(s.call(s.staff, 'leave.preview', { from: monday, to: plus(monday, 1) }).data.days, 1);
   assert.equal(s.call(s.owner, 'holidays.save', { date: monday, name: 'Again', status: 'active' }).data.error.fields.date.code, 'val.taken');

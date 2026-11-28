@@ -2,8 +2,8 @@
 
 import { AppError } from '../../shared/contract/errors.js';
 import { saved } from '../../shared/contract/reply.js';
-import { BUSINESS_DEFAULTS } from '../../shared/schema/settings.js';
 import { KDF_ITERATIONS, hashPassword, newSalt, newToken, sameHex, tokenHash } from '../kernel/crypto.js';
+import { setting } from '../kernel/settings.js';
 import { metaFor } from './meta.js';
 
 const DAY_MS = 86400000;
@@ -39,10 +39,10 @@ function login(ctx, input) {
   }
   if (!passwordMatches(user, input.password)) {
     const failed = (user.failed_attempts || 0) + 1;
-    const lock = failed >= BUSINESS_DEFAULTS['auth.max_failed'];
+    const lock = failed >= setting(db, 'auth.max_failed');
     db.update('Users', user, {
       failed_attempts: lock ? 0 : failed,
-      locked_until: lock ? new Date(db.now.getTime() + BUSINESS_DEFAULTS['auth.lock_minutes'] * MINUTE_MS).toISOString() : '',
+      locked_until: lock ? new Date(db.now.getTime() + setting(db, 'auth.lock_minutes') * MINUTE_MS).toISOString() : '',
     });
     db.commit();
     throw new AppError('AUTH_FAILED');
@@ -52,7 +52,7 @@ function login(ctx, input) {
   db.insert('Sessions', {
     user_id: user.id,
     token_hash: tokenHash(token),
-    expires_at: new Date(db.now.getTime() + BUSINESS_DEFAULTS['auth.session_days'] * DAY_MS).toISOString(),
+    expires_at: new Date(db.now.getTime() + setting(db, 'auth.session_days') * DAY_MS).toISOString(),
     revoked: false,
   });
   return saved(user.id, { token, meta: metaFor(current, db) });

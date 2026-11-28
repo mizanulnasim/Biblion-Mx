@@ -18,6 +18,7 @@ import { PRIORITIES, REPEATS, TASK_ROLES } from '../tasks/tasks.js';
 import { REPORTS } from '../reports/reports.js';
 import { MANUAL_STEPS } from '../schema/start.js';
 import { LISTS, listSchema } from '../lists/lists.js';
+import { PERSONAL_KEYS, SETTINGS, SETTING_AREAS, areaSchema } from '../schema/settings.js';
 
 // Bumped whenever a request or reply changes shape. A client built for another
 // contract is told to update itself (v1 bug S10).
@@ -33,7 +34,6 @@ const PAGED = {
 
 const NAME = { type: 'text', required: true, max: 80 };
 const STATUS = { type: 'enum', required: true, values: ['active', 'inactive'] };
-const RULE = { type: 'enum', required: true, values: ['final', 'shareholder'] };
 const SETUP_BASE = { id: { type: 'id' }, version: { type: 'int', min: 1 }, name: NAME, status: STATUS };
 const USERNAME = { type: 'username', required: true, min: 3, max: 40 };
 const PUNCH_TYPE = { type: 'enum', required: true, values: PUNCH_TYPES };
@@ -91,8 +91,23 @@ function listActions() {
   return out;
 }
 
+// Setup: every section the person may change, one save per section
+// (shared/schema/settings.js), and a person's own value of a setting.
+function settingActions() {
+  const out = { 'settings.view': {} };
+  for (const area of Object.keys(SETTING_AREAS)) {
+    out[`settings.${area}.save`] = { write: true, perm: SETTING_AREAS[area].perm, area: 'core', schema: areaSchema(area), replay: area !== 'reading' };
+  }
+  out['settings.person.save'] = {
+    write: true, perm: 'settings.manage', area: 'core',
+    schema: { key: { type: 'enum', required: true, values: PERSONAL_KEYS.filter((k) => SETTINGS[k].area) }, user_id: { type: 'id', required: true }, value: { type: 'text', max: 40 } },
+  };
+  return out;
+}
+
 export const ACTIONS = Object.freeze({
   ...listActions(),
+  ...settingActions(),
   'ping': { public: true },
   'setup.status': { public: true },
   'setup.owner': {
@@ -144,14 +159,6 @@ export const ACTIONS = Object.freeze({
   'audit.list': { perm: 'audit.view', schema: PAGED },
 
   'home.get': {},
-  'settings.approvals': { perm: 'settings.manage' },
-  'settings.approvals.save': {
-    write: true, perm: 'settings.manage', area: 'money',
-    schema: {
-      limit: { type: 'money', required: true },
-      expense: RULE, income: RULE, transfer: RULE, other: RULE,
-    },
-  },
 
   'setup.money': { perm: 'acc.setup' },
   'setup.account.save': {
@@ -451,11 +458,6 @@ export const ACTIONS = Object.freeze({
   'intake.attach': { write: true, perm: 'intake.upload', area: 'intake', schema: { id: { type: 'id', required: true }, record_id: { type: 'id', required: true } } },
   'intake.discard': { write: true, perm: 'intake.upload', area: 'intake', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 300 } } },
   'files.get': { perm: 'intake.upload', schema: { id: { type: 'id', required: true } } },
-  'settings.intake': { perm: 'settings.manage' },
-  'settings.intake.save': {
-    write: true, perm: 'settings.manage', replay: false,
-    schema: { ai: { type: 'enum', required: true, values: ['off', 'bills'] }, key: { type: 'text', max: 200 }, clear_key: { type: 'bool' } },
-  },
 
   // Café: items, the daily count, expiry, and orders.
   'cafe.items': { perm: 'cafe.view', cache: true },
@@ -526,20 +528,6 @@ export const ACTIONS = Object.freeze({
   },
   'cafe.order.close': { write: true, perm: 'cafe.order', area: 'cafe', schema: { id: { type: 'id', required: true }, reason: { type: 'text', required: true, max: 300 } } },
 
-  'settings.cafe': { perm: 'settings.manage' },
-  'settings.cafe.save': {
-    write: true, perm: 'settings.manage', area: 'cafe',
-    schema: {
-      approve: { type: 'enum', required: true, values: ['final', 'shareholder'] },
-      expiry_warn_days: { type: 'int', required: true, min: 0, max: 30 },
-      min_history_days: { type: 'int', required: true, min: 3, max: 28 },
-    },
-  },
-  'settings.books': { perm: 'settings.books' },
-  'settings.books.save': {
-    write: true, perm: 'settings.books', area: 'books',
-    schema: { req_auto: { type: 'enum', required: true, values: ['off', 'weekly', 'monthly'] }, req_days: { type: 'int', required: true, min: 7, max: 365 } },
-  },
 
   // Day closing: the checklist for a date, closing it, and reopening it.
   'closing.day': { perm: 'closing.day', schema: { date: { type: 'date', required: true } } },
@@ -642,29 +630,6 @@ export const ACTIONS = Object.freeze({
       sig: SIGNATURE,
     },
   },
-  'settings.attendance': { perm: 'settings.manage' },
-  'settings.attendance.save': {
-    write: true, perm: 'settings.manage', area: 'hr',
-    schema: {
-      lat: { type: 'number', min: -90, max: 90 },
-      lng: { type: 'number', min: -180, max: 180 },
-      radius_m: { type: 'int', required: true, min: 10, max: 5000 },
-      max_accuracy_m: { type: 'int', required: true, min: 10, max: 5000 },
-      exception: { type: 'enum', required: true, values: ['check', 'block'] },
-      late_grace: { type: 'int', required: true, min: 0, max: 240 },
-      early_grace: { type: 'int', required: true, min: 0, max: 240 },
-      incomplete_after: { type: 'int', required: true, min: 0, max: 1440 },
-      duplicate_window_sec: { type: 'int', required: true, min: 0, max: 3600 },
-      clock_skew_flag_min: { type: 'int', required: true, min: 1, max: 1440 },
-      offline_max_age_days: { type: 'int', required: true, min: 1, max: 60 },
-      offline_auto_validate: { type: 'bool' },
-      device_enabled: { type: 'bool' },
-      shop_open: { type: 'time', required: true },
-      shop_close: { type: 'time', required: true },
-      flex: { type: 'int', min: 0, max: 240 },
-      email_after: { type: 'int', min: 0, max: 360 },
-    },
-  },
   // ---- Rota, holidays and leave ----
   'rota.week': { cache: true, schema: { from: { type: 'date' } } },
   'rota.set': {
@@ -736,7 +701,7 @@ export const ACTIONS = Object.freeze({
     write: true, perm: 'leave.adjust', area: 'hr',
     schema: { staff_id: { type: 'id', required: true }, days: { type: 'number', required: true, min: -365, max: 365 }, reason: { type: 'text', required: true, max: 200 } },
   },
-  'settings.leave': { perm: 'settings.manage' },
+  'leave.types': { perm: 'settings.manage' },
   'leave.type.save': {
     write: true, perm: 'settings.manage', area: 'hr',
     schema: {
@@ -748,22 +713,6 @@ export const ACTIONS = Object.freeze({
       from_balance: { type: 'bool' },
       half_days: { type: 'bool' },
       status: { type: 'enum', required: true, values: ['active', 'inactive'] },
-    },
-  },
-  'settings.leave.save': {
-    write: true, perm: 'settings.manage', area: 'hr',
-    schema: {
-      probation_months: { type: 'int', required: true, min: 0, max: 24 },
-      rate: { type: 'number', required: true, min: 0, max: 10 },
-      timing: { type: 'enum', required: true, values: ['service_month', 'calendar_month'] },
-      partial: { type: 'enum', required: true, values: ['prorate_days', 'none'] },
-      day_counting: { type: 'enum', required: true, values: ['working', 'calendar'] },
-      allow_negative: { type: 'bool' },
-      holidays: { type: 'enum', required: true, values: ['open_scheduled', 'closed'] },
-      self_select: { type: 'bool' },
-      advance_days: { type: 'int', required: true, min: 1, max: 60 },
-      min_rest_hours: { type: 'int', required: true, min: 0, max: 24 },
-      min_notice_days: { type: 'int', required: true, min: 0, max: 30 },
     },
   },
   // ---- Payroll ----
@@ -799,18 +748,6 @@ export const ACTIONS = Object.freeze({
   'payroll.opening.save': {
     write: true, perm: 'payroll.manage', area: 'hr',
     schema: { staff_id: { type: 'id', required: true }, owed: { type: 'money', zero: true }, advance: { type: 'money', zero: true } },
-  },
-  'settings.payroll': { perm: 'settings.manage' },
-  'settings.payroll.save': {
-    write: true, perm: 'settings.manage', area: 'hr',
-    schema: {
-      divisor: { type: 'enum', required: true, values: ['period_days', 'fixed_30'] },
-      food_rule: { type: 'enum', required: true, values: ['every_day', 'skip_unpaid', 'worked_days'] },
-      food_rates: { type: 'list', max: 20, of: { from: { type: 'date', required: true }, amount: { type: 'money', zero: true, required: true } } },
-      month_start_day: { type: 'int', min: 1, max: 28 },
-      overdue_days: { type: 'int', min: 0, max: 60 },
-      start_date: { type: 'date' },
-    },
   },
   // ---- Tasks ----
   'tasks.mine': { cache: true },
@@ -911,20 +848,6 @@ export const ACTIONS = Object.freeze({
     },
   },
   // The shop's details on the letterhead.
-  'settings.shop': { perm: 'settings.manage' },
-  'settings.shop.save': {
-    write: true, perm: 'settings.manage', area: 'core',
-    schema: {
-      name: { type: 'text', required: true, max: 80 },
-      tagline: { type: 'text', max: 120 },
-      address: { type: 'text', max: 300 },
-      phone: { type: 'text', max: 40 },
-      email: { type: 'email' },
-      number_prefix: { type: 'text', required: true, max: 6 },
-      number_digits: { type: 'int', required: true, min: 1, max: 8 },
-      self_edit: { type: 'bool' },
-    },
-  },
   // ---- Announcements, procedures, reviews ----
   'docs.mine': { cache: true },
   'docs.mark': { write: true, area: 'hr', schema: { id: { type: 'id', required: true }, ack: { type: 'bool' } } },

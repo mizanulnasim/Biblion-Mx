@@ -68,8 +68,6 @@
   "letters.help": "The first line is the title; leave a blank line between paragraphs. These words are filled in from the person's record:",
   "letters.conduct": "Conduct sentence on the experience certificate",
   "letters.conduct_help": "Used where a template says conduct (in double braces).",
-  "nav.settings_shop": "Settings: shop",
-  "nav.settings_shop_hint": "The shop's name, address and contacts on the letterhead",
   "shop.name": "Shop name",
   "shop.tagline": "Description",
   "shop.tagline_help": "A line under the name, for example \"Bookstore café and cultural space\".",

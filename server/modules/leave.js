@@ -17,7 +17,7 @@ import { saved } from '../../shared/contract/reply.js';
 import { dhakaDate } from '../../shared/hr/attendance.js';
 import { earnedLeave, earningFrom, leaveDays } from '../../shared/hr/leave.js';
 import { datesBetween } from '../../shared/hr/plan.js';
-import { saveSetting, setting } from '../kernel/settings.js';
+import { setting } from '../kernel/settings.js';
 import { joinedOn, mayDecideFor, staffOfUser } from './staff.js';
 import { planner } from './rota.js';
 import { moveTasksForLeave } from './tasks.js';
@@ -192,20 +192,6 @@ function adjust(ctx, input) {
 
 // ---- Settings → Leave and rota -------------------------------------------------
 
-const KEYS = Object.freeze({
-  probation_months: 'leave.probation_months', rate: 'leave.rate', timing: 'leave.timing', partial: 'leave.partial',
-  day_counting: 'leave.day_counting', allow_negative: 'leave.allow_negative', holidays: 'holidays.treatment',
-  self_select: 'rota.self_select', advance_days: 'selection.advance_days', min_rest_hours: 'selection.min_rest_hours',
-  min_notice_days: 'exchange.min_notice_days',
-});
-const FLAGS = new Set(['allow_negative', 'self_select']);
-
-function readSettings(db) {
-  const out = { types: leaveTypes(db) };
-  for (const [name, key] of Object.entries(KEYS)) out[name] = setting(db, key);
-  return out;
-}
-
 // A kind of leave a shareholder adds or changes.
 function saveType(ctx, input) {
   const { db } = ctx;
@@ -219,11 +205,6 @@ function saveType(ctx, input) {
   return saved(row.id);
 }
 
-function saveSettings(ctx, input) {
-  for (const [name, key] of Object.entries(KEYS)) saveSetting(ctx.db, key, FLAGS.has(name) ? Boolean(input[name]) : input[name]);
-  return saved(null, readSettings(ctx.db));
-}
-
 export const LEAVE_HANDLERS = {
   'leave.mine': mine,
   'leave.preview': preview,
@@ -232,7 +213,6 @@ export const LEAVE_HANDLERS = {
   'leave.cancel': cancel,
   'leave.overview': overview,
   'leave.adjust': adjust,
-  'settings.leave': (ctx) => readSettings(ctx.db),
-  'settings.leave.save': saveSettings,
+  'leave.types': (ctx) => ({ types: leaveTypes(ctx.db) }),
   'leave.type.save': saveType,
 };

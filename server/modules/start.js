@@ -46,7 +46,7 @@ function view(ctx) {
 
 // The start date can't move once a month is closed (closed figures rest on
 // it) or the opening stock, dated on it, is approved.
-export function saveStartDate(db, date) {
+function saveStartDate(db, date) {
   if (date === setting(db, 'accounting.start_date')) return;
   if (db.all('Month_Closings').some((c) => c.status === 'closed')) throw fieldError('start_date', 'val.start_date_closed');
   if (openingStock(db)) throw fieldError('start_date', 'val.start_date_stock');

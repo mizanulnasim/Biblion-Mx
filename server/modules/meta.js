@@ -5,12 +5,11 @@ import { saved } from '../../shared/contract/reply.js';
 import { AppError } from '../../shared/contract/errors.js';
 import { CONTRACT } from '../../shared/contract/actions.js';
 import { effectivePermissions, roleById } from '../../shared/schema/permissions.js';
-import { PERSONAL_DEFAULTS } from '../../shared/schema/settings.js';
-import { setting } from '../kernel/settings.js';
+import { personalSettings, setting } from '../kernel/settings.js';
 import { staffOfUser } from './staff.js';
 
 // The shop's details, for the letterhead.
-export const SHOP_KEYS = Object.freeze({ name: 'shop.name', tagline: 'shop.tagline', address: 'shop.address', phone: 'shop.phone', email: 'shop.email' });
+const SHOP_KEYS = Object.freeze({ name: 'shop.name', tagline: 'shop.tagline', address: 'shop.address', phone: 'shop.phone', email: 'shop.email' });
 
 export function shopDetails(db) {
   const out = {};
@@ -34,7 +33,7 @@ export function metaFor(user, db) {
     },
     staff: staff ? { id: staff.id, name: staff.name } : null,
     permissions: effectivePermissions(user),
-    settings: { ...PERSONAL_DEFAULTS, ...(user.settings || {}) },
+    settings: personalSettings(db, user),
     shop: shopDetails(db),
   };
 }

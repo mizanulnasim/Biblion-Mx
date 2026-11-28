@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { shop } from './shop.mjs';
+import { shop, setSettings } from './shop.mjs';
 import { punchText } from '../../shared/hr/attendance.js';
 import { BUSINESS_DEFAULTS } from '../../shared/schema/settings.js';
 
@@ -21,9 +21,7 @@ function hr() {
   s.ids.owner_rec = add({ name: 'Owner', user_id: userId('owner') });
   // Tests punch at the real time of day: the shop is open all day here (the
   // hours check has its own test).
-  s.call(s.owner, 'settings.attendance.save', {
-    ...s.call(s.owner, 'settings.attendance').data, lat: SHOP.lat, lng: SHOP.lng, shop_open: '00:00', shop_close: '23:59',
-  });
+  setSettings(s, 'attendance', { 'gps.lat': SHOP.lat, 'gps.lng': SHOP.lng, 'attendance.shop_open': '00:00', 'attendance.shop_close': '23:59' });
   return s;
 }
 
@@ -67,7 +65,7 @@ test('a phone punch at the shop is ok; a double tap is one punch; out comes afte
 
 test('a second "in" outside the double-tap window says since when you are in', () => {
   const s = hr();
-  s.call(s.owner, 'settings.attendance.save', { ...s.call(s.owner, 'settings.attendance').data, duplicate_window_sec: 30 });
+  setSettings(s, 'attendance', { 'attendance.duplicate_window_sec': 30 });
   assert.equal(punch(s, s.staff, { device_ts: ago(1.5) }).data.status, 'ok');
   const again = punch(s, s.staff, {});
   assert.equal(again.error.code, 'SEQUENCE');
@@ -122,12 +120,11 @@ test('out straight from a break ends it; before the shift\'s end a manager check
 
 test('a punch outside the shop\'s hours waits for a manager\'s check', () => {
   const s = hr();
-  const settings = s.call(s.owner, 'settings.attendance').data;
   assert.deepEqual([BUSINESS_DEFAULTS['attendance.shop_open'], BUSINESS_DEFAULTS['attendance.shop_close']], ['11:00', '23:00']);
-  assert.equal(s.call(s.owner, 'settings.attendance.save', { ...settings, shop_open: '12:00', shop_close: '11:00' }).data.error.fields.shop_close.code, 'val.time_after');
+  assert.equal(setSettings(s, 'attendance', { 'attendance.shop_open': '12:00', 'attendance.shop_close': '11:00' }).data.error.fields['attendance.shop_close'].code, 'val.time_after');
   // Open for an hour in the other half of the day: now is outside.
   const morning = new Date(Date.now() + 6 * 3600000).getUTCHours() < 12;
-  s.call(s.owner, 'settings.attendance.save', { ...settings, shop_open: morning ? '13:00' : '01:00', shop_close: morning ? '14:00' : '02:00' });
+  setSettings(s, 'attendance', { 'attendance.shop_open': morning ? '13:00' : '01:00', 'attendance.shop_close': morning ? '14:00' : '02:00' });
   const r = punch(s, s.staff, {});
   assert.equal(r.data.status, 'check');
   assert.deepEqual(s.call(s.manager, 'attendance.checks').data.punches[0].flags, ['hours']);
@@ -152,7 +149,7 @@ test('away from the shop: a reason sends it for a check, or it is blocked', () =
   assert.equal(withReason.data.status, 'check');
   assert.equal(punch(s, s.manager, { lat: null, lng: null }).error.code, 'LOCATION_REQUIRED');
   assert.equal(punch(s, s.manager, { accuracy: 500 }).error.fields.reason.code, 'val.vague_location');
-  s.call(s.owner, 'settings.attendance.save', { ...s.call(s.owner, 'settings.attendance').data, exception: 'block' });
+  setSettings(s, 'attendance', { 'gps.exception': 'block' });
   assert.equal(punch(s, s.manager, { ...far, reason: 'x' }).error.code, 'OUTSIDE');
 });
 
@@ -203,7 +200,7 @@ test('a shop device signs punches with the person\'s PIN; wrong PINs lock the PI
   const s = hr();
   // Off by default: a shareholder turns it on first.
   assert.equal(s.call(s.manager, 'attendance.device.register', { name: 'Counter tablet' }).data.error.code, 'DEVICE');
-  s.call(s.owner, 'settings.attendance.save', { ...s.call(s.owner, 'settings.attendance').data, device_enabled: true });
+  setSettings(s, 'attendance', { 'attendance.device_enabled': true });
   const reg = s.call(s.manager, 'attendance.device.register', { name: 'Counter tablet' }).data;
   const { device_id: deviceId, secret } = reg.data;
   assert.equal(JSON.stringify(s.state).split(secret).length - 1, 1, 'the secret is kept once, on the device row');
@@ -264,6 +261,6 @@ test('staff numbers are given in order; people change their own contact details,
   assert.equal(s.call(s.owner, 'staff.details.decide', { id: mine.record_id, decision: 'reject', note: 'Wrong number' }).data.status, 'saved');
   assert.equal(s.call(s.manager, 'staff.my_details').data.rejected.decide_note, 'Wrong number');
   // Switched off: people ask a manager instead.
-  s.call(s.owner, 'settings.shop.save', { ...s.call(s.owner, 'settings.shop').data, self_edit: false });
+  setSettings(s, 'shop', { 'staff.self_edit': false });
   assert.equal(s.call(s.staff, 'staff.my_details.save', { phone: '1', email: null, address: '' }).data.error.code, 'FORBIDDEN');
 });

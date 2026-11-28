@@ -4,7 +4,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shop } from './shop.mjs';
+import { shop, setSettings } from './shop.mjs';
 
 const DAY = 86400000;
 const today = () => new Date(Date.now() + 6 * 3600000).toISOString().slice(0, 10);
@@ -14,7 +14,7 @@ const plus = (date, n) => new Date(Date.parse(`${date}T00:00:00Z`) + n * DAY).to
 // due for yesterday whenever the test runs.
 function shopWithEmail() {
   const s = shop();
-  s.call(s.owner, 'settings.attendance.save', { ...s.call(s.owner, 'settings.attendance').data, shop_open: '00:00', shop_close: '00:01', email_after: 0 });
+  setSettings(s, 'attendance', { 'attendance.shop_open': '00:00', 'attendance.shop_close': '00:01', 'notify.after_close_min': 0 });
   s.call(s.owner, 'start.date.save', { start_date: plus(today(), -30) });
   return s;
 }

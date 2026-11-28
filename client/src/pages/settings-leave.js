@@ -1,6 +1,5 @@
-// Settings → Leave and rota: how leave is earned and counted, what public
-// holidays mean for the shop, what staff may ask of the rota; the kinds of
-// leave; and the public holidays of a year.
+// Leave types and holidays: the kinds of leave, and the public holidays of
+// a year. How leave is earned is in Setup → Leave and rota.
 
 import { html, on, render } from '../ui/html.js';
 import { chip, emptyState, errorBox } from '../ui/feedback.js';
@@ -12,36 +11,6 @@ import { read, write } from '../core/api.js';
 import { dateShort, today } from '../core/format.js';
 import { ACTIONS } from '../../../shared/contract/actions.js';
 import { leaveTypeName } from './leave.js';
-
-const NUMBERS = ['probation_months', 'rate', 'advance_days', 'min_rest_hours', 'min_notice_days'];
-// options: [[value, message id], …]
-const choice = (name, label, options, help) => ({
-  name, label: t(label), type: 'select', required: true, help: help ? t(help) : '',
-  options: options.map(([value, id]) => ({ value, label: t(id) })),
-});
-
-function settingsForm(data) {
-  const values = { ...data };
-  for (const k of NUMBERS) values[k] = String(data[k]);
-  const num = (name, label, help) => ({ name, label: t(label), inputmode: name === 'rate' ? 'decimal' : 'numeric', required: true, help: help ? t(help) : '' });
-  return formView({
-    submit: t('common.save'),
-    values,
-    fields: [
-      num('probation_months', 'leave.set.probation', 'leave.set.probation_help'),
-      num('rate', 'leave.set.rate', 'leave.set.rate_help'),
-      choice('timing', 'leave.set.timing', [['service_month', 'leave.set.timing_service'], ['calendar_month', 'leave.set.timing_calendar']]),
-      choice('partial', 'leave.set.partial', [['prorate_days', 'leave.set.partial_prorate'], ['none', 'leave.set.partial_none']], 'leave.set.partial_help'),
-      choice('day_counting', 'leave.set.counting', [['working', 'leave.set.counting_working'], ['calendar', 'leave.set.counting_calendar']]),
-      { name: 'allow_negative', label: t('leave.set.negative'), type: 'checkbox', help: t('leave.set.negative_help') },
-      choice('holidays', 'leave.set.holidays', [['open_scheduled', 'leave.set.holidays_open'], ['closed', 'leave.set.holidays_closed']]),
-      { name: 'self_select', label: t('leave.set.self_select'), type: 'checkbox', help: t('leave.set.self_select_help') },
-      num('advance_days', 'leave.set.advance'),
-      num('min_rest_hours', 'leave.set.rest'),
-      num('min_notice_days', 'leave.set.notice', 'leave.set.notice_help'),
-    ],
-  });
-}
 
 // The kinds of leave: Paid and Unpaid are built in; shareholders add others.
 function typesView(types) {
@@ -121,7 +90,7 @@ function editHoliday(h, onDone) {
 
 export const settingsLeavePage = {
   path: '/settings/leave',
-  title: 'nav.settings_leave',
+  title: 'nav.leave_types',
   perm: 'settings.manage',
   mount(el) {
     let year = Number(today().slice(0, 4));
@@ -129,16 +98,10 @@ export const settingsLeavePage = {
     let types = [];
     async function load() {
       try {
-        const [settings, list] = await Promise.all([read('settings.leave').then((r) => r.data), read('holidays.list', { year }).then((r) => r.data)]);
+        const [list, kinds] = await Promise.all([read('holidays.list', { year }).then((r) => r.data), read('leave.types').then((r) => r.data.types)]);
         holidays = list;
-        types = settings.types;
-        render(el, html`<section class="panel">${settingsForm(settings)}</section>${typesView(types)}${holidaysView(holidays)}`);
-        bindForm(el.querySelector('form.form'), {
-          schema: ACTIONS['settings.leave.save'].schema,
-          busyLabel: t('common.saving'),
-          onSubmit: (v) => write('settings.leave.save', v),
-          onSaved: () => toast(t('setup.saved')),
-        });
+        types = kinds;
+        render(el, html`${typesView(types)}${holidaysView(holidays)}`);
       } catch (err) {
         render(el, errorBox(errorText(err)));
       }

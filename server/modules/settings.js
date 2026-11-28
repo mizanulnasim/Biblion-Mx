@@ -1,94 +1,102 @@
-// Settings → Approvals: the money amount limit and the switch for each kind.
+// Setup: every setting the person may change, by section, from the
+// descriptions in shared/schema/settings.js. A section is saved as a whole;
+// a few sections check values against each other. A personal setting also
+// lists the people with their own value, which Setup can change or reset.
 
 import { AppError } from '../../shared/contract/errors.js';
 import { saved } from '../../shared/contract/reply.js';
-import { APPROVAL_RULES } from '../../shared/rules/approval.js';
-import { approvalSettings, saveSetting, setting } from '../kernel/settings.js';
-import { SHOP_KEYS, shopDetails } from './meta.js';
+import { validate } from '../../shared/lib/validate.js';
+import { SETTINGS, SETTING_AREAS, areaKeys, settingRule } from '../../shared/schema/settings.js';
+import { saveSetting, setting } from '../kernel/settings.js';
+import { deleteProp, getProp, setProp } from '../platform.js';
 
-function saveApprovals(ctx, input) {
-  saveSetting(ctx.db, 'approve.money_limit', input.limit);
-  for (const rule of APPROVAL_RULES) saveSetting(ctx.db, `approve.rule.${rule}`, input[rule]);
-  return saved(null, approvalSettings(ctx.db));
-}
+const fieldError = (field, code) => new AppError('VALIDATION', {}, { [field]: { code, params: {} } });
+const TEXT_KINDS = new Set(['text', 'long', 'email', 'time', 'date', 'color']);
 
-function booksSettings(db) {
-  return { req_auto: setting(db, 'books.req_auto'), req_days: setting(db, 'books.req_days') };
-}
-
-function saveBooks(ctx, input) {
-  saveSetting(ctx.db, 'books.req_auto', input.req_auto);
-  saveSetting(ctx.db, 'books.req_days', input.req_days);
-  return saved(null, booksSettings(ctx.db));
-}
-
-function cafeSettings(db) {
-  return { approve: setting(db, 'approve.cafe_order'), expiry_warn_days: setting(db, 'cafe.expiry_warn_days'), min_history_days: setting(db, 'cafe.min_history_days') };
-}
-
-function saveCafe(ctx, input) {
-  saveSetting(ctx.db, 'approve.cafe_order', input.approve);
-  saveSetting(ctx.db, 'cafe.expiry_warn_days', input.expiry_warn_days);
-  saveSetting(ctx.db, 'cafe.min_history_days', input.min_history_days);
-  return saved(null, cafeSettings(ctx.db));
-}
-
-// Settings → Attendance: the payload names, and the setting each one is.
-const ATTENDANCE_KEYS = Object.freeze({
-  lat: 'gps.lat', lng: 'gps.lng', radius_m: 'gps.radius_m', max_accuracy_m: 'gps.max_accuracy_m', exception: 'gps.exception',
-  late_grace: 'attendance.late_grace_min', early_grace: 'attendance.early_grace_min', incomplete_after: 'attendance.incomplete_after_min',
-  duplicate_window_sec: 'attendance.duplicate_window_sec', clock_skew_flag_min: 'attendance.clock_skew_flag_min',
-  offline_max_age_days: 'attendance.offline_max_age_days', offline_auto_validate: 'attendance.offline_auto_validate',
-  device_enabled: 'attendance.device_enabled', shop_open: 'attendance.shop_open', shop_close: 'attendance.shop_close', flex: 'attendance.flex_min',
-  email_after: 'notify.after_close_min',
-});
-
-function attendanceSettings(db) {
-  const out = {};
-  for (const [name, key] of Object.entries(ATTENDANCE_KEYS)) out[name] = setting(db, key);
-  return out;
-}
-
-function saveAttendance(ctx, input) {
-  if ((input.lat === null) !== (input.lng === null)) {
-    throw new AppError('VALIDATION', {}, { [input.lat === null ? 'lat' : 'lng']: { code: 'val.required', params: {} } });
-  }
-  if (input.shop_close <= input.shop_open) throw new AppError('VALIDATION', {}, { shop_close: { code: 'val.time_after', params: {} } });
-  for (const [name, key] of Object.entries(ATTENDANCE_KEYS)) {
-    // Left out (null): the email time stays as it is.
-    if (name === 'email_after' && input[name] === null) continue;
-    saveSetting(ctx.db, key, name === 'offline_auto_validate' || name === 'device_enabled' ? Boolean(input[name]) : input[name]);
-  }
-  return saved(null, attendanceSettings(ctx.db));
-}
-
-// Settings → Shop: the details on the letterhead; staff numbers, and
-// whether people may change their own contact details.
-const STAFF_KEYS = Object.freeze({ number_prefix: 'staff.number_prefix', number_digits: 'staff.number_digits', self_edit: 'staff.self_edit' });
-
-function shopSettings(db) {
-  const out = shopDetails(db);
-  for (const [name, key] of Object.entries(STAFF_KEYS)) out[name] = setting(db, key);
-  return out;
-}
-
-function saveShop(ctx, input) {
-  for (const [name, key] of Object.entries(SHOP_KEYS)) saveSetting(ctx.db, key, input[name] || '');
-  saveSetting(ctx.db, 'staff.number_prefix', input.number_prefix.toUpperCase());
-  saveSetting(ctx.db, 'staff.number_digits', input.number_digits);
-  saveSetting(ctx.db, 'staff.self_edit', Boolean(input.self_edit));
-  return saved(null, shopSettings(ctx.db));
-}
-
-export const SETTINGS_HANDLERS = {
-  'settings.shop': (ctx) => shopSettings(ctx.db),
-  'settings.shop.save': saveShop,
-  'settings.attendance': (ctx) => attendanceSettings(ctx.db),
-  'settings.attendance.save': saveAttendance,
-  'settings.cafe': (ctx) => cafeSettings(ctx.db),
-  'settings.cafe.save': saveCafe,
-  'settings.approvals': (ctx) => approvalSettings(ctx.db),
-  'settings.approvals.save': saveApprovals,
-  'settings.books': (ctx) => booksSettings(ctx.db),
-  'settings.books.save': saveBooks,
+// Checks across a section's values; each throws on the first problem.
+const CHECKS = {
+  attendance: (v) => {
+    if ((v['gps.lat'] === null) !== (v['gps.lng'] === null)) throw fieldError(v['gps.lat'] === null ? 'gps.lat' : 'gps.lng', 'val.required');
+    if (v['attendance.shop_close'] <= v['attendance.shop_open']) throw fieldError('attendance.shop_close', 'val.time_after');
+  },
+  payroll: (v) => {
+    const dates = v['food.rates'].map((r) => r.from);
+    if (new Set(dates).size !== dates.length) throw fieldError('food.rates', 'val.taken');
+  },
 };
+
+const NORMALIZE = {
+  'staff.number_prefix': (value) => value.toUpperCase(),
+  'food.rates': (rates) => [...rates].sort((a, b) => (a.from < b.from ? -1 : 1)),
+};
+
+// A secret is never sent back: only whether one is kept.
+function valueOf(db, key) {
+  const s = SETTINGS[key];
+  return s.kind === 'secret' ? Boolean(getProp(s.prop)) : setting(db, key);
+}
+
+const people = (db) => db.all('Users').filter((u) => u.status === 'active');
+
+function areaView(db, area) {
+  return areaKeys(area).map((key) => {
+    const out = { key, value: valueOf(db, key) };
+    if (SETTINGS[key].personal) {
+      out.own = people(db).filter((u) => u.settings && u.settings[key] !== undefined).map((u) => ({ user_id: u.id, name: u.display_name, value: u.settings[key] }));
+    }
+    return out;
+  });
+}
+
+function view(ctx) {
+  const areas = Object.keys(SETTING_AREAS).filter((area) => ctx.can(SETTING_AREAS[area].perm));
+  if (!areas.length) throw new AppError('FORBIDDEN');
+  const out = {};
+  for (const area of areas) out[area] = areaView(ctx.db, area);
+  const users = ctx.can('settings.manage') ? people(ctx.db).map((u) => ({ id: u.id, name: u.display_name })) : [];
+  return { areas: out, users };
+}
+
+function saveArea(area) {
+  return (ctx, input) => {
+    const { db } = ctx;
+    const values = {};
+    for (const key of areaKeys(area)) {
+      const s = SETTINGS[key];
+      const raw = input[key];
+      values[key] = s.kind === 'bool' ? Boolean(raw) : raw === null && TEXT_KINDS.has(s.kind) ? '' : raw;
+    }
+    if (CHECKS[area]) CHECKS[area](values);
+    for (const key of areaKeys(area)) {
+      const s = SETTINGS[key];
+      if (s.kind === 'secret') {
+        if (input.forget) deleteProp(s.prop);
+        else if (values[key]) setProp(s.prop, values[key]);
+        continue;
+      }
+      saveSetting(db, key, NORMALIZE[key] ? NORMALIZE[key](values[key]) : values[key]);
+    }
+    return saved(null, areaView(db, area));
+  };
+}
+
+// One person's own value of a personal setting; no value: back to the
+// starting value.
+function savePerson(ctx, input) {
+  const { db } = ctx;
+  const user = db.get('Users', input.user_id);
+  if (!user || user.status !== 'active') throw new AppError('NOT_FOUND');
+  const own = { ...(user.settings || {}) };
+  if (input.value === null) delete own[input.key];
+  else {
+    const raw = SETTINGS[input.key].kind === 'bool' ? input.value === 'true' : input.value;
+    const { value, fields } = validate({ value: settingRule(input.key) }, { value: raw });
+    if (fields) throw new AppError('VALIDATION', {}, fields);
+    own[input.key] = value.value;
+  }
+  db.update('Users', user, { settings: own });
+  return saved(user.id, areaView(db, SETTINGS[input.key].area));
+}
+
+export const SETTINGS_HANDLERS = { 'settings.view': view, 'settings.person.save': savePerson };
+for (const area of Object.keys(SETTING_AREAS)) SETTINGS_HANDLERS[`settings.${area}.save`] = saveArea(area);

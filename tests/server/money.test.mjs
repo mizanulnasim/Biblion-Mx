@@ -3,7 +3,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shop } from './shop.mjs';
+import { shop, settingsOf } from './shop.mjs';
 
 const expense = (ids, more = {}) => ({ kind: 'expense', date: '2026-11-20', amount: 500, account_id: ids.cash, category_id: ids.milk, ...more });
 
@@ -144,8 +144,8 @@ test('managers see only their own entries and no balances', () => {
 
 test('approval settings change the rules', () => {
   const { call, manager, owner, ids } = shop();
-  assert.equal(call(owner, 'settings.approvals.save', { limit: 100, expense: 'shareholder', income: 'final', transfer: 'final', other: 'final' }).data.status, 'saved');
-  assert.equal(call(manager, 'settings.approvals').error.code, 'FORBIDDEN');
+  assert.equal(call(owner, 'settings.approvals.save', { ...settingsOf({ call, owner }, 'approvals'), 'approve.money_limit': 100, 'approve.rule.expense': 'shareholder' }).data.status, 'saved');
+  assert.equal(call(manager, 'settings.approvals.save', { 'approve.money_limit': 100 }).error.code, 'FORBIDDEN');
   const r = call(manager, 'money.save', expense(ids, { amount: 150 })).data.data;
   assert.deepEqual(r.reasons.map((x) => x.code), ['approve.why.over_limit', 'approve.why.kind_rule']);
 });

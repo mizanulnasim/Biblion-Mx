@@ -11,9 +11,9 @@ import { saved } from '../../shared/contract/reply.js';
 import { INTAKE_KINDS, MAX_UPLOAD_BYTES } from '../../shared/intake/kinds.js';
 import { extract, guessKind, readBkash, readShiftReport } from '../../shared/intake/extract.js';
 import { page } from '../kernel/paging.js';
-import { saveSetting, setting } from '../kernel/settings.js';
+import { setting } from '../kernel/settings.js';
 import {
-  base64ToBytes, bytesToBase64, deleteProp, fileBytes, getProp, postJson, readText, setProp, sha256Hex,
+  base64ToBytes, bytesToBase64, fileBytes, getProp, postJson, readText, sha256Hex,
 } from '../platform.js';
 import { prepareEntry, record } from './money.js';
 import { storeFile } from './files.js';
@@ -280,20 +280,6 @@ function discard(ctx, { id, reason }) {
   return saved(doc.id);
 }
 
-// ---- Settings: reading documents ------------------------------------------------------
-
-function settings(ctx) {
-  return { ai: setting(ctx.db, 'intake.ai'), has_key: Boolean(getProp('GEMINI_KEY')) };
-}
-
-// The key is kept in Script Properties, never in a sheet or a reply.
-function saveSettings(ctx, input) {
-  saveSetting(ctx.db, 'intake.ai', input.ai);
-  if (input.clear_key) deleteProp('GEMINI_KEY');
-  else if (input.key) setProp('GEMINI_KEY', input.key);
-  return saved(null, settings(ctx));
-}
-
 export const INTAKE_HANDLERS = {
   'intake.upload': upload,
   'intake.kind': setKind,
@@ -303,6 +289,4 @@ export const INTAKE_HANDLERS = {
   'intake.attach': attach,
   'intake.discard': discard,
   'files.get': getFile,
-  'settings.intake': settings,
-  'settings.intake.save': saveSettings,
 };

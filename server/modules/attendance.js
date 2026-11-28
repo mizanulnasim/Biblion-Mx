@@ -13,7 +13,6 @@ import { saved } from '../../shared/contract/reply.js';
 import {
   COUNTED, OFFLINE_AFTER_MS, daySummary, dhakaDate, dhakaIso, dhakaMinutes, distanceM, nextTypes, outsideHours, punchMoment, punchText, timeMinutes,
 } from '../../shared/hr/attendance.js';
-import { BUSINESS_DEFAULTS } from '../../shared/schema/settings.js';
 import { setting } from '../kernel/settings.js';
 import { newToken, sameHex, signHex } from '../kernel/crypto.js';
 import { joinedOn, mayDecideFor, staffOfUser } from './staff.js';
@@ -344,10 +343,10 @@ function devicePunch(ctx, input) {
   const expected = signHex(punchText(input), `${dev.secret}${staff.pin_hash}`);
   if (!sameHex(input.sig, expected)) {
     const failed = (staff.pin_failed || 0) + 1;
-    const lock = failed >= BUSINESS_DEFAULTS['auth.max_failed'];
+    const lock = failed >= setting(db, 'auth.max_failed');
     db.update('Staff', staff, {
       pin_failed: lock ? 0 : failed,
-      pin_locked_until: lock ? new Date(db.now.getTime() + BUSINESS_DEFAULTS['auth.lock_minutes'] * MINUTE_MS).toISOString() : '',
+      pin_locked_until: lock ? new Date(db.now.getTime() + setting(db, 'auth.lock_minutes') * MINUTE_MS).toISOString() : '',
     });
     db.commit();
     throw new AppError('PIN_WRONG');

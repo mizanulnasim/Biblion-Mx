@@ -26,11 +26,10 @@ import { leaveDays } from '../../shared/hr/leave.js';
 import { addDays, datesBetween } from '../../shared/hr/plan.js';
 import { employedDates, foodEarned, foodRateOf, foodWeeks, instalmentDue, payslipFigures, periodKey, periodOf, salaryOn, salaryTotal } from '../../shared/hr/pay.js';
 import { payEffect } from '../../shared/money/kinds.js';
-import { saveSetting, setting } from '../kernel/settings.js';
+import { setting } from '../kernel/settings.js';
 import { attendanceMonth } from './attendance.js';
 import { planner } from './rota.js';
 import { joinedOn, staffOfUser } from './staff.js';
-import { saveStartDate } from './start.js';
 import { tell } from './messages.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
@@ -411,30 +410,6 @@ function changeSalary(ctx, input) {
   return saved(row.id, { total: fields.total });
 }
 
-// ---- Settings → Payroll --------------------------------------------------------
-
-function payrollSettings(db) {
-  return {
-    divisor: setting(db, 'payroll.unpaid_divisor'), food_rule: setting(db, 'food.unpaid_rule'), food_rates: setting(db, 'food.rates'),
-    month_start_day: setting(db, 'accounting.month_start_day'), overdue_days: setting(db, 'payroll.overdue_days'), start_date: setting(db, 'accounting.start_date'),
-  };
-}
-
-function savePayrollSettings(ctx, input) {
-  const rates = input.food_rates.filter((r) => r.from);
-  const dates = rates.map((r) => r.from);
-  if (new Set(dates).size !== dates.length) throw fieldError('food_rates', 'val.taken');
-  // Checked first: it may be refused.
-  if (input.start_date !== null) saveStartDate(ctx.db, input.start_date);
-  saveSetting(ctx.db, 'payroll.unpaid_divisor', input.divisor);
-  saveSetting(ctx.db, 'food.unpaid_rule', input.food_rule);
-  saveSetting(ctx.db, 'food.rates', rates.sort((a, b) => (a.from < b.from ? -1 : 1)));
-  // Left out (null): kept as they are.
-  if (input.month_start_day !== null) saveSetting(ctx.db, 'accounting.month_start_day', input.month_start_day);
-  if (input.overdue_days !== null) saveSetting(ctx.db, 'payroll.overdue_days', input.overdue_days);
-  return saved(null, payrollSettings(ctx.db));
-}
-
 export const PAYROLL_HANDLERS = {
   'payroll.month': monthView,
   'payroll.issue': issue,
@@ -444,6 +419,4 @@ export const PAYROLL_HANDLERS = {
   'payroll.opening.save': saveOpening,
   'salary.history': history,
   'salary.change': changeSalary,
-  'settings.payroll': (ctx) => payrollSettings(ctx.db),
-  'settings.payroll.save': savePayrollSettings,
 };

@@ -5,8 +5,6 @@
   "nav.cafe_orders_hint": "What to buy, suggested from use; bills as they come",
   "nav.cafe_items": "Café items",
   "nav.cafe_items_hint": "Stock and supplies, and how they're ordered",
-  "nav.settings_cafe": "Settings: café",
-  "nav.settings_cafe_hint": "Order approval, expiry warning, suggestions",
   "cafe.order_title": "Café order",
   "cafe.kind.stock": "Café stock (counted daily)",
   "cafe.kind.supply": "Supplies (checked when ordering)",

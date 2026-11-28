@@ -1219,7 +1219,8 @@ Each person sees only the sections and pages they may use. Actions live in the p
 - Resigning (staff).
 
 ### 20.9 Setup
-- **One settings system:** every setting has a starting value for everyone, and some can be set per person (marked "personal" in S1). Setup shows the starting value and anyone's personal values, with "reset to default".
+- **One settings system:** every setting has a starting value for everyone, and some can be set per person (marked "personal" in S1). Setup shows the starting value and anyone's personal values; a person's own value can be set there or reset to everyone's.
+- **One Setup page:** every setting in sections, each section saved on its own, with a box that finds a setting by any word of its name or explanation, and links to the other setup pages (lists, leave types and holidays, punch devices, letters, reviews, onboarding). Each person sees only the sections their permissions allow.
 - **Setup parts are granted separately:** business, HR policies, books, tasks, accounts setup, users, backup.
 - **Accounts setup lists:** money accounts; expense categories (area, "always needs a shareholder"); vendors and publishers; shareholders; other people who take on due; recurring expenses; food allowance rates; staff owed at the start.
 
