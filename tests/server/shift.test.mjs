@@ -92,15 +92,21 @@ test('F: a due in the shift and a separate "Due taken" for the same due are warn
   assert.equal(shift.prompt.warnings[0].code, 'dup.due_entered');
 });
 
-test('day closing: needs the shift, shows warnings, locks the day for managers, reopens with a reason', () => {
+test('day closing: required steps or a reason, warnings, locks the day for managers, reopens with a reason', () => {
   const { call, manager, owner, ids } = withAccounts();
-  assert.equal(call(manager, 'closing.day.close', { date: DAY }).data.error.fields.date.code, 'val.closing_shift');
+  // Without the shift (a required step), closing needs a reason.
+  assert.equal(call(manager, 'closing.day.close', { date: DAY }).data.error.fields.skip_reason.code, 'val.steps_reason');
   call(manager, 'shift.save', shiftOf(ids, { actual_cash: 1950 }));
-  const list = call(manager, 'closing.day', { date: DAY }).data;
-  assert.deepEqual(list.steps.map((s) => [s.id, s.state]), [['shift', 'done'], ['drawer', 'warn'], ['waiting', 'warn']]);
-  assert.equal(list.can_close, true);
-  assert.equal(list.can_reopen, false);
+  const list = () => call(manager, 'closing.day', { date: DAY }).data;
+  assert.deepEqual(list().steps.map((s) => [s.id, s.state]), [['shift', 'done'], ['cash', 'warn'], ['deliveries', 'todo'], ['waiting', 'warn']]);
+  assert.deepEqual([list().missing, list().can_reopen], [['deliveries'], false]);
+  // Deliveries are ticked by hand, saying who.
+  call(manager, 'steps.tick', { list: 'day', ref: DAY, step: 'deliveries', done: true });
+  assert.deepEqual(list().missing, []);
+  assert.equal(list().steps.find((s) => s.id === 'deliveries').by, 'Manager');
   assert.equal(call(manager, 'closing.day.close', { date: DAY, note: 'All fine' }).data.status, 'saved');
+  // A closed day's steps can't be ticked.
+  assert.equal(call(manager, 'steps.tick', { list: 'day', ref: DAY, step: 'deliveries', done: false }).data.error.code, 'CONFLICT');
   assert.equal(call(manager, 'closing.day.close', { date: DAY }).data.error.code, 'CONFLICT');
 
   const late = call(manager, 'money.save', { kind: 'expense', date: DAY, amount: 50, account_id: ids.cash, category_id: ids.milk }).data;
@@ -129,4 +135,17 @@ test('a shift sent twice from the phone is saved once', () => {
   const b = call(manager, 'shift.save', shiftOf(ids), op).data;
   assert.deepEqual(a, b);
   assert.equal(call(owner, 'money.list', { kind: 'daily_shift' }).data.total, 1);
+});
+
+test('which day steps are required is a setting; closing without one keeps the reason', () => {
+  const s = withAccounts();
+  const { call, manager, owner } = s;
+  const view = () => call(manager, 'closing.day', { date: DAY }).data;
+  const items = call(owner, 'settings.view').data.areas.closing;
+  const values = Object.fromEntries(items.map((i) => [i.key, i.value]));
+  call(owner, 'settings.closing.save', { ...values, 'closing.day_steps': ['shift'] });
+  // Deliveries is no longer required: left undone it is only a warning.
+  assert.equal(view().steps.find((x) => x.id === 'deliveries').state, 'warn');
+  assert.equal(call(manager, 'closing.day.close', { date: DAY, skip_reason: 'Shift slip lost; entered tomorrow' }).data.status, 'saved');
+  assert.equal(view().skip_reason, 'Shift slip lost; entered tomorrow');
 });

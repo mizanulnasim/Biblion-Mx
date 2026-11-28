@@ -27,12 +27,17 @@ function controlView(f, id, value, describedBy) {
   if (f.type === 'checkbox') {
     return html`<input id="${id}" name="${f.name}" type="checkbox" ${value ? 'checked' : ''} aria-describedby="${describedBy}">`;
   }
+  // Any of the options; the value is the list of those ticked.
+  if (f.type === 'checks') {
+    return html`<div class="checks" role="group" id="${id}" aria-describedby="${describedBy}">${f.options.map((o) => html`<label class="field-check">
+      <input type="checkbox" name="${f.name}" value="${o.value}" ${(value || []).includes(o.value) ? 'checked' : ''}> ${o.label}</label>`)}</div>`;
+  }
   return html`<input id="${id}" name="${f.name}" type="${f.type || 'text'}" value="${value ?? ''}"
     ${f.inputmode ? html`inputmode="${f.inputmode}"` : ''}
     autocomplete="${f.autocomplete || 'off'}" ${f.required ? 'required' : ''} aria-describedby="${describedBy}">`;
 }
 
-// field: {name, label, type: text|password|date|select|textarea|checkbox|color,
+// field: {name, label, type: text|password|date|select|textarea|checkbox|checks|color,
 //         options:[{value,label,disabled}] or groups:[{label, options}],
 //         placeholder (an empty first choice), help, autocomplete, inputmode, required}
 export function fieldView(f, value) {
@@ -120,7 +125,12 @@ export function bindForm(form, { schema, busyLabel, onSubmit, onSaved, guard = t
     e.preventDefault();
     if (button.disabled) return;
     const raw = {};
-    for (const el of form.elements) if (el.name) raw[el.name] = el.type === 'checkbox' ? el.checked : el.value;
+    for (const el of form.elements) {
+      if (!el.name) continue;
+      // A box with its own value is one of a group of choices (type checks).
+      if (el.type === 'checkbox' && el.value !== 'on') raw[el.name] = [...(raw[el.name] || []), ...(el.checked ? [el.value] : [])];
+      else raw[el.name] = el.type === 'checkbox' ? el.checked : el.value;
+    }
     const values = mapValues(raw);
     const checked = {};
     for (const key of Object.keys(schema)) if (key in raw) checked[key] = schema[key];

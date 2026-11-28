@@ -502,3 +502,5 @@ fieldset.panel legend { padding: 0 var(--space-2); margin-left: calc(-1 * var(--
 .notify-item { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-small); background: var(--surface); }
 .notify-item.is-unread { border-left: 4px solid var(--accent); }
 .notify-item .notify-text { flex: 1 1 16rem; }
+.checks { display: flex; flex-direction: column; gap: var(--space-1); }
+.check-item [data-act="tick"] { align-self: flex-start; }

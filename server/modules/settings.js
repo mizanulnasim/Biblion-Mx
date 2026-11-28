@@ -64,7 +64,7 @@ function saveArea(area) {
     for (const key of areaKeys(area)) {
       const s = SETTINGS[key];
       const raw = input[key];
-      values[key] = s.kind === 'bool' ? Boolean(raw) : raw === null && TEXT_KINDS.has(s.kind) ? '' : raw;
+      values[key] = s.kind === 'bool' ? Boolean(raw) : raw === null && TEXT_KINDS.has(s.kind) ? '' : raw === null && s.kind === 'set' ? [] : raw;
     }
     if (CHECKS[area]) CHECKS[area](values);
     for (const key of areaKeys(area)) {

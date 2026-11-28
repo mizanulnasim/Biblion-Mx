@@ -29,12 +29,14 @@ test('the checklist: the start date, steps ticked by hand, and only for sharehol
   assert.deepEqual(step(s, 'dues').info, { count: 1 });
   s.call(s.owner, 'start.date.save', { start_date: '2026-11-11' });
   assert.equal(step(s, 'date').done, true);
-  s.call(s.owner, 'start.step.save', { step: 'accounts', done: true });
-  assert.equal(step(s, 'accounts').done, true);
-  s.call(s.owner, 'start.step.save', { step: 'accounts', done: false });
+  const tick = (who, name, done) => s.call(who, 'steps.tick', { list: 'start', ref: '', step: name, done });
+  tick(s.owner, 'accounts', true);
+  assert.deepEqual([step(s, 'accounts').done, step(s, 'accounts').by], [true, 'Owner']);
+  tick(s.owner, 'accounts', false);
   assert.equal(step(s, 'accounts').done, false);
-  // Steps the app sees for itself can't be ticked.
-  assert.equal(s.call(s.owner, 'start.step.save', { step: 'stock', done: true }).data.status, 'rejected');
+  // Steps the app sees for itself can't be ticked; nor can others.
+  assert.equal(tick(s.owner, 'stock', true).data.error.code, 'NOT_FOUND');
+  assert.equal(tick(s.manager, 'accounts', true).data.error.code, 'FORBIDDEN');
 });
 
 test('shareholders\' opening figures and the cash they hold count in their account', () => {

@@ -16,7 +16,6 @@ import { LETTER_KINDS } from '../hr/letters.js';
 import { PUNCH_TYPES } from '../hr/attendance.js';
 import { PRIORITIES, REPEATS, TASK_ROLES } from '../tasks/tasks.js';
 import { REPORTS } from '../reports/reports.js';
-import { MANUAL_STEPS } from '../schema/start.js';
 import { LISTS, listSchema } from '../lists/lists.js';
 import { PERSONAL_KEYS, SETTINGS, SETTING_AREAS, areaSchema } from '../schema/settings.js';
 
@@ -189,7 +188,10 @@ export const ACTIONS = Object.freeze({
   },
   // ---- Month closing and shareholders ----
   'month.view': { perm: 'closing.month', schema: { month: { type: 'month' } } },
-  'month.close': { write: true, perm: 'closing.month', area: 'money', schema: { month: { type: 'month', required: true }, note: { type: 'text', max: 300 } } },
+  'month.close': {
+    write: true, perm: 'closing.month', area: 'money',
+    schema: { month: { type: 'month', required: true }, note: { type: 'text', max: 300 }, skip_reason: { type: 'text', max: 300 } },
+  },
   'month.reopen': { write: true, perm: 'closing.month', area: 'money', schema: { month: { type: 'month', required: true }, reason: { type: 'text', required: true, max: 300 } } },
   'shareholders.view': { perm: 'acc.shareholders' },
   'shareholders.shares.save': {
@@ -423,7 +425,6 @@ export const ACTIONS = Object.freeze({
   // Getting started: the start date and the opening-figures checklist.
   'start.view': { perm: 'acc.setup' },
   'start.date.save': { write: true, perm: 'acc.setup', area: 'money', schema: { start_date: { type: 'date', required: true } } },
-  'start.step.save': { write: true, perm: 'acc.setup', area: 'money', schema: { step: { type: 'enum', required: true, values: MANUAL_STEPS }, done: { type: 'bool', required: true } } },
 
   // Uploads: a document comes in, is read, is told what it is, and its
   // entries are checked and confirmed in one go (or it is filed on an
@@ -538,7 +539,19 @@ export const ACTIONS = Object.freeze({
 
   // Day closing: the checklist for a date, closing it, and reopening it.
   'closing.day': { perm: 'closing.day', schema: { date: { type: 'date', required: true } } },
-  'closing.day.close': { write: true, perm: 'closing.day', area: 'money', schema: { date: { type: 'date', required: true }, note: { type: 'text', max: 300 } } },
+  'closing.day.close': {
+    write: true, perm: 'closing.day', area: 'money',
+    schema: { date: { type: 'date', required: true }, note: { type: 'text', max: 300 }, skip_reason: { type: 'text', max: 300 } },
+  },
+  // A step of a checklist ticked or unticked (server/kernel/steps.js):
+  // ref is what the checklist is for (a date, a month, an onboarding).
+  'steps.tick': {
+    write: true, area: 'core',
+    schema: {
+      list: { type: 'enum', required: true, values: ['day', 'month', 'start', 'onboarding'] },
+      ref: { type: 'text', max: 40 }, step: { type: 'text', required: true, max: 40 }, done: { type: 'bool' },
+    },
+  },
   'closing.day.reopen': {
     write: true, perm: 'acc.approve', area: 'money',
     schema: { date: { type: 'date', required: true }, reason: { type: 'text', required: true, max: 500 } },
@@ -917,10 +930,6 @@ export const ACTIONS = Object.freeze({
     },
   },
   'onboarding.list': { perm: 'recruitment.manage' },
-  'onboarding.tick': {
-    write: true, perm: 'recruitment.manage', area: 'hr',
-    schema: { id: { type: 'id', required: true }, step: { type: 'int', required: true, min: 0, max: 30 }, done: { type: 'bool' } },
-  },
   'settings.onboarding': { perm: 'settings.manage' },
   'settings.onboarding.save': {
     write: true, perm: 'settings.manage', area: 'hr',

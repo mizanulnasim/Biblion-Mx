@@ -21,5 +21,3 @@ export const START_STEPS = Object.freeze([
   { id: 'stock', manual: false, path: '/books/stocktake' },
   { id: 'cafe', manual: false, path: '/cafe/count' },
 ]);
-
-export const MANUAL_STEPS = START_STEPS.filter((s) => s.manual).map((s) => s.id);

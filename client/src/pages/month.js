@@ -17,9 +17,23 @@ import { dateShort, money, today } from '../core/format.js';
 import { reportView } from '../ui/report.js';
 import { ACTIONS } from '../../../shared/contract/actions.js';
 import { dataUrl } from '../ui/files.js';
+import { onTick, skipField, tickButton, tickedBy } from '../ui/steps.js';
 
 const day = (d) => dateShort(`${d}T06:00:00Z`);
-const STEP = { ended: 'month.step.ended', days: 'month.step.days' };
+const STEP = {
+  ended: 'month.step.ended', days: 'month.step.days', salaries: 'steps.month.salaries', vendors: 'steps.month.vendors', publishers: 'steps.month.publishers',
+  cafe_stock: 'steps.month.cafe_stock', utilities: 'steps.month.utilities', reports: 'steps.month.reports', data_check: 'steps.month.data_check',
+};
+const STATE_CHIP = { done: ['month.done', 'ok'], todo: ['month.todo', 'danger'], warn: ['steps.optional', 'warn'] };
+
+// The month's checklist: what the app sees, and the reviews people tick.
+function stepsView(data) {
+  return html`<ul class="waiting-list">${data.steps.map((s) => html`<li class="check-item"><span>${chip(t(STATE_CHIP[s.state][0]), STATE_CHIP[s.state][1])}
+      ${t(STEP[s.id], { date: day(s.params.date || today()), count: s.params.count || 0 })}</span>
+      ${s.manual ? html`${tickedBy(s)} ${tickButton('month', data.month, s)}` : ''}</li>`)}</ul>
+    ${data.steps.some((s) => s.required && s.state === 'todo') ? html`<p class="help">${t('steps.left', { count: data.steps.filter((s) => s.required && s.state === 'todo').length })}</p>` : ''}
+    <div class="form-actions"><button type="button" class="btn btn-primary" data-act="close" ${data.steps[0].state === 'done' ? '' : 'disabled'}>${t('month.close')}</button></div>`;
+}
 
 export const monthClosingPage = {
   path: '/closing/month',
@@ -42,17 +56,15 @@ export const monthClosingPage = {
             ${data.closed ? html`<p>${chip(t('month.closed'), 'ok')} ${t('month.closed_on', { date: dateShort(data.closed_at) })}</p>
               ${data.files.length ? html`<p class="help">${t('month.files')}</p><div class="check-actions">${data.files.map((f) => html`<button type="button" class="btn btn-small" data-act="file" data-id="${f.id}">${f.name}</button>`)}</div>` : ''}
               <div class="form-actions"><button type="button" class="btn" data-act="reopen">${t('month.reopen')}</button></div>`
-              : html`<ul class="waiting-list">${data.steps.map((s) => html`<li class="check-item"><span>${chip(t(s.state === 'done' ? 'month.done' : 'month.todo'), s.state === 'done' ? 'ok' : 'warn')}
-                  ${t(STEP[s.id], { date: day(s.params.date || today()), count: s.params.count || 0 })}</span></li>`)}</ul>
-                <div class="form-actions"><button type="button" class="btn btn-primary" data-act="close" ${data.steps.every((s) => s.state === 'done') ? '' : 'disabled'}>${t('month.close')}</button></div>`}
+              : stepsView(data)}
           </section>
           ${reportView(report)}`);
       } catch (err) {
         render(el, errorBox(errorText(err)));
       }
     }
-    const ask = (title, field, action, done) => {
-      const dialog = formDialog(title, formView({ submit: title, fields: [field] }));
+    const ask = (title, fields, action, done) => {
+      const dialog = formDialog(title, formView({ submit: title, fields }));
       bindForm(dialog.querySelector('form.form'), {
         schema: ACTIONS[action].schema,
         busyLabel: t('common.saving'),
@@ -88,8 +100,9 @@ export const monthClosingPage = {
           toast(errorText(err), 'error');
         }
       },
-      close: () => ask(t('month.close'), { name: 'note', label: t('pay.note'), type: 'textarea' }, 'month.close', t('month.closed_done')),
-      reopen: () => ask(t('month.reopen'), { name: 'reason', label: t('hr.fix_reason'), type: 'textarea', required: true }, 'month.reopen', t('month.reopened')),
+      tick: (e, btn) => onTick(btn, load),
+      close: () => ask(t('month.close'), [{ name: 'note', label: t('pay.note'), type: 'textarea' }, ...skipField(data.steps.filter((s) => s.required && s.state === 'todo').length)], 'month.close', t('month.closed_done')),
+      reopen: () => ask(t('month.reopen'), [{ name: 'reason', label: t('hr.fix_reason'), type: 'textarea', required: true }], 'month.reopen', t('month.reopened')),
     });
     const onMonth = (e) => {
       if (e.target.dataset.role !== 'month' || !e.target.value) return;

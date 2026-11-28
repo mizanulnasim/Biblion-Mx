@@ -9,6 +9,7 @@ import { AppError } from '../../shared/contract/errors.js';
 import { saved } from '../../shared/contract/reply.js';
 import { saveSetting, setting } from '../kernel/settings.js';
 import { page } from '../kernel/paging.js';
+import { checklist, defineChecklist } from '../kernel/steps.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
 // Where an applicant can go from each stage.
@@ -52,10 +53,24 @@ function save(ctx, input) {
   return saved(row.id);
 }
 
+// The checklist as it was set when the person was hired (steps: labels),
+// ticked through the steps engine; done when every step is ticked.
 function startOnboarding(db, staffId) {
-  const steps = setting(db, 'onboarding.steps').map((label) => ({ label, done_at: '', done_by: '' }));
+  const steps = setting(db, 'onboarding.steps');
   return db.insert('Onboarding', { staff_id: staffId, steps, status: steps.length ? 'open' : 'done', done_at: steps.length ? '' : db.nowIso });
 }
+
+defineChecklist('onboarding', {
+  perm: 'recruitment.manage',
+  steps: (db, id) => (db.get('Onboarding', id) || { steps: [] }).steps.map((label, i) => ({ id: String(i), label, manual: true })),
+  locked: (db, id) => (db.get('Onboarding', id) || {}).status !== 'open',
+  after(ctx, id) {
+    const { db } = ctx;
+    const finished = checklist(db, 'onboarding', id).every((s) => s.state === 'done');
+    if (finished) db.update('Onboarding', db.get('Onboarding', id), { status: 'done', done_at: db.nowIso });
+    return { finished };
+  },
+});
 
 // Moves an applicant on. An interview needs its time; an offer its salary
 // and start date; hiring makes the staff record and starts onboarding.
@@ -99,23 +114,12 @@ function onboarding(ctx) {
     items: rows.map((o) => {
       const staff = db.get('Staff', o.staff_id);
       return {
-        id: o.id, version: o.version, steps: o.steps,
+        id: o.id, version: o.version, steps: checklist(db, 'onboarding', o.id),
         staff: { id: staff.id, name: staff.name, position: staff.position, joined_on: staff.joined_on },
         facts: { sign_in: Boolean(staff.user_id), pin: Boolean(staff.pin_hash) },
       };
     }),
   };
-}
-
-function tick(ctx, { id, step, done }) {
-  const { db } = ctx;
-  const o = db.get('Onboarding', id);
-  if (!o) throw new AppError('NOT_FOUND');
-  if (o.status !== 'open' || !o.steps[step]) throw new AppError('CONFLICT', { by: '' });
-  const steps = o.steps.map((s, i) => (i === step ? { ...s, done_at: done ? db.nowIso : '', done_by: done ? ctx.user.display_name : '' } : s));
-  const finished = steps.every((s) => s.done_at);
-  db.update('Onboarding', o, { steps, status: finished ? 'done' : 'open', done_at: finished ? db.nowIso : '' });
-  return saved(o.id, { finished });
 }
 
 function readSettings(db) {
@@ -132,7 +136,6 @@ export const RECRUITMENT_HANDLERS = {
   'applicants.save': save,
   'applicants.stage': stage,
   'onboarding.list': onboarding,
-  'onboarding.tick': tick,
   'settings.onboarding': (ctx) => readSettings(ctx.db),
   'settings.onboarding.save': saveSettings,
 };

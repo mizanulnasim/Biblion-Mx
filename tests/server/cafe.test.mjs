@@ -116,7 +116,7 @@ test('a manager\'s order waits when a shareholder must confirm; nobody approves 
 test('day closing asks for the café count', () => {
   const s = cafe();
   const step = () => s.call(s.manager, 'closing.day', { date: day(0) }).data.steps.find((x) => x.id === 'cafe').state;
-  assert.equal(step(), 'warn');
+  assert.equal(step(), 'todo');
   count(s, s.staff, day(0), [{ item_id: s.ids.milk_item, counted: 3 }]);
   assert.equal(step(), 'done');
 });

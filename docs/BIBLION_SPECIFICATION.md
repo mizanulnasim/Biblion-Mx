@@ -493,6 +493,7 @@ Accounts → Data check finds broken links (for example a payment naming a missi
 - **Steps.** Which steps must be done is a setting (`closing.day_steps`): daily shift, cash count, café count, deliveries, tasks. Other steps are shown as warnings: entries from the day still waiting, items unsent on this phone.
 - Each step shows its live status, with "Open" to fix it.
 - A manager may close without a required step by giving a reason, which is kept on the closing and logged.
+- Steps the app can't see for itself (deliveries entered; at month end the reviews) are ticked by hand, recording who and when. Getting started and onboarding are ticked the same way.
 - A closed day is locked for managers and staff. A shareholder can reopen it with a reason.
 - Day closing can be a daily task with the form inside.
 

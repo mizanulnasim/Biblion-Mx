@@ -95,8 +95,8 @@ function onboardingView(items) {
     <ul class="waiting-list">${items.map((o) => html`<li class="check-item">
       <span><a href="#/staff"><strong>${o.staff.name}</strong></a> <span class="muted">${o.staff.position}</span></span>
       <span class="muted">${t(o.facts.sign_in ? 'jobs.fact.sign_in_yes' : 'jobs.fact.sign_in_no')} · ${t(o.facts.pin ? 'jobs.fact.pin_yes' : 'jobs.fact.pin_no')}</span>
-      ${o.steps.map((s, i) => html`<label class="field-check"><input type="checkbox" data-ob="${o.id}" data-step="${i}" ${s.done_at ? 'checked' : ''}>
-        ${s.label}${s.done_at ? html` <span class="muted">${t('jobs.done_by', { name: s.done_by, time: dateShortTime(s.done_at) })}</span>` : ''}</label>`)}
+      ${o.steps.map((s) => html`<label class="field-check"><input type="checkbox" data-ob="${o.id}" data-step="${s.id}" ${s.state === 'done' ? 'checked' : ''}>
+        ${s.label}${s.state === 'done' ? html` <span class="muted">${t('jobs.done_by', { name: s.by, time: dateShortTime(s.at) })}</span>` : ''}</label>`)}
     </li>`)}</ul></section>`;
 }
 
@@ -143,7 +143,7 @@ export const recruitmentPage = {
       const box = e.target;
       if (!box.dataset.ob) return;
       box.disabled = true;
-      const reply = await write('onboarding.tick', { id: box.dataset.ob, step: Number(box.dataset.step), done: box.checked });
+      const reply = await write('steps.tick', { list: 'onboarding', ref: box.dataset.ob, step: box.dataset.step, done: box.checked });
       if (reply.status === 'saved' && reply.data.finished) toast(t('jobs.onboarding_done'));
       loadOnboarding();
     };

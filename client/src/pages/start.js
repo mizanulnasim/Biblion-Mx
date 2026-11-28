@@ -5,12 +5,13 @@
 
 import { html, on, render } from '../ui/html.js';
 import { chip, errorBox } from '../ui/feedback.js';
-import { bindForm, errorText, formView, whileBusy } from '../ui/form.js';
+import { bindForm, errorText, formView } from '../ui/form.js';
 import { toast } from '../ui/toast.js';
 import { t } from '../core/i18n.js';
 import { read, write } from '../core/api.js';
 import { dateShort } from '../core/format.js';
 import { ACTIONS } from '../../../shared/contract/actions.js';
+import { onTick, tickButton, tickedBy } from '../ui/steps.js';
 
 const TITLE = {
   date: 'start.step.date', accounts: 'start.step.accounts', shareholders: 'start.step.shareholders', dues: 'start.step.dues',
@@ -38,7 +39,7 @@ function stepView(step, n, startDate) {
       fields: [{ name: 'start_date', label: t('pay.set.start_date'), type: 'date', required: true }],
     })}</div>` : html`<div class="check-actions">
       <a class="btn btn-small" href="#${step.path}">${t('start.open')}</a>
-      ${step.manual ? html`<button type="button" class="btn btn-small" data-act="tick" data-step="${step.id}" data-done="${step.done ? '' : '1'}">${t(step.done ? 'start.untick' : 'start.tick')}</button>` : ''}
+      ${step.manual ? html`${tickedBy(step)} ${tickButton('start', '', step)}` : ''}
     </div>`}
   </li>`;
 }
@@ -71,10 +72,7 @@ export const startPage = {
       }
     }
     const off = on(el, 'click', {
-      tick: (e, btn) => whileBusy(btn, t('common.saving'), async () => {
-        const reply = await write('start.step.save', { step: btn.dataset.step, done: Boolean(btn.dataset.done) });
-        if (reply.status === 'saved') await load();
-      }),
+      tick: (e, btn) => onTick(btn, load),
     });
     render(el, html`<div aria-busy="true"></div>`);
     load();

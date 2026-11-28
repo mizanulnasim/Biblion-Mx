@@ -25,6 +25,7 @@ import { addDays, datesBetween } from '../../shared/hr/plan.js';
 import { cashEffect, loanEffect, payEffect } from '../../shared/money/kinds.js';
 import { roleById } from '../../shared/schema/permissions.js';
 import { setting } from '../kernel/settings.js';
+import { checkReady, checklist, defineChecklist } from '../kernel/steps.js';
 import { bookCosts } from './suppliers.js';
 import { monthPay } from './payroll.js';
 import { planner } from './rota.js';
@@ -174,18 +175,30 @@ export function withShares(db, month) {
   };
 }
 
-// What has to be done before a month closes: it has ended, and each of its
-// days (from the day records start) is closed.
-function steps(db, month) {
-  const per = period(db, month);
-  const start = setting(db, 'accounting.start_date') || '';
-  const closedDays = new Set(db.all('Day_Closings').filter((d) => d.status === 'closed').map((d) => d.date));
-  const open = per.to < today(db) ? datesBetween(per.from, per.to).filter((d) => d >= start && !closedDays.has(d)) : [];
-  return [
-    { id: 'ended', state: per.to < today(db) ? 'done' : 'todo', params: { date: per.to } },
-    { id: 'days', state: per.to < today(db) && !open.length ? 'done' : 'todo', params: { count: open.length, first: open[0] || '' } },
-  ];
-}
+// The month's checklist. The month must have ended, always; which other
+// steps are required is a setting (closing.month_steps). Every day closed
+// (from the day records start) is seen by the app; the reviews are ticked.
+const REVIEWS = ['salaries', 'vendors', 'publishers', 'cafe_stock', 'utilities', 'reports', 'data_check'];
+
+defineChecklist('month', {
+  perm: 'closing.month',
+  required: (db) => new Set(['ended', ...setting(db, 'closing.month_steps')]),
+  locked: (db, month) => Boolean(closingOf(db, month)),
+  steps(db, month) {
+    const per = period(db, month);
+    const start = setting(db, 'accounting.start_date') || '';
+    const closedDays = new Set(db.all('Day_Closings').filter((d) => d.status === 'closed').map((d) => d.date));
+    const ended = per.to < today(db);
+    const open = ended ? datesBetween(per.from, per.to).filter((d) => d >= start && !closedDays.has(d)) : [];
+    return [
+      { id: 'ended', state: ended ? 'done' : 'todo', params: { date: per.to } },
+      { id: 'days', state: ended && !open.length ? 'done' : 'todo', params: { count: open.length, first: open[0] || '' } },
+      ...REVIEWS.map((id) => ({ id, manual: true })),
+    ];
+  },
+});
+
+const steps = (db, month) => checklist(db, 'month', month);
 
 function closingOf(db, month) {
   return db.all('Month_Closings').find((c) => c.month === month && c.status === 'closed') || null;
@@ -204,10 +217,14 @@ function view(ctx, input) {
 
 // Closing a month; `files` makes the month-end files and sends them
 // (server/modules/report-files.js, which registers the action).
-export function closeMonth(ctx, { month, note }, files) {
+// A required step not done needs a reason (kept); the month must have ended.
+export function closeMonth(ctx, { month, note, skip_reason: skipReason }, files) {
   const { db } = ctx;
   if (closingOf(db, month)) throw new AppError('CONFLICT', { by: '' });
-  if (steps(db, month).some((s) => s.state !== 'done')) throw new AppError('MONTH_NOT_READY');
+  const list = steps(db, month);
+  if (list[0].state !== 'done') throw new AppError('MONTH_NOT_READY');
+  const skipped = checkReady(list, skipReason);
+  if (skipped.length) db.setReason(skipReason);
   const shares = sharesOn(db, period(db, month).from);
   if (r2(Object.values(shares).reduce((t, v) => t + v, 0)) !== 100) throw new AppError('SHARES_MISSING');
   // Months close in order.
@@ -217,7 +234,8 @@ export function closeMonth(ctx, { month, note }, files) {
   // The month-end files are made first: if Drive fails, nothing is closed.
   const made = files.make(ctx, month);
   const row = db.insert('Month_Closings', {
-    month, status: 'closed', figures: withShares(db, month), note: note || '', closed_by: ctx.user.id, closed_at: db.nowIso,
+    month, status: 'closed', figures: withShares(db, month), note: note || '', checklist: list, skip_reason: skipped.length ? skipReason : '',
+    closed_by: ctx.user.id, closed_at: db.nowIso,
     reopened_by: '', reopened_at: '', reopen_reason: '', files: made.map((f) => ({ id: f.id, name: f.name })),
   });
   for (const f of made) db.update('Files', db.get('Files', f.id), { record_ids: [row.id] });

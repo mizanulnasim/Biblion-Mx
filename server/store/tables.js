@@ -85,7 +85,7 @@ export const TABLES = Object.freeze({
   Month_Closings: {
     group: 'accounts',
     prefix: 'MCL',
-    columns: ['month', 'status', 'figures:j', 'note', 'closed_by', 'closed_at', 'reopened_by', 'reopened_at', 'reopen_reason', 'files:j'],
+    columns: ['month', 'status', 'figures:j', 'note', 'checklist:j', 'skip_reason', 'closed_by', 'closed_at', 'reopened_by', 'reopened_at', 'reopen_reason', 'files:j'],
   },
   // Money entries are append-only: a correction is a new row that
   // `replaces` the old one, and the old one is marked replaced; a
@@ -473,7 +473,8 @@ export const TABLES = Object.freeze({
       'offer_salary:n', 'start_date', 'staff_id',
     ],
   },
-  // A new person's first steps. steps:j [{label, done_at, done_by}].
+  // A new person's first steps. steps:j: the labels, as set when they were
+  // hired; ticks are in Checklist_Ticks.
   // Status: open, done.
   Onboarding: {
     group: 'hr',
@@ -496,11 +497,19 @@ export const TABLES = Object.freeze({
     columns: ['user_id', 'area', 'priority', 'key', 'text:j', 'link', 'read_at', 'done:j', 'hidden:b', 'emailed_at'],
     log: true,
   },
+  // A ticked step of a checklist (server/kernel/steps.js): list, what it
+  // is for (ref: a date, a month, an onboarding), the step, and done.
+  // Who and when are the row's updated_by and updated_at.
+  Checklist_Ticks: {
+    group: 'core',
+    prefix: 'CHK',
+    columns: ['list', 'ref', 'step', 'done:b'],
+  },
   // One row per closed date; reopening keeps the row with its reason.
   Day_Closings: {
     group: 'accounts',
     prefix: 'DCL',
-    columns: ['date', 'status', 'checklist:j', 'note', 'closed_by', 'closed_at', 'reopened_by', 'reopened_at', 'reopen_reason'],
+    columns: ['date', 'status', 'checklist:j', 'note', 'skip_reason', 'closed_by', 'closed_at', 'reopened_by', 'reopened_at', 'reopen_reason'],
   },
   Audit_Log: {
     group: 'core',

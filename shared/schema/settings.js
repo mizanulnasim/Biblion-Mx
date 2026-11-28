@@ -6,8 +6,9 @@
 //   area     the Setup section it is shown in (SETTING_AREAS); a setting
 //            without one is changed on its own page (letters, reviews,
 //            onboarding, Getting started)
-//   kind     text | long | bool | int | number | money | choice | time |
-//            date | email | color | rates (dated amounts a day) |
+//   kind     text | long | bool | int | number | money | choice | set (any
+//            of the choices) | time | date | email | color | rates (dated
+//            amounts a day) |
 //            secret (kept in Script Properties, never sent back)
 //   start    the starting value
 //   min, max, choices (value → message id), label, help: message ids
@@ -15,9 +16,12 @@
 //            Setup lists those and can set or reset them
 //   required the value can't be left empty
 
+import { DAY_STEPS, MONTH_STEPS } from '../steps/checklists.js';
+
 export const SETTING_AREAS = Object.freeze({
   shop: { title: 'set.area.shop', perm: 'settings.manage' },
   approvals: { title: 'nav.approvals', perm: 'settings.manage', intro: 'approvals.intro' },
+  closing: { title: 'set.area.closing', perm: 'settings.manage', intro: 'set.area.closing_intro' },
   payroll: { title: 'set.area.payroll', perm: 'settings.manage' },
   attendance: { title: 'set.area.attendance', perm: 'settings.manage' },
   leave: { title: 'set.area.leave', perm: 'settings.manage' },
@@ -58,6 +62,12 @@ export const SETTINGS = Object.freeze({
   'approve.rule.vendor': rule('approvals.vendor'),
   'approve.rule.publisher': rule('approvals.publisher'),
   'approve.rule.other': { area: 'approvals', kind: 'choice', choices: APPROVE, start: 'shareholder', label: 'approvals.other' },
+
+  // ---- Day and month closing: the steps that must be done; the others
+  // are shown as warnings. Going ahead without a required step needs a
+  // reason, kept on the closing.
+  'closing.day_steps': { area: 'closing', kind: 'set', choices: DAY_STEPS, start: Object.keys(DAY_STEPS), label: 'set.closing.day_steps' },
+  'closing.month_steps': { area: 'closing', kind: 'set', choices: MONTH_STEPS, start: Object.keys(MONTH_STEPS), label: 'set.closing.month_steps' },
 
   // ---- Payroll. The accounting month starts on the 11th (owner decision);
   // payroll, payslips and month reports follow it. A day's pay is the
@@ -200,8 +210,6 @@ export const SETTINGS = Object.freeze({
   'notify.email': { kind: 'email', personal: true, start: '' },
 
   // ---- Changed on their own pages ----
-  // Getting started: the steps a shareholder has marked done.
-  'start.done': { kind: 'list', start: [] },
   // Performance reviews: what each person is scored on (1–5), and whether
   // they give their own view first.
   'performance.criteria': {
@@ -250,6 +258,7 @@ const VALIDATOR = {
   number: (s) => ({ type: 'number', min: s.min, max: s.max }),
   money: () => ({ type: 'money', zero: true }),
   choice: (s) => ({ type: 'enum', values: Object.keys(s.choices) }),
+  set: (s) => ({ type: 'set', values: Object.keys(s.choices) }),
   time: () => ({ type: 'time' }),
   date: () => ({ type: 'date' }),
   email: () => ({ type: 'email' }),

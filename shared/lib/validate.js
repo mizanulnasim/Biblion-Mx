@@ -58,6 +58,10 @@ function checkOne(spec, raw) {
     case 'enum':
       if (!spec.values.includes(raw)) return { error: { code: 'val.choice' } };
       return { value: raw };
+    // Several of the choices, kept in the choices' order.
+    case 'set':
+      if (!Array.isArray(raw) || raw.some((v) => !spec.values.includes(v))) return { error: { code: 'val.choice' } };
+      return { value: spec.values.filter((v) => raw.includes(v)) };
     case 'bool':
       if (typeof raw !== 'boolean') return { error: { code: 'val.format' } };
       return { value: raw };

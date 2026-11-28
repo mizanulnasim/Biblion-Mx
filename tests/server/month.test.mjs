@@ -48,10 +48,14 @@ test('closing: the days must be closed; then figures are kept, entries locked, a
   const month = lastMonth();
   s.call(s.owner, 'shareholders.shares.save', { from: '2000-01-01', shares: [{ shareholder_id: s.ids.karim, percent: 50 }, { shareholder_id: s.ids.nadia, percent: 50 }] });
   save(s, { kind: 'income', date: `${month}-03`, amount: 15000 });
-  assert.equal(s.call(s.owner, 'month.close', { month }).data.error.code, 'MONTH_NOT_READY');
+  assert.equal(s.call(s.owner, 'month.close', { month }).data.error.fields.skip_reason.code, 'val.steps_reason');
   // Records start on the 1st of the month; nothing else to close before it.
   s.call(s.owner, 'start.date.save', { start_date: plus(today(), 1) });
-  const closed = s.call(s.owner, 'month.close', { month }).data;
+  // Every review ticked but one: closing without it needs a reason, kept.
+  const view = () => s.call(s.owner, 'month.view', { month }).data;
+  for (const step of view().steps.filter((x) => x.manual && x.id !== 'data_check')) s.call(s.owner, 'steps.tick', { list: 'month', ref: month, step: step.id, done: true });
+  assert.deepEqual(view().steps.filter((x) => x.state === 'todo').map((x) => x.id), ['data_check']);
+  const closed = s.call(s.owner, 'month.close', { month, skip_reason: 'Data check not built yet' }).data;
   assert.equal(closed.data.profit, 10000);
   // Locked: a manager can't add to it, and the shares can't reach back.
   assert.equal(save(s, { kind: 'income', date: `${month}-04`, amount: 1 }).status, 'rejected');
@@ -83,7 +87,7 @@ test('a loss is made up from later profit before anything is shared', () => {
     return d.toISOString().slice(0, 7);
   })();
   // The month before: only Nadia's salary, a 5,000 loss.
-  assert.equal(s.call(s.owner, 'month.close', { month: before }).data.data.profit, -5000);
+  assert.equal(s.call(s.owner, 'month.close', { month: before, skip_reason: 'Reviews not needed here' }).data.data.profit, -5000);
   save(s, { kind: 'income', date: `${month}-03`, amount: 12000 });
   const next = s.call(s.owner, 'month.view', { month }).data.figures;
   assert.deepEqual([next.profit, next.loss_before, next.shareable, next.loss_after], [7000, 5000, 2000, 0]);
@@ -126,7 +130,7 @@ test('closing keeps the month\'s reports as PDF and Excel, listed on the closing
   s.call(s.owner, 'start.date.save', { start_date: plus(today(), 1) });
   s.call(s.owner, 'me.notify', { email: 'owner@example.com', enabled: true });
   setSettings(s, 'shop', { 'shop.address': 'House 1, Sample Road' });
-  s.call(s.owner, 'month.close', { month });
+  s.call(s.owner, 'month.close', { month, skip_reason: 'Reviews not needed here' });
   const { files } = s.call(s.owner, 'month.view', { month }).data;
   assert.deepEqual(files.map((f) => f.name), [
     `Monthly report ${month}.pdf`, `Monthly report ${month}.xlsx`, `Shareholders' monthly report ${month}.pdf`,

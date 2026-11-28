@@ -148,7 +148,7 @@ test('not done with a reason; day closing warns about open tasks', () => {
   const a = s.call(s.manager, 'tasks.create', { title: 'Clean the coffee machine', staff_id: s.ids.sumi, due_date: today() }).data.record_id;
   s.call(s.manager, 'tasks.create', { title: 'Restock cups', staff_id: s.ids.sumi, due_date: today() });
   const step = () => s.call(s.manager, 'closing.day', { date: today() }).data.steps.find((x) => x.id === 'tasks');
-  assert.deepEqual([step().state, step().params.count], ['warn', 2]);
+  assert.deepEqual([step().state, step().params.count], ['todo', 2]);
   assert.equal(s.call(s.staff, 'tasks.not_done', { id: a, reason: 'Descaler ran out' }).data.status, 'saved');
   assert.equal(step().params.count, 1);
   const list = s.call(s.manager, 'tasks.list', { date: today() }).data.items;

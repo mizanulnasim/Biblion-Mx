@@ -12,12 +12,14 @@ import { getState } from '../core/state.js';
 import { dateShort, dateShortTime, money, today } from '../core/format.js';
 import { onArea } from '../core/live.js';
 import { ACTIONS } from '../../../shared/contract/actions.js';
+import { onTick, skipField, tickButton, tickedBy } from '../ui/steps.js';
 
 const STATE = { done: ['closing.state.done', 'ok'], todo: ['closing.state.todo', 'danger'], warn: ['closing.state.warn', 'warn'] };
 
 function stepText(step) {
   if (step.id === 'shift') return step.state === 'done' ? t('closing.step.shift_done') : t('closing.step.shift_todo');
-  if (step.id === 'drawer') {
+  if (step.id === 'deliveries') return step.state === 'done' ? t('closing.step.deliveries_done') : t('closing.step.deliveries_todo');
+  if (step.id === 'cash') {
     if (step.state === 'todo') return t('closing.step.drawer_todo');
     if (step.state === 'done') return t('closing.step.drawer_done');
     return t(step.params.short ? 'closing.step.drawer_short' : 'closing.step.drawer_over', { amount: money(step.params.amount) });
@@ -29,7 +31,7 @@ function stepText(step) {
 }
 
 function stepLink(step, date) {
-  if (step.id === 'shift' || step.id === 'drawer') return `#/daily?date=${date}`;
+  if (step.id === 'shift' || step.id === 'cash') return `#/daily?date=${date}`;
   if (step.id === 'waiting') return '#/money?state=waiting';
   if (step.id === 'cafe') return `#/cafe/count?date=${date}`;
   if (step.id === 'tasks') return `#/tasks?date=${date}`;
@@ -49,20 +51,21 @@ function view(data, phoneStep) {
         ${data.closed ? chip(t('closing.closed'), 'ok') : chip(t('closing.open'), 'warn')}</div>
       <ol class="checklist">${steps.map((s) => html`<li class="check check-${s.state}">
         ${chip(t(STATE[s.state][0]), STATE[s.state][1])}
-        <a href="${stepLink(s, data.date)}">${stepText(s)}</a></li>`)}</ol>
+        ${s.manual ? html`<span>${stepText(s)}</span> ${tickedBy(s)} ${data.closed ? '' : tickButton('day', data.date, s)}` : html`<a href="${stepLink(s, data.date)}">${stepText(s)}</a>`}</li>`)}</ol>
       ${data.closed ? html`<p class="muted">${t('closing.closed_by', { name: data.closed.by, time: dateShortTime(data.closed.at) })}${data.closed.note ? html` · ${data.closed.note}` : ''}</p>` : ''}
+      ${data.skip_reason ? html`<p class="notice notice-warn">${t('steps.skipped', { reason: data.skip_reason })}</p>` : ''}
       ${data.reopened ? html`<p class="notice notice-warn">${t('closing.reopened_by', { name: data.reopened.by, time: dateShortTime(data.reopened.at), reason: data.reopened.reason })}</p>` : ''}
       <div class="closing-error"></div>
       <div class="form-actions">
         ${data.can_close ? html`<button type="button" class="btn btn-primary" data-act="close">${t('closing.close')}</button>` : ''}
         ${data.can_reopen ? html`<button type="button" class="btn" data-act="reopen">${t('closing.reopen')}</button>` : ''}
       </div>
-      ${!data.closed && !data.can_close ? html`<p class="help">${t('closing.cannot_close')}</p>` : ''}
+      ${!data.closed && data.missing.length ? html`<p class="help">${t('steps.left', { count: data.missing.length })}</p>` : ''}
     </section>`;
 }
 
-function askAndWrite(title, field, action, date, onDone) {
-  const dialog = formDialog(title, formView({ submit: title, fields: [field] }));
+function askAndWrite(title, fields, action, date, onDone) {
+  const dialog = formDialog(title, formView({ submit: title, fields }));
   bindForm(dialog.querySelector('form.form'), {
     schema: ACTIONS[action].schema,
     busyLabel: t('common.saving'),
@@ -86,6 +89,7 @@ export const closingPage = {
     async function load() {
       try {
         const { data } = await read('closing.day', { date });
+        missing = data.missing;
         // Entries still on this phone are checked here, where they are.
         const queued = getState().queued;
         const phoneStep = { id: 'phone', state: queued ? 'warn' : 'done', params: { count: queued } };
@@ -96,12 +100,14 @@ export const closingPage = {
         body.removeAttribute('aria-busy');
       }
     }
+    let missing = [];
     const off = on(body, 'click', {
-      close: () => askAndWrite(t('closing.close'), { name: 'note', label: t('closing.note'), type: 'textarea' }, 'closing.day.close', date, () => {
+      tick: (e, btn) => onTick(btn, load),
+      close: () => askAndWrite(t('closing.close'), [{ name: 'note', label: t('closing.note'), type: 'textarea' }, ...skipField(missing.length)], 'closing.day.close', date, () => {
         toast(t('closing.closed_toast'));
         load();
       }),
-      reopen: () => askAndWrite(t('closing.reopen'), { name: 'reason', label: t('closing.reopen_reason'), type: 'textarea', required: true, help: t('closing.reopen_help') },
+      reopen: () => askAndWrite(t('closing.reopen'), [{ name: 'reason', label: t('closing.reopen_reason'), type: 'textarea', required: true, help: t('closing.reopen_help') }],
         'closing.day.reopen', date, () => {
           toast(t('closing.reopened_toast'));
           load();

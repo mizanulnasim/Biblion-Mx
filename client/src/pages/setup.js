@@ -29,6 +29,7 @@ const CONTROL = {
   number: () => ({ inputmode: 'decimal' }),
   money: () => ({ inputmode: 'decimal' }),
   choice: (s) => ({ type: 'select', options: Object.keys(s.choices).map((value) => ({ value, label: t(s.choices[value]) })) }),
+  set: (s) => ({ type: 'checks', options: Object.keys(s.choices).map((value) => ({ value, label: t(s.choices[value]) })) }),
   time: () => ({ type: 'time' }),
   date: () => ({ type: 'date' }),
   email: () => ({ inputmode: 'email' }),
@@ -94,7 +95,7 @@ function areaForm(area, items) {
       continue;
     }
     fields.push(field(item.key, item.value));
-    values[item.key] = s.kind === 'secret' ? '' : shown(item.value);
+    values[item.key] = s.kind === 'secret' ? '' : s.kind === 'set' ? item.value : shown(item.value);
     if (s.kind === 'secret' && item.value) fields.push({ name: 'forget', label: t('settings.ai_key_clear'), type: 'checkbox' });
   }
   return formView({ fields, values, submit: t('common.save'), extra: html`${rateHelp}${EXTRAS[area] ? EXTRAS[area]() : ''}` });
@@ -118,7 +119,8 @@ function payload(items, raw) {
     if (s.kind === 'rates') {
       out[key] = [];
       for (let i = 0; `${key}.${i}.from` in raw; i++) if (raw[`${key}.${i}.from`]) out[key].push({ from: raw[`${key}.${i}.from`], amount: raw[`${key}.${i}.amount`] || 0 });
-    } else out[key] = raw[key] === '' ? null : raw[key];
+    } else if (s.kind === 'set') out[key] = raw[key] || [];
+    else out[key] = raw[key] === '' ? null : raw[key];
   }
   if ('forget' in raw) out.forget = raw.forget;
   return out;

@@ -1,11 +1,12 @@
 // Getting started: the start date and the opening-figures checklist
-// (shared/schema/start.js). Each step says how far it has got; a manual
-// step is ticked done by a shareholder.
+// (shared/schema/start.js), on the steps engine. Each step says how far it
+// has got; a manual step is ticked done by a shareholder.
 
 import { saved } from '../../shared/contract/reply.js';
 import { AppError } from '../../shared/contract/errors.js';
 import { START_STEPS } from '../../shared/schema/start.js';
 import { saveSetting, setting } from '../kernel/settings.js';
+import { checklist, defineChecklist } from '../kernel/steps.js';
 import { openingStock } from './stocktake.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
@@ -34,14 +35,20 @@ export function startLeft(ctx) {
   return v.steps.length - v.done;
 }
 
+// Every step is required; a manual one is ticked by a shareholder.
+defineChecklist('start', {
+  perm: 'acc.setup',
+  steps(db) {
+    const seen = { date: Boolean(setting(db, 'accounting.start_date')), stock: Boolean(openingStock(db)), cafe: db.all('Cafe_Counts').length > 0 };
+    return START_STEPS.map((s) => (s.manual ? { id: s.id, manual: true } : { id: s.id, state: seen[s.id] ? 'done' : 'todo' }));
+  },
+});
+
 function view(ctx) {
   const { db } = ctx;
-  const startDate = setting(db, 'accounting.start_date');
-  const marked = new Set(setting(db, 'start.done'));
-  const seen = { date: Boolean(startDate), stock: Boolean(openingStock(db)), cafe: db.all('Cafe_Counts').length > 0 };
   const info = counts(db);
-  const steps = START_STEPS.map((s) => ({ id: s.id, manual: s.manual, path: s.path, done: s.manual ? marked.has(s.id) : seen[s.id], info: info[s.id] }));
-  return { start_date: startDate, steps, done: steps.filter((s) => s.done).length };
+  const steps = checklist(db, 'start', '').map((s, i) => ({ ...s, path: START_STEPS[i].path, done: s.state === 'done', info: info[s.id] }));
+  return { start_date: setting(db, 'accounting.start_date'), steps, done: steps.filter((s) => s.done).length };
 }
 
 // The start date can't move once a month is closed (closed figures rest on
@@ -58,17 +65,7 @@ function saveDate(ctx, { start_date: date }) {
   return saved('accounting.start_date');
 }
 
-function saveStep(ctx, { step, done }) {
-  const { db } = ctx;
-  const marked = new Set(setting(db, 'start.done'));
-  if (done) marked.add(step);
-  else marked.delete(step);
-  saveSetting(db, 'start.done', START_STEPS.map((s) => s.id).filter((id) => marked.has(id)));
-  return saved(step);
-}
-
 export const START_HANDLERS = {
   'start.view': view,
   'start.date.save': saveDate,
-  'start.step.save': saveStep,
 };

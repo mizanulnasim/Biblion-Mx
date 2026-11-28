@@ -28,8 +28,12 @@ test('an applicant moves through the stages and, hired, becomes staff with onboa
   assert.equal(ob.staff.name, 'Nadia');
   assert.equal(ob.steps.length, 7);
   assert.deepEqual(ob.facts, { sign_in: false, pin: false });
-  for (let i = 0; i < 6; i++) s.call(s.manager, 'onboarding.tick', { id: ob.id, step: i, done: true });
-  assert.equal(s.call(s.manager, 'onboarding.tick', { id: ob.id, step: 6, done: true }).data.data.finished, true);
+  const tick = (step) => s.call(s.manager, 'steps.tick', { list: 'onboarding', ref: ob.id, step, done: true }).data;
+  for (let i = 0; i < 6; i++) tick(String(i));
+  assert.equal(s.call(s.manager, 'onboarding.list').data.items[0].steps[0].by, 'Manager');
+  assert.equal(tick('6').data.finished, true);
+  // Done: nothing more can be ticked.
+  assert.equal(tick('0').error.code, 'CONFLICT');
   assert.equal(s.call(s.manager, 'onboarding.list').data.items.length, 0);
 });
 

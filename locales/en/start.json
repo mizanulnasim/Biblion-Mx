@@ -24,8 +24,6 @@
   "start.help.cafe": "Count the café's stock once; later counts work out what was used from it.",
   "start.count": "{count, plural, =0 {None entered yet} one {# entered} other {# entered}}",
   "start.open": "Open",
-  "start.tick": "Mark done",
-  "start.untick": "Not done yet",
   "start.waiting": "Waiting for approval",
   "home.opening_stock": "The opening book stock waits for your approval",
   "home.start_left": "Getting started: {count, plural, one {# step} other {# steps}} left",
