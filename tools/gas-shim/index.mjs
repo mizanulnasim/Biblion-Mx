@@ -83,6 +83,10 @@ function makeSheet(sheet) {
       return sheet.cells.reduce((max, line) => Math.max(max, (line || []).length), 0);
     },
     getRange: (row, col, rows = 1, cols = 1) => makeRange(sheet, row, col, rows, cols),
+    deleteRow(row) {
+      sheet.cells.splice(row - 1, 1);
+      sheet.formats.splice(row - 1, 1);
+    },
   };
 }
 
@@ -173,11 +177,23 @@ export function gasGlobals(state) {
     PropertiesService: {
       getScriptProperties: () => ({
         getProperty: (k) => (k in state.props ? state.props[k] : null),
+        getProperties: () => ({ ...state.props }),
         setProperty: (k, v) => { state.props[k] = String(v); },
         deleteProperty: (k) => { delete state.props[k]; },
       }),
     },
     LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) },
+    // A cache kept with the state (lost when the preview restarts, like
+    // Google's, which also drops entries when it needs room).
+    CacheService: {
+      getScriptCache: () => {
+        const store = (state.cache ||= {});
+        return {
+          getAll: (keys) => Object.fromEntries(keys.filter((k) => k in store).map((k) => [k, store[k]])),
+          putAll: (values) => { Object.assign(store, values); },
+        };
+      },
+    },
     // Emails are kept, not sent.
     MailApp: { sendEmail: (mail) => { (state.mails ||= []).push({ ...mail, attachments: (mail.attachments || []).map((a) => a.getName()) }); } },
     SpreadsheetApp: {

@@ -44,6 +44,7 @@ function login(ctx, input) {
       failed_attempts: lock ? 0 : failed,
       locked_until: lock ? new Date(db.now.getTime() + BUSINESS_DEFAULTS['auth.lock_minutes'] * MINUTE_MS).toISOString() : '',
     });
+    db.commit();
     throw new AppError('AUTH_FAILED');
   }
   const current = db.update('Users', user, { failed_attempts: 0, locked_until: '', last_login_at: db.nowIso });

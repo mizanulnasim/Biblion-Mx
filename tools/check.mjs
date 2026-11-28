@@ -7,11 +7,13 @@
 //   - message ids: unused, missing, only in one language, empty, different
 //     placeholders between languages, or Bangla text with no Bangla in it
 //   - an action without a handler, or a handler without an action
+//   - a shipped file over its size budget
 // Usage: node tools/check.mjs   (runs a build first)
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { gzipSync } from 'node:zlib';
 import { LANGS, ROOT, build, loadLocale } from './build.mjs';
 
 const problems = [];
@@ -171,12 +173,33 @@ async function checkActions() {
   for (const name of Object.keys(HANDLERS)) if (!ACTIONS[name]) problems.push(`Handler ${name} is not in the action list`);
 }
 
+// Size budgets (compressed bytes, as the phone downloads them), so the app
+// stays quick to open on a slow connection.
+const BUDGETS = [
+  [/^app\.[0-9a-f]+\.js$/, 100000, 'start-up script'],
+  [/^app\.[0-9a-f]+\.css$/, 10000, 'styles'],
+  [/^locales\//, 50000, 'language file'],
+  [/^pages\//, 15000, 'page'],
+];
+
+function checkSizes(result) {
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
+  for (const file of walk(result.web)) {
+    const rel = path.relative(result.web, file).split(path.sep).join('/');
+    const budget = BUDGETS.find(([re]) => re.test(rel));
+    if (!budget) continue;
+    const size = gzipSync(fs.readFileSync(file), { level: 9 }).length;
+    if (size > budget[1]) problems.push(`The ${budget[2]} ${rel} is ${size} bytes compressed; the budget is ${budget[1]}`);
+  }
+}
+
 export async function check() {
   problems.length = 0;
   const result = build();
   const files = checkModules(result);
   checkCode(files);
   checkMessages(files);
+  checkSizes(result);
   await checkActions();
   return problems.slice();
 }

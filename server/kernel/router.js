@@ -26,9 +26,12 @@ function runWrite(def, req, ctx, handler, input) {
     if (done) return done.reply;
   }
   let reply;
+  // Nothing is half-saved: a write that fails part-way is undone.
+  db.begin();
   try {
     reply = handler(ctx, input);
   } catch (err) {
+    db.rollback();
     if (!(err instanceof AppError)) throw err;
     return rejected(err.code, err.params, err.fields);
   }
@@ -49,7 +52,8 @@ function dispatch(req) {
   if (def.write && (typeof req.op_id !== 'string' || req.op_id.length < 8)) return fail('BAD_REQUEST');
   if (!SETUP_ACTIONS.has(req.action) && !isInitialized()) return fail('NOT_INITIALIZED');
 
-  const db = openDb(new Date());
+  // A read may use the cache; a write always reads the sheets.
+  const db = openDb(new Date(), { cache: !def.write });
   db.setContext({ action: req.action, op_id: req.op_id || '' });
   // What the phone's clock showed when it sent the request (to correct punch times).
   const clientNow = typeof req.client_now === 'string' && !Number.isNaN(Date.parse(req.client_now)) ? req.client_now : null;

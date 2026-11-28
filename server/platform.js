@@ -2,7 +2,7 @@
 // goes through these functions, so the local preview can run the same bundle
 // against tools/gas-shim.
 
-/* global PropertiesService, LockService, SpreadsheetApp, Utilities, ContentService, MailApp */
+/* global PropertiesService, LockService, SpreadsheetApp, Utilities, ContentService, MailApp, CacheService */
 
 const props = () => PropertiesService.getScriptProperties();
 
@@ -18,10 +18,24 @@ export function deleteProp(key) {
   props().deleteProperty(key);
 }
 
+// Every script property at once (one call).
+export function allProps() {
+  return props().getProperties();
+}
+
+// The script cache: values by key, kept up to `seconds`.
+export function cacheGetAll(keys) {
+  return CacheService.getScriptCache().getAll(keys);
+}
+
+export function cachePutAll(values, seconds) {
+  CacheService.getScriptCache().putAll(values, seconds);
+}
+
 // Runs fn while holding the script lock, so writes never interleave.
 export function withLock(fn) {
   const lock = LockService.getScriptLock();
-  if (!lock.tryLock(20000)) return null;
+  if (!lock.tryLock(30000)) return null;
   try {
     return { value: fn() };
   } finally {

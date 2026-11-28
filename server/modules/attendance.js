@@ -349,6 +349,7 @@ function devicePunch(ctx, input) {
       pin_failed: lock ? 0 : failed,
       pin_locked_until: lock ? new Date(db.now.getTime() + BUSINESS_DEFAULTS['auth.lock_minutes'] * MINUTE_MS).toISOString() : '',
     });
+    db.commit();
     throw new AppError('PIN_WRONG');
   }
   if (staff.pin_failed) db.update('Staff', staff, { pin_failed: 0 });

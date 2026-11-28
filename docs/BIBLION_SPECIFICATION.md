@@ -1314,7 +1314,7 @@ A restore from a downloaded file is also possible.
 | Audit | Every change, sign-in, failed sign-in, sensitive view and override is logged. |
 | Owners | The Owner role can't lose permissions; the last active owner can't be disabled. |
 | Location | GPS is evidence, not proof. It is recorded with accuracy and distance; suspicious or offline punches need a manager's validation. |
-| Writes | Changes are made one at a time under a lock (a request that waits more than 30 seconds fails cleanly with BUSY). Each change runs inside a rollback journal, so a failure part-way leaves no half-made records. |
+| Writes | Changes are made one at a time under a lock (a request that waits more than 30 seconds fails cleanly with BUSY). Each change runs inside a rollback journal, so an error part-way leaves no half-made records. A wrong password or PIN still counts towards the lockout. |
 | Keys | The Gemini and Google Books keys are kept in the script's properties, never in the app, a sheet or a reply. |
 | Two addresses | The app opened from GitHub Pages or from the Apps Script address uses the same sign-in and the same server checks; each keeps its own sign-in on the device. |
 
@@ -1433,7 +1433,7 @@ Left out by the owners:
 
 ## 30. Limits of the free setup
 
-- **Google Sheets is not a database.** Changes are made one at a time (about 1–4 seconds each for a café team). Each request has a 6-minute limit, and each script property about 9 KB. If Google stops a request part-way, the rollback journal undoes it and the retry re-applies it.
+- **Google Sheets is not a database.** Changes are made one at a time (about 1–4 seconds each for a café team). Each request has a 6-minute limit, and each script property about 9 KB. An error part-way is undone by the rollback journal. If Google kills a request at its time limit, the journal cannot run, so a stray row is possible. The phone then retries the change (same op_id), and the stray row stays visible in the activity log.
 - **Gmail's daily limit** (about 100 emails a day on a normal account) bounds email notifications; a refused email never stops the others or the jobs.
 - **Live updates** reach other people within about 30 seconds, not instantly.
 - **GPS can be faked** by a skilled person. Such punches are provisional or flagged.
