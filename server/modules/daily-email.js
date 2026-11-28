@@ -4,11 +4,11 @@
 // money overdue, what waits for their approval, the day's shift missing or
 // the day not closed, and the drawer short or over. In their language.
 
-import { effectivePermissions, roleById } from '../../shared/schema/permissions.js';
+import { roleById } from '../../shared/schema/permissions.js';
 import { dhakaDate } from '../../shared/hr/attendance.js';
 import { addDays } from '../../shared/hr/plan.js';
 import { getProp, sendMail, setProp } from '../platform.js';
-import { setting } from '../kernel/settings.js';
+import { personalSettings, setting } from '../kernel/settings.js';
 import { dayText, moneyText, text } from '../kernel/i18n.js';
 import { isDayClosed } from './closing.js';
 import { salaryOverdueList } from './payroll.js';
@@ -18,15 +18,10 @@ import { openingWaiting } from './stocktake.js';
 import { leaveWaiting } from './leave.js';
 import { rotaWaiting } from './rota.js';
 import { detailsWaiting } from './staff.js';
+import { ctxFor } from './approvals.js';
 
 const LAST_DAY = 'DAILY_EMAIL_DAY';
 const minutesOf = (hhmm) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
-
-// The request context a job uses to see what a user would see.
-function ctxFor(db, user) {
-  const permissions = new Set(effectivePermissions(user));
-  return { db, user, level: roleById(user.role_id).level, can: (perm) => permissions.has(perm) };
-}
 
 // The warnings for one shareholder about day `date`, as lines of text.
 function warnings(ctx, date, lang) {
@@ -42,9 +37,9 @@ function warnings(ctx, date, lang) {
   const cafe = db.all('Cafe_Orders').filter((o) => o.status === 'waiting' && o.entered_by !== ctx.user.id).length;
   if (cafe) say('mail.cafe_waiting', { count: cafe });
   if (openingWaiting(ctx)) say('home.opening_stock');
-  const leave = leaveWaiting(ctx);
+  const leave = leaveWaiting(ctx).length;
   if (leave) say('mail.leave_waiting', { count: leave });
-  const rota = rotaWaiting(ctx);
+  const rota = rotaWaiting(ctx).length;
   if (rota) say('mail.rota_waiting', { count: rota });
   const details = detailsWaiting(ctx).length;
   if (details) say('mail.details_waiting', { count: details });
@@ -64,16 +59,16 @@ function warnings(ctx, date, lang) {
 function sendFor(db, date) {
   let sent = 0;
   for (const user of db.all('Users')) {
-    const settings = user.settings || {};
-    if (user.status !== 'active' || roleById(user.role_id).level < 3 || !settings.notify_email || settings.notify_daily === false) continue;
-    const lang = settings.lang || 'en';
+    const settings = personalSettings(db, user);
+    if (user.status !== 'active' || roleById(user.role_id).level < 3 || !settings['notify.email_enabled'] || !settings['notify.email']) continue;
+    const { lang } = settings;
     const lines = warnings(ctxFor(db, user), date, lang);
     if (!lines.length) continue;
     const shop = setting(db, 'shop.name');
     // One refused email (Gmail's daily limit, a bad address) doesn't stop
     // the others or the hourly jobs; the count says how many went.
     try {
-      sendMail(settings.notify_email, text(lang, 'mail.subject', { shop, count: lines.length, date: dayText(lang, date) }),
+      sendMail(settings['notify.email'], text(lang, 'mail.subject', { shop, count: lines.length, date: dayText(lang, date) }),
         `${text(lang, 'mail.greeting', { name: user.display_name })}\n\n${lines.map((l) => `• ${l}`).join('\n')}\n\n${text(lang, 'mail.footer', { shop })}\n`);
       sent++;
     } catch {

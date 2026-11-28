@@ -36,7 +36,7 @@ import { USER_HANDLERS } from './users.js';
 import { MONTH_HANDLERS } from './month.js';
 import { START_HANDLERS } from './start.js';
 import { REPORT_HANDLERS } from './reports.js';
-import { MESSAGE_HANDLERS } from './messages.js';
+import { NOTIFICATION_HANDLERS } from './notifications.js';
 import { REPORT_FILE_HANDLERS } from './report-files.js';
 
 export const HANDLERS = Object.freeze({
@@ -47,7 +47,7 @@ export const HANDLERS = Object.freeze({
   ...MONTH_HANDLERS,
   ...START_HANDLERS,
   ...REPORT_HANDLERS,
-  ...MESSAGE_HANDLERS,
+  ...NOTIFICATION_HANDLERS,
   ...REPORT_FILE_HANDLERS,
   ...AUDIT_HANDLERS,
   ...SETTINGS_HANDLERS,

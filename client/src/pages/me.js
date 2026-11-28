@@ -29,15 +29,15 @@ function displayForm(settings) {
   });
 }
 
-// A shareholder's daily warnings email (sent after the shop closes, only on
-// days with something to say).
+// Email: new notifications every hour, and for shareholders the daily
+// warnings and the month's reports.
 function notifyForm(settings) {
   return formView({
     submit: t('common.save'),
-    values: { email: settings.notify_email, daily: settings.notify_daily },
+    values: { email: settings['notify.email'], enabled: settings['notify.email_enabled'] },
     fields: [
-      { name: 'email', label: t('me.notify_email'), inputmode: 'email', help: t('me.notify_email_help') },
-      { name: 'daily', label: t('me.notify_daily'), type: 'checkbox' },
+      { name: 'enabled', label: t('me.notify_daily'), type: 'checkbox', help: t(getState().meta.user.level >= 3 ? 'me.notify_email_help' : 'me.notify_staff_help') },
+      { name: 'email', label: t('me.notify_email'), inputmode: 'email' },
     ],
   });
 }
@@ -96,7 +96,7 @@ export const mePage = {
     const draw = () => {
       render(el, html`
         <section class="panel"><h2 class="section-title">${t('me.display')}</h2><div data-slot="display">${displayForm(getState().meta.settings)}</div></section>
-        ${getState().meta.user.level >= 3 ? html`<section class="panel"><h2 class="section-title">${t('me.notify')}</h2><div data-slot="notify">${notifyForm(getState().meta.settings)}</div></section>` : ''}
+        <section class="panel"><h2 class="section-title">${t('me.notify')}</h2><div data-slot="notify">${notifyForm(getState().meta.settings)}</div></section>
         ${can('self.staff') ? html`<div data-slot="details"></div>` : ''}
         <section class="panel"><h2 class="section-title">${t('me.password')}</h2>
           ${can('me.password') ? html`<div data-slot="password">${passwordForm()}</div>` : html`<p>${t('me.password_ask')}</p>`}</section>`);
@@ -120,20 +120,17 @@ export const mePage = {
         },
       });
 
-      const notify = el.querySelector('[data-slot="notify"] form');
-      if (notify) {
-        bindForm(notify, {
-          schema: ACTIONS['me.notify'].schema,
-          busyLabel: t('common.saving'),
-          mapValues: (v) => ({ email: v.email || null, daily: Boolean(v.daily) }),
-          onSubmit: (values) => write('me.notify', values),
-          onSaved: (reply) => {
-            setState({ meta: reply.data });
-            device.set('meta', reply.data);
-            toast(t('me.saved'));
-          },
-        });
-      }
+      bindForm(el.querySelector('[data-slot="notify"] form'), {
+        schema: ACTIONS['me.notify'].schema,
+        busyLabel: t('common.saving'),
+        mapValues: (v) => ({ email: v.email || null, enabled: Boolean(v.enabled) }),
+        onSubmit: (values) => write('me.notify', values),
+        onSaved: (reply) => {
+          setState({ meta: reply.data });
+          device.set('meta', reply.data);
+          toast(t('me.saved'));
+        },
+      });
 
       if (can('self.staff')) mountDetails(el.querySelector('[data-slot="details"]'));
 

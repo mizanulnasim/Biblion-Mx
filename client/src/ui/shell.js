@@ -108,6 +108,7 @@ export function mountShell(root, { items, groups, onSignOut }) {
         <button class="icon-btn menu-btn" data-act="open-menu" aria-label="${t('shell.menu')}">${icon('menu')}</button>
         <h1 class="page-title"></h1>
         ${can('intake.upload') ? html`<a class="icon-btn" href="#/upload" aria-label="${t('nav.upload')}" title="${t('nav.upload')}">${icon('upload')}</a>` : ''}
+        <a class="icon-btn bell" href="#/notifications" aria-label="${t('nav.notifications')}" title="${t('nav.notifications')}">${icon('bell')}<span class="bell-count"></span></a>
         <div class="conn-slot"></div>
       </header>
       <nav class="sidenav" aria-label="${t('shell.menu')}"></nav>
@@ -120,6 +121,7 @@ export function mountShell(root, { items, groups, onSignOut }) {
   const bottom = root.querySelector('.bottombar');
   const title = root.querySelector('.page-title');
   const conn = root.querySelector('.conn-slot');
+  const bell = root.querySelector('.bell-count');
   let path = '/';
 
   const draw = () => {
@@ -127,6 +129,7 @@ export function mountShell(root, { items, groups, onSignOut }) {
     render(nav, navView(items, groups, path, state));
     render(bottom, bottomView(items, path));
     render(conn, connection(state));
+    bell.textContent = state.unread ? String(state.unread) : '';
   };
   const unsubscribe = subscribe(draw);
   const offDrop = can('intake.upload') ? dropAnywhere(app) : () => {};

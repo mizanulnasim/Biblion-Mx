@@ -30,7 +30,7 @@ import { setting } from '../kernel/settings.js';
 import { attendanceMonth } from './attendance.js';
 import { planner } from './rota.js';
 import { joinedOn, staffOfUser } from './staff.js';
-import { tell } from './messages.js';
+import { tell } from '../kernel/notify.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
 // The weeks of food allowance shown on a pay account.
@@ -307,7 +307,7 @@ function issue(ctx, input) {
   const row = db.insert('Payslips', {
     ...d, staff_id: staff.id, note: input.note || '', status: 'issued', cancel_reason: '', issued_by: ctx.user.id, issued_at: db.nowIso,
   });
-  tell(ctx, staff.user_id, 'msg.payslip_issued', { month: { mo: input.month }, net: { m: row.net } }, `/payslip?id=${row.id}`);
+  tell(ctx, staff.user_id, 'hr', 'msg.payslip_issued', { month: { mo: input.month }, net: { m: row.net } }, `/payslip?id=${row.id}`);
   return saved(row.id, { net: row.net });
 }
 

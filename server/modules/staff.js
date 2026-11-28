@@ -14,7 +14,7 @@ import { KDF_ITERATIONS, hashPassword, newSalt } from '../kernel/crypto.js';
 import { dhakaDate } from '../../shared/hr/attendance.js';
 import { salaryOn } from '../../shared/hr/pay.js';
 import { setting } from '../kernel/settings.js';
-import { tell } from './messages.js';
+import { tell } from '../kernel/notify.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
 
@@ -182,7 +182,7 @@ function decideDetails(ctx, { id, decision, note }) {
   if (note) db.setReason(note);
   if (decision === 'accept') db.update('Staff', staff, { phone: c.phone, email: c.email, address: c.address });
   db.update('Detail_Changes', c, { status: decision === 'accept' ? 'approved' : 'rejected', decided_by: ctx.user.id, decided_at: db.nowIso, decide_note: note || '' });
-  tell(ctx, staff.user_id, decision === 'accept' ? 'msg.details_approved' : 'msg.details_rejected', { note: note || '' }, '/me');
+  tell(ctx, staff.user_id, 'hr', decision === 'accept' ? 'msg.details_approved' : 'msg.details_rejected', { note: note || '' }, '/me');
   return saved(c.id);
 }
 

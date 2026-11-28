@@ -487,12 +487,14 @@ export const TABLES = Object.freeze({
     prefix: 'RPP',
     columns: ['report', 'ref', 'printed_by'],
   },
-  // A message on a person's Home until they dismiss it (seen_at). text:
-  // {t: message id, p: params}; link: where it opens.
-  Messages: {
+  // The one notification system (server/modules/notifications.js). text:
+  // {t: message id, p: params}; area: the part of the app; key: stops the
+  // same notification twice; done: what closed it (an approval decided).
+  Notifications: {
     group: 'core',
-    prefix: 'MSG',
-    columns: ['user_id', 'text:j', 'link', 'seen_at'],
+    prefix: 'NTF',
+    columns: ['user_id', 'area', 'priority', 'key', 'text:j', 'link', 'read_at', 'done:j', 'hidden:b', 'emailed_at'],
+    log: true,
   },
   // One row per closed date; reopening keeps the row with its reason.
   Day_Closings: {

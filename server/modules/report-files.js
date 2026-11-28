@@ -9,6 +9,7 @@ import { reportSheets } from '../../shared/reports/sheets.js';
 import { digitsFor } from '../../shared/lib/messages.js';
 import { roleById } from '../../shared/schema/permissions.js';
 import { dayText, figureText, moneyText, text } from '../kernel/i18n.js';
+import { personalSettings } from '../kernel/settings.js';
 import { folderFor, htmlToPdf, saveFile, sendMail, sha256Hex } from '../platform.js';
 import { shopDetails } from './meta.js';
 import { monthReport } from './reports.js';
@@ -104,12 +105,12 @@ function monthFiles(ctx, month) {
 function sendMonthFiles(db, month, files) {
   let sent = 0;
   for (const user of db.all('Users')) {
-    const settings = user.settings || {};
-    if (user.status !== 'active' || roleById(user.role_id).level < 3 || !settings.notify_email) continue;
-    const lang = settings.lang || 'en';
+    const settings = personalSettings(db, user);
+    if (user.status !== 'active' || roleById(user.role_id).level < 3 || !settings['notify.email_enabled'] || !settings['notify.email']) continue;
+    const { lang } = settings;
     const shop = shopDetails(db).name;
     try {
-      sendMail(settings.notify_email, text(lang, 'mail.month_subject', { shop, month }),
+      sendMail(settings['notify.email'], text(lang, 'mail.month_subject', { shop, month }),
         `${text(lang, 'mail.greeting', { name: user.display_name })}\n\n${text(lang, 'mail.month_body', { month })}\n\n${text(lang, 'mail.footer', { shop })}\n`, files);
       sent++;
     } catch {

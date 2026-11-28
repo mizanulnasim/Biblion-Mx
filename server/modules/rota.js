@@ -11,7 +11,7 @@ import { COUNTED, dhakaDate, dhakaIso } from '../../shared/hr/attendance.js';
 import { setting } from '../kernel/settings.js';
 import { mayDecideFor, staffOfUser } from './staff.js';
 import { leaveTypes } from './leave-types.js';
-import { tell } from './messages.js';
+import { tell } from '../kernel/notify.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
 const WEEK_DAYS = 7;
@@ -305,7 +305,7 @@ function decide(ctx, { id, decision, note }) {
   if (decision === 'accept') apply(ctx, db.update('Rota_Requests', r, { decide_note: note || '' }));
   else db.update('Rota_Requests', r, { status: 'declined', decided_by: ctx.user.id, decided_at: db.nowIso, decide_note: note });
   // Everyone in the request is told.
-  for (const s of people) tell(ctx, s.user_id, decision === 'accept' ? 'msg.rota_approved' : 'msg.rota_declined', { date: { d: r.date }, note: note || '' }, '/rota');
+  for (const s of people) tell(ctx, s.user_id, 'hr', decision === 'accept' ? 'msg.rota_approved' : 'msg.rota_declined', { date: { d: r.date }, note: note || '' }, '/rota');
   return saved(r.id);
 }
 
@@ -318,12 +318,12 @@ function withdraw(ctx, { id }) {
   return saved(r.id);
 }
 
-// How many rota requests wait for this person (to agree to, or to decide).
+// The rota requests waiting for this person (to agree to, or to decide).
 export function rotaWaiting(ctx) {
   const { db } = ctx;
   const mine = staffOfUser(db, ctx.user.id);
   return db.all('Rota_Requests').filter((r) => (mine && r.status === 'partner' && r.partner_id === mine.id)
-    || (r.status === 'waiting' && ctx.can('schedule.manage') && [r.staff_id, r.partner_id].filter(Boolean).every((id) => mayDecideFor(ctx, db.get('Staff', id), 'schedule.manage')))).length;
+    || (r.status === 'waiting' && ctx.can('schedule.manage') && [r.staff_id, r.partner_id].filter(Boolean).every((id) => mayDecideFor(ctx, db.get('Staff', id), 'schedule.manage'))));
 }
 
 // ---- Days a person can't work -------------------------------------------------

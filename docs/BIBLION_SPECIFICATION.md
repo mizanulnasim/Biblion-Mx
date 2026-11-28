@@ -259,6 +259,8 @@ Shows who is working, late, on a break, on leave or absent, today's checklists, 
 - **The shareholders' daily warnings email** goes to each shareholder with email on, the set minutes after the shop closes (60, `notify.after_close_min`), only on days with something to say, in their own language. It lists: money overdue (salaries, profit shares, supplier payments); what waits for their approval; the day's shift missing or the day not closed; the drawer short or over; and what managers made final that day.
 - **The weekly owner digest**, Saturday morning: last week's sales, profit so far, cash, what is owed, top books and café waste, by email and in notifications.
 - Notifications are in the app and by email only. There are no phone push notifications.
+- **By email:** someone with email on gets one email an hour of their new notifications that are still unread.
+- **Approvals are worked out from the records** by the ladder: a notification is made when an entry starts waiting for someone, and closed as soon as anyone decides it.
 
 ### 5.5 Tasks
 **One task system** across the whole app.

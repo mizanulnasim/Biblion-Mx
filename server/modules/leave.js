@@ -21,7 +21,7 @@ import { setting } from '../kernel/settings.js';
 import { joinedOn, mayDecideFor, staffOfUser } from './staff.js';
 import { planner } from './rota.js';
 import { moveTasksForLeave } from './tasks.js';
-import { tell } from './messages.js';
+import { tell } from '../kernel/notify.js';
 import { leaveType, leaveTypes } from './leave-types.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
@@ -139,7 +139,7 @@ function decide(ctx, { id, decision, note }) {
   if (note) db.setReason(note);
   const row = db.update('Leaves', l, { status: decision === 'accept' ? 'approved' : 'declined', decided_by: ctx.user.id, decided_at: db.nowIso, decide_note: note || '' });
   if (decision === 'accept') moveTasksForLeave(ctx, row);
-  tell(ctx, staff.user_id, decision === 'accept' ? 'msg.leave_approved' : 'msg.leave_declined', { from: { d: l.from }, to: { d: l.to }, note: note || '' }, '/leave');
+  tell(ctx, staff.user_id, 'hr', decision === 'accept' ? 'msg.leave_approved' : 'msg.leave_declined', { from: { d: l.from }, to: { d: l.to }, note: note || '' }, '/leave');
   return saved(l.id);
 }
 
@@ -175,8 +175,8 @@ function overview(ctx) {
 }
 
 export function leaveWaiting(ctx) {
-  if (!ctx.can('leave.approve')) return 0;
-  return ctx.db.all('Leaves').filter((l) => l.status === 'waiting' && mayDecideFor(ctx, ctx.db.get('Staff', l.staff_id), 'leave.approve')).length;
+  if (!ctx.can('leave.approve')) return [];
+  return ctx.db.all('Leaves').filter((l) => l.status === 'waiting' && mayDecideFor(ctx, ctx.db.get('Staff', l.staff_id), 'leave.approve'));
 }
 
 function adjust(ctx, input) {

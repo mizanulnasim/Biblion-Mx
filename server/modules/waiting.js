@@ -3,7 +3,7 @@
 // reviews, announcements and procedures to read, salaries overdue, and
 // changes to people's own contact details; for shareholders, Getting
 // started steps left, the opening stock to approve and profit shares
-// overdue; publisher payments overdue; and their messages.
+// overdue; publisher payments overdue; and their unread notifications.
 
 import { waitingChecks } from './attendance.js';
 import { docsWaiting } from './docs.js';
@@ -17,24 +17,24 @@ import { startLeft } from './start.js';
 import { openingWaiting } from './stocktake.js';
 import { profitOverdue } from './month.js';
 import { publishersOverdue } from './suppliers.js';
-import { myMessages } from './messages.js';
+import { unread } from './notifications.js';
 
 function waiting(ctx) {
   const checks = ctx.can('attendance.manage') ? waitingChecks(ctx) : null;
   return {
     checks: checks ? checks.punches.length + checks.fixes.length : 0,
-    rota: rotaWaiting(ctx),
-    leave: leaveWaiting(ctx),
-    tasks: tasksToCheck(ctx),
+    rota: rotaWaiting(ctx).length,
+    leave: leaveWaiting(ctx).length,
+    tasks: tasksToCheck(ctx).length,
     reviews: reviewsWaiting(ctx),
     docs: docsWaiting(ctx),
     salary: salaryOverdue(ctx),
     details: detailsWaiting(ctx).length,
     start: startLeft(ctx),
-    opening_stock: openingWaiting(ctx),
+    opening_stock: openingWaiting(ctx) ? 1 : 0,
     profit_overdue: profitOverdue(ctx),
     publishers: publishersOverdue(ctx),
-    messages: myMessages(ctx),
+    notifications: unread(ctx),
   };
 }
 

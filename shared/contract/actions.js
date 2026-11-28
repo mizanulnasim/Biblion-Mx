@@ -20,6 +20,9 @@ import { MANUAL_STEPS } from '../schema/start.js';
 import { LISTS, listSchema } from '../lists/lists.js';
 import { PERSONAL_KEYS, SETTINGS, SETTING_AREAS, areaSchema } from '../schema/settings.js';
 
+// The parts of the app a notification belongs to.
+export const NOTIFY_AREAS = Object.freeze(['accounts', 'books', 'cafe', 'hr', 'tasks']);
+
 // Bumped whenever a request or reply changes shape. A client built for another
 // contract is told to update itself (v1 bug S10).
 export const CONTRACT = 1;
@@ -138,10 +141,14 @@ export const ACTIONS = Object.freeze({
     },
   },
   'sync.version': {},
-  // A shareholder's daily warnings email: their address and whether to send it.
-  'me.notify': { write: true, area: 'core', schema: { email: { type: 'email' }, daily: { type: 'bool', required: true } } },
-  // A message on Home, dismissed by the person it is for.
-  'messages.dismiss': { write: true, area: 'core', schema: { id: { type: 'id', required: true } } },
+  // Email on or off, and the address.
+  'me.notify': { write: true, area: 'core', schema: { email: { type: 'email' }, enabled: { type: 'bool' } } },
+  // Notifications: history (newest first, 30 at a time), the unread count,
+  // marking read (one, or all with no id), and dismissing one.
+  'notify.list': { schema: { offset: { type: 'int', min: 0 }, area: { type: 'enum', values: NOTIFY_AREAS }, unread: { type: 'bool' }, q: { type: 'text', max: 100 } } },
+  'notify.count': {},
+  'notify.read': { write: true, area: 'core', schema: { id: { type: 'id' } } },
+  'notify.dismiss': { write: true, area: 'core', schema: { id: { type: 'id', required: true } } },
   'users.list': { perm: 'users.manage', cache: true, schema: PAGED },
   'users.save': {
     write: true, perm: 'users.manage', area: 'core',

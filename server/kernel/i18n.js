@@ -2,6 +2,7 @@
 // build puts the messages in the server bundle as BIBLION_LOCALES.
 
 import { digitsFor, formatMessage, groupDigits } from '../../shared/lib/messages.js';
+import { KINDS } from '../../shared/money/kinds.js';
 
 const WEEKDAYS = ['date.wd.sun', 'date.wd.mon', 'date.wd.tue', 'date.wd.wed', 'date.wd.thu', 'date.wd.fri', 'date.wd.sat'];
 const MONTHS = [
@@ -36,4 +37,24 @@ export function moneyText(lang, amount) {
   const cents = Math.round((abs - whole) * 100);
   const figures = digitsFor(lang, groupDigits(whole) + (cents ? `.${String(cents).padStart(2, '0')}` : ''));
   return text(lang, amount < 0 ? 'money.amount_negative' : 'money.amount', { amount: figures });
+}
+
+// "November 2026" from "2026-11".
+function monthText(lang, month) {
+  return text(lang, 'date.month_year', { mon: text(lang, MONTHS[Number(month.slice(5, 7)) - 1]), year: digitsFor(lang, month.slice(0, 4)) });
+}
+
+// A stored message ({t, p}) in a language: a param {d: date}, {m: amount},
+// {mo: month} or {k: money kind} is written out.
+export function messageText(lang, message) {
+  const params = {};
+  for (const [k, v] of Object.entries(message.p || {})) {
+    if (v && typeof v === 'object') {
+      if ('d' in v) params[k] = dayText(lang, v.d);
+      else if ('m' in v) params[k] = moneyText(lang, v.m);
+      else if ('mo' in v) params[k] = v.mo ? monthText(lang, v.mo) : '';
+      else params[k] = text(lang, KINDS[v.k].label);
+    } else params[k] = v;
+  }
+  return text(lang, message.t, params);
 }

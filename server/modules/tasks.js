@@ -22,7 +22,7 @@ import { setting } from '../kernel/settings.js';
 import { planner } from './rota.js';
 import { mayDecideFor, staffOfUser } from './staff.js';
 import { storeFile } from './files.js';
-import { tell } from './messages.js';
+import { tell } from '../kernel/notify.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
 const today = (db) => dhakaDate(db.now.getTime());
@@ -142,8 +142,8 @@ export function moveTasksForLeave(ctx, leave) {
 // The doer and the giver are told when a task moves to an earlier day.
 function toldMoved(ctx, t, staff, from, to) {
   const params = { title: t.title, from: { d: from }, to: { d: to } };
-  tell(ctx, staff.user_id, 'msg.task_moved', params, '/tasks');
-  if (t.created_by !== staff.user_id) tell(ctx, t.created_by, 'msg.task_moved_given', { ...params, name: staff.name }, '/tasks');
+  tell(ctx, staff.user_id, 'tasks', 'msg.task_moved', params, '/tasks');
+  if (t.created_by !== staff.user_id) tell(ctx, t.created_by, 'tasks', 'msg.task_moved_given', { ...params, name: staff.name }, '/tasks');
 }
 
 // A task the signed-in person may do: theirs, or open and given to them
@@ -399,7 +399,7 @@ function verify(ctx, { id, decision, note }) {
   db.update('Tasks', t, {
     status: decision === 'accept' ? 'done' : 'open', checked_by: ctx.user.id, checked_at: db.nowIso, check_note: note || '',
   });
-  if (decision !== 'accept') tell(ctx, staff.user_id, 'msg.task_sent_back', { title: t.title, note }, '/tasks');
+  if (decision !== 'accept') tell(ctx, staff.user_id, 'tasks', 'msg.task_sent_back', { title: t.title, note }, '/tasks');
   return saved(t.id);
 }
 
@@ -530,7 +530,7 @@ export function tasksDue(db, date) {
 }
 
 export function tasksToCheck(ctx) {
-  return ctx.can('tasks.verify') ? toCheck(ctx).length : 0;
+  return ctx.can('tasks.verify') ? toCheck(ctx) : [];
 }
 
 export const TASK_HANDLERS = {

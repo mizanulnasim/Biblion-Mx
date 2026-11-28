@@ -63,11 +63,11 @@ function current(ctx) {
 // Who counted or sent a stock-take: they can't approve it.
 const counters = (take) => [take.started_by, take.sent_by].filter(Boolean);
 
-// For Home: 1 when the opening stock waits for this person's approval.
+// The opening stock-take, when it waits for this person's approval.
 export function openingWaiting(ctx) {
-  if (!ctx.can('acc.approve')) return 0;
+  if (!ctx.can('acc.approve')) return null;
   const take = ctx.db.all('Stock_Takes').find((s) => s.opening && s.status === 'waiting');
-  return take && !counters(take).includes(ctx.user.id) ? 1 : 0;
+  return take && !counters(take).includes(ctx.user.id) ? take : null;
 }
 
 function start(ctx, { publisher_id: publisherId, opening }) {

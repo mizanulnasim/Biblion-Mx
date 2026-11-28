@@ -194,9 +194,10 @@ export const SETTINGS = Object.freeze({
   lang: { area: 'display', kind: 'choice', personal: true, start: 'en', label: 'me.language', choices: { en: 'set.lang.en', bn: 'set.lang.bn' } },
   theme: { area: 'display', kind: 'choice', personal: true, start: 'system', label: 'me.theme', choices: { system: 'me.theme_system', light: 'me.theme_light', dark: 'me.theme_dark' } },
   accent: { area: 'display', kind: 'color', personal: true, start: BRAND_ACCENT, label: 'me.accent', help: 'me.accent_help' },
-  // A shareholder's daily warnings email: where to, and whether to send it.
-  notify_email: { kind: 'email', personal: true, start: '' },
-  notify_daily: { kind: 'bool', personal: true, start: true },
+  // Email: on or off, and where to. It carries new notifications every
+  // hour, and for shareholders the daily warnings and the month's reports.
+  'notify.email_enabled': { kind: 'bool', personal: true, start: false },
+  'notify.email': { kind: 'email', personal: true, start: '' },
 
   // ---- Changed on their own pages ----
   // Getting started: the steps a shareholder has marked done.

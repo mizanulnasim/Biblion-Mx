@@ -45,10 +45,10 @@ function saveSettings(ctx, input) {
   return saved(user.id, metaFor(user, ctx.db));
 }
 
-// Only shareholders get the daily warnings email.
-function saveNotify(ctx, { email, daily }) {
-  if (ctx.level < 3) throw new AppError('FORBIDDEN');
-  const user = ctx.db.update('Users', ctx.user, { settings: { ...(ctx.user.settings || {}), notify_email: email || '', notify_daily: daily } });
+// Email on or off, and the address.
+function saveNotify(ctx, { email, enabled }) {
+  if (enabled && !email) throw new AppError('VALIDATION', {}, { email: { code: 'val.required', params: {} } });
+  const user = ctx.db.update('Users', ctx.user, { settings: { ...(ctx.user.settings || {}), 'notify.email': email || '', 'notify.email_enabled': enabled } });
   return saved(user.id, metaFor(user, ctx.db));
 }
 

@@ -124,7 +124,7 @@ test('closing keeps the month\'s reports as PDF and Excel, listed on the closing
   const month = lastMonth();
   s.call(s.owner, 'shareholders.shares.save', { from: '2000-01-01', shares: [{ shareholder_id: s.ids.karim, percent: 100 }] });
   s.call(s.owner, 'start.date.save', { start_date: plus(today(), 1) });
-  s.call(s.owner, 'me.notify', { email: 'owner@example.com', daily: false });
+  s.call(s.owner, 'me.notify', { email: 'owner@example.com', enabled: true });
   setSettings(s, 'shop', { 'shop.address': 'House 1, Sample Road' });
   s.call(s.owner, 'month.close', { month });
   const { files } = s.call(s.owner, 'month.view', { month }).data;

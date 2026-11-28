@@ -22,6 +22,7 @@ const PATHS = {
   badge: 'M4 5h16v14H4zM8.5 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM5.5 16.5c.5-1.8 1.6-2.7 3-2.7s2.5.9 3 2.7M14 9.5h3.5M14 13h3.5',
   menu: 'M4 7h16M4 12h16M4 17h16',
   close: 'M6 6l12 12M18 6 6 18',
+  bell: 'M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0',
 };
 
 export function icon(name) {
