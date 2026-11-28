@@ -4,6 +4,7 @@
 
 import { AppError } from '../../shared/contract/errors.js';
 import { saved } from '../../shared/contract/reply.js';
+import { stem } from './lists.js';
 
 const fieldError = (field, code, params = {}) => new AppError('VALIDATION', {}, { [field]: { code, params } });
 
@@ -39,11 +40,6 @@ function upsert(db, table, input, fields) {
 function sameName(rows, input) {
   const name = input.name.toLowerCase();
   return rows.find((r) => r.id !== input.id && r.name.toLowerCase() === name);
-}
-
-// "Utility" and "Utilities", "Snack" and "Snacks": the same word.
-function stem(name) {
-  return name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '').replace(/ies$/u, 'y').replace(/(?:es|s)$/u, '');
 }
 
 function saveAccount(ctx, input) {

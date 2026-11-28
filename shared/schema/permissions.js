@@ -27,6 +27,9 @@
 //   acc.approve       approve entries waiting for a shareholder
 //   acc.setup         money accounts, categories, due contacts, shareholders
 //   settings.manage   business settings (approvals)
+//   setup.hr          HR lists: departments, designations, employment
+//                     types, document categories
+//   setup.tasks       task categories
 //   me.password       change one's own password (shareholders; others only
 //                     when a shareholder allows it on their sign-in)
 //   staff.view        see staff records (without the private parts below)
@@ -62,7 +65,7 @@
 // payslips, tasks, reviews, and reading what is addressed to them without a
 // permission.
 const PERMISSIONS = Object.freeze([
-  'users.manage', 'audit.view', 'settings.manage', 'me.password',
+  'users.manage', 'audit.view', 'settings.manage', 'me.password', 'setup.hr', 'setup.tasks',
   'acc.entry', 'acc.expense', 'acc.income', 'acc.dues', 'acc.loans', 'acc.transfer', 'acc.shareholders',
   'acc.daily', 'closing.day', 'closing.month', 'acc.view_all', 'acc.approve', 'acc.setup',
   'acc.vendor.purchase', 'acc.vendor.pay', 'acc.publisher.pay',

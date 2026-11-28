@@ -37,6 +37,7 @@ const ERRORS = Object.freeze({
   NOTICE: 'err.notice',
   NO_DAYS: 'err.no_days',
   PAYSLIPS_MISSING: 'err.payslips_missing',
+  IN_USE: 'err.in_use',
 });
 
 export class AppError extends Error {

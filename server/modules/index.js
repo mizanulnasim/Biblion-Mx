@@ -15,6 +15,7 @@ import { META_HANDLERS } from './meta.js';
 import { MONEY_HANDLERS } from './money.js';
 import { SETTINGS_HANDLERS } from './settings.js';
 import { SETUP_MONEY_HANDLERS } from './setup-money.js';
+import { LIST_HANDLERS } from './lists.js';
 import { REQUISITION_HANDLERS } from './requisitions.js';
 import { SHIFT_HANDLERS } from './shift.js';
 import { SPECIAL_ORDER_HANDLERS } from './special-orders.js';
@@ -51,6 +52,7 @@ export const HANDLERS = Object.freeze({
   ...AUDIT_HANDLERS,
   ...SETTINGS_HANDLERS,
   ...SETUP_MONEY_HANDLERS,
+  ...LIST_HANDLERS,
   ...MONEY_HANDLERS,
   ...SHIFT_HANDLERS,
   ...CLOSING_HANDLERS,

@@ -4,6 +4,8 @@
 // `secret` columns are never copied into the activity log.
 // `log` tables are not themselves written to the activity log.
 
+import { listTables } from '../../shared/lists/lists.js';
+
 export const BASE_COLUMNS = Object.freeze(['id', 'created_at', 'created_by', 'updated_at', 'updated_by', 'version:n']);
 
 export const TABLES = Object.freeze({
@@ -504,4 +506,6 @@ export const TABLES = Object.freeze({
     columns: ['user_id', 'user_name', 'action', 'table_name', 'record_id', 'before:j', 'after:j', 'reason', 'op_id'],
     log: true,
   },
+  // Setup lists described in shared/lists/lists.js.
+  ...listTables(),
 });

@@ -48,6 +48,8 @@ export const NAV = Object.freeze([
   { path: '/users', group: 'people', title: 'nav.users', hint: 'nav.users_hint', icon: 'users', perm: 'users.manage' },
   { path: '/activity', group: 'people', title: 'nav.activity', hint: 'nav.activity_hint', icon: 'log', perm: 'audit.view' },
   { path: '/start', group: 'settings', title: 'nav.start', hint: 'nav.start_hint', icon: 'check', perm: 'acc.setup' },
+  { path: '/setup/hr', group: 'settings', title: 'nav.setup_hr', hint: 'nav.setup_hr_hint', icon: 'badge', perm: 'setup.hr' },
+  { path: '/setup/tasks', group: 'settings', title: 'nav.setup_tasks', hint: 'nav.setup_tasks_hint', icon: 'check', perm: 'setup.tasks' },
   { path: '/settings/shop', group: 'settings', title: 'nav.settings_shop', hint: 'nav.settings_shop_hint', icon: 'settings', perm: 'settings.manage' },
   { path: '/settings/intake', group: 'settings', title: 'nav.settings_intake', hint: 'nav.settings_intake_hint', icon: 'settings', perm: 'settings.manage' },
   { path: '/settings/cafe', group: 'settings', title: 'nav.settings_cafe', hint: 'nav.settings_cafe_hint', icon: 'settings', perm: 'settings.manage' },

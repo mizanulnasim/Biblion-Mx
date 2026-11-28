@@ -17,6 +17,7 @@ import { PUNCH_TYPES } from '../hr/attendance.js';
 import { PRIORITIES, REPEATS, TASK_ROLES } from '../tasks/tasks.js';
 import { REPORTS } from '../reports/reports.js';
 import { MANUAL_STEPS } from '../schema/start.js';
+import { LISTS, listSchema } from '../lists/lists.js';
 
 // Bumped whenever a request or reply changes shape. A client built for another
 // contract is told to update itself (v1 bug S10).
@@ -77,7 +78,21 @@ const DECISION = {
   note: { type: 'text', max: 200 },
 };
 
+// Each setup list's actions: list.<key> reads it, .save adds or edits a
+// record, .remove deletes an unused one (shareholders only).
+function listActions() {
+  const out = {};
+  for (const key of Object.keys(LISTS)) {
+    const { perm, group } = LISTS[key];
+    out[`list.${key}`] = { perm };
+    out[`list.${key}.save`] = { write: true, perm, area: group, schema: listSchema(key) };
+    out[`list.${key}.remove`] = { write: true, perm, area: group, schema: { id: { type: 'id', required: true }, version: { type: 'int', required: true, min: 1 } } };
+  }
+  return out;
+}
+
 export const ACTIONS = Object.freeze({
+  ...listActions(),
   'ping': { public: true },
   'setup.status': { public: true },
   'setup.owner': {

@@ -8,6 +8,7 @@ import { CONTRACT } from '../../shared/contract/actions.js';
 import { createDatabase, isInitialized, newId } from '../store/db.js';
 import { deleteProp, getProp, setProp } from '../platform.js';
 import { passwordFields } from './auth.js';
+import { seedLists } from './lists.js';
 
 function hasOwner(db) {
   return isInitialized() && db.all('Users').length > 0;
@@ -44,6 +45,7 @@ function setupOwner(ctx, input) {
     failed_attempts: 0,
     ...passwordFields(input.password),
   });
+  seedLists(db);
   deleteProp('SETUP_CODE');
   deleteProp('SETUP_FAILS');
   return saved(id);
